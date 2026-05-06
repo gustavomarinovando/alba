@@ -1,0 +1,1634 @@
+{
+  "app": "ciclo-local",
+  "version": 1,
+  "exportedAt": "2026-05-06T12:00:00.000Z",
+  "entries": [
+    {
+      "date": "2026-02-06",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-06",
+          "time": "06:50",
+          "value": 36.39,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-06T12:00:00.000Z",
+      "updatedAt": "2026-02-06T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-07",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-07",
+          "time": "07:02",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-07T12:00:00.000Z",
+      "updatedAt": "2026-02-07T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-08",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-08",
+          "time": "07:10",
+          "value": 36.41,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-08T12:00:00.000Z",
+      "updatedAt": "2026-02-08T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-09",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-09",
+          "time": "07:18",
+          "value": 36.37,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-09T12:00:00.000Z",
+      "updatedAt": "2026-02-09T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-10",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-10",
+          "time": "06:50",
+          "value": 36.4,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-10T12:00:00.000Z",
+      "updatedAt": "2026-02-10T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-11",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-11",
+          "time": "07:02",
+          "value": 36.38,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-11T12:00:00.000Z",
+      "updatedAt": "2026-02-11T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-12",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-12",
+          "time": "07:10",
+          "value": 36.35,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-12T12:00:00.000Z",
+      "updatedAt": "2026-02-12T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-13",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-13",
+          "time": "07:18",
+          "value": 36.39,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Inicio de menstruacion.",
+      "createdAt": "2026-02-13T12:00:00.000Z",
+      "updatedAt": "2026-02-13T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-14",
+      "isPeriod": true,
+      "flow": "heavy",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-14",
+          "time": "06:50",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-14T12:00:00.000Z",
+      "updatedAt": "2026-02-14T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-15",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-15",
+          "time": "07:02",
+          "value": 36.41,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-15T12:00:00.000Z",
+      "updatedAt": "2026-02-15T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-16",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-16",
+          "time": "07:10",
+          "value": 36.37,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-16T12:00:00.000Z",
+      "updatedAt": "2026-02-16T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-17",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-17",
+          "time": "07:18",
+          "value": 36.4,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-17T12:00:00.000Z",
+      "updatedAt": "2026-02-17T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-18",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-18",
+          "time": "06:50",
+          "value": 36.33,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-18T12:00:00.000Z",
+      "updatedAt": "2026-02-18T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-19",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-19",
+          "time": "07:02",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-19T12:00:00.000Z",
+      "updatedAt": "2026-02-19T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-20",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-20",
+          "time": "07:10",
+          "value": 36.31,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-20T12:00:00.000Z",
+      "updatedAt": "2026-02-20T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-21",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-21",
+          "time": "07:18",
+          "value": 36.29,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-21T12:00:00.000Z",
+      "updatedAt": "2026-02-21T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-22",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-22",
+          "time": "06:50",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-22T12:00:00.000Z",
+      "updatedAt": "2026-02-22T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-23",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-23",
+          "time": "07:02",
+          "value": 36.34,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-23T12:00:00.000Z",
+      "updatedAt": "2026-02-23T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-24",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-24",
+          "time": "07:10",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-24T12:00:00.000Z",
+      "updatedAt": "2026-02-24T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-25",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-25",
+          "time": "07:18",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-25T12:00:00.000Z",
+      "updatedAt": "2026-02-25T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-26",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-26",
+          "time": "06:50",
+          "value": 36.3,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-26T12:00:00.000Z",
+      "updatedAt": "2026-02-26T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-27",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-27",
+          "time": "07:02",
+          "value": 36.54,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-02-27T12:00:00.000Z",
+      "updatedAt": "2026-02-27T12:00:00.000Z"
+    },
+    {
+      "date": "2026-02-28",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-02-28",
+          "time": "07:10",
+          "value": 36.57,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Subida de temperatura observada.",
+      "createdAt": "2026-02-28T12:00:00.000Z",
+      "updatedAt": "2026-02-28T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-01",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-01",
+          "time": "07:18",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-01T12:00:00.000Z",
+      "updatedAt": "2026-03-01T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-02",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-02",
+          "time": "06:50",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-02T12:00:00.000Z",
+      "updatedAt": "2026-03-02T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-03",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-03",
+          "time": "07:02",
+          "value": 36.72,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-03T12:00:00.000Z",
+      "updatedAt": "2026-03-03T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-04",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-04",
+          "time": "07:10",
+          "value": 36.62,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-04T12:00:00.000Z",
+      "updatedAt": "2026-03-04T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-05",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-05",
+          "time": "07:18",
+          "value": 36.61,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-05T12:00:00.000Z",
+      "updatedAt": "2026-03-05T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-06",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-06",
+          "time": "06:50",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-06T12:00:00.000Z",
+      "updatedAt": "2026-03-06T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-07",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-07",
+          "time": "07:02",
+          "value": 36.66,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-07T12:00:00.000Z",
+      "updatedAt": "2026-03-07T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-08",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-08",
+          "time": "07:10",
+          "value": 36.73,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-08T12:00:00.000Z",
+      "updatedAt": "2026-03-08T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-09",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-09",
+          "time": "07:18",
+          "value": 36.61,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-09T12:00:00.000Z",
+      "updatedAt": "2026-03-09T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-10",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-10",
+          "time": "06:50",
+          "value": 36.66,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-10T12:00:00.000Z",
+      "updatedAt": "2026-03-10T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-11",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-11",
+          "time": "07:02",
+          "value": 36.66,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-11T12:00:00.000Z",
+      "updatedAt": "2026-03-11T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-12",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-12",
+          "time": "07:10",
+          "value": 36.65,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-12T12:00:00.000Z",
+      "updatedAt": "2026-03-12T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-13",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-13",
+          "time": "07:18",
+          "value": 36.63,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-13T12:00:00.000Z",
+      "updatedAt": "2026-03-13T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-14",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-14",
+          "time": "06:50",
+          "value": 36.52,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-03-14T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-15",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-15",
+          "time": "07:02",
+          "value": 36.59,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-15T12:00:00.000Z",
+      "updatedAt": "2026-03-15T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-16",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-16",
+          "time": "07:10",
+          "value": 36.37,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Inicio de menstruacion.",
+      "createdAt": "2026-03-16T12:00:00.000Z",
+      "updatedAt": "2026-03-16T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-17",
+      "isPeriod": true,
+      "flow": "heavy",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-17",
+          "time": "07:18",
+          "value": 36.4,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-17T12:00:00.000Z",
+      "updatedAt": "2026-03-17T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-18",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-18",
+          "time": "06:50",
+          "value": 36.38,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-18T12:00:00.000Z",
+      "updatedAt": "2026-03-18T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-19",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-19",
+          "time": "07:02",
+          "value": 36.35,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-19T12:00:00.000Z",
+      "updatedAt": "2026-03-19T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-20",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-20",
+          "time": "07:10",
+          "value": 36.39,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-20T12:00:00.000Z",
+      "updatedAt": "2026-03-20T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-21",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-21",
+          "time": "07:18",
+          "value": 36.31,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-21T12:00:00.000Z",
+      "updatedAt": "2026-03-21T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-22",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-22",
+          "time": "06:50",
+          "value": 36.38,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-22T12:00:00.000Z",
+      "updatedAt": "2026-03-22T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-23",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-23",
+          "time": "07:02",
+          "value": 36.29,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-23T12:00:00.000Z",
+      "updatedAt": "2026-03-23T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-24",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-24",
+          "time": "09:35",
+          "value": 36.52,
+          "isResting": false,
+          "note": "Medicion despues de actividad."
+        }
+      ],
+      "questionableTemp": true,
+      "note": "",
+      "createdAt": "2026-03-24T12:00:00.000Z",
+      "updatedAt": "2026-03-24T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-25",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-25",
+          "time": "07:18",
+          "value": 36.33,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-25T12:00:00.000Z",
+      "updatedAt": "2026-03-25T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-26",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-26",
+          "time": "06:50",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-26T12:00:00.000Z",
+      "updatedAt": "2026-03-26T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-27",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-27",
+          "time": "07:02",
+          "value": 36.31,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-27T12:00:00.000Z",
+      "updatedAt": "2026-03-27T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-28",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-28",
+          "time": "07:10",
+          "value": 36.29,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-28T12:00:00.000Z",
+      "updatedAt": "2026-03-28T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-29",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-29",
+          "time": "07:18",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-29T12:00:00.000Z",
+      "updatedAt": "2026-03-29T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-30",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-30",
+          "time": "06:50",
+          "value": 36.53,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-03-30T12:00:00.000Z",
+      "updatedAt": "2026-03-30T12:00:00.000Z"
+    },
+    {
+      "date": "2026-03-31",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-03-31",
+          "time": "07:02",
+          "value": 36.61,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Subida de temperatura observada.",
+      "createdAt": "2026-03-31T12:00:00.000Z",
+      "updatedAt": "2026-03-31T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-01",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-01",
+          "time": "07:10",
+          "value": 36.64,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-01T12:00:00.000Z",
+      "updatedAt": "2026-04-01T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-02",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-02",
+          "time": "07:18",
+          "value": 36.65,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-02T12:00:00.000Z",
+      "updatedAt": "2026-04-02T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-03",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-03",
+          "time": "06:50",
+          "value": 36.71,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-03T12:00:00.000Z",
+      "updatedAt": "2026-04-03T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-04",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-04",
+          "time": "09:35",
+          "value": 36.78,
+          "isResting": false,
+          "note": "Medicion despues de actividad."
+        }
+      ],
+      "questionableTemp": true,
+      "note": "",
+      "createdAt": "2026-04-04T12:00:00.000Z",
+      "updatedAt": "2026-04-04T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-05",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-05",
+          "time": "07:10",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-05T12:00:00.000Z",
+      "updatedAt": "2026-04-05T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-06",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-06",
+          "time": "07:18",
+          "value": 36.65,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-06T12:00:00.000Z",
+      "updatedAt": "2026-04-06T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-07",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-07",
+          "time": "06:50",
+          "value": 36.7,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-07T12:00:00.000Z",
+      "updatedAt": "2026-04-07T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-08",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-08",
+          "time": "07:02",
+          "value": 36.7,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-08T12:00:00.000Z",
+      "updatedAt": "2026-04-08T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-09",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-09",
+          "time": "07:10",
+          "value": 36.59,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-09T12:00:00.000Z",
+      "updatedAt": "2026-04-09T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-10",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-10",
+          "time": "07:18",
+          "value": 36.65,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-10T12:00:00.000Z",
+      "updatedAt": "2026-04-10T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-11",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-11",
+          "time": "06:50",
+          "value": 36.64,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-11T12:00:00.000Z",
+      "updatedAt": "2026-04-11T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-12",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-12",
+          "time": "07:02",
+          "value": 36.71,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-12T12:00:00.000Z",
+      "updatedAt": "2026-04-12T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-13",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-13",
+          "time": "07:10",
+          "value": 36.61,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-13T12:00:00.000Z",
+      "updatedAt": "2026-04-13T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-14",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-14",
+          "time": "07:18",
+          "value": 36.56,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-14T12:00:00.000Z",
+      "updatedAt": "2026-04-14T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-15",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-15",
+          "time": "06:50",
+          "value": 36.56,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-15T12:00:00.000Z",
+      "updatedAt": "2026-04-15T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-16",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-16",
+          "time": "07:02",
+          "value": 36.55,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-16T12:00:00.000Z",
+      "updatedAt": "2026-04-16T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-17",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-17",
+          "time": "07:10",
+          "value": 36.39,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Ultimo periodo de prueba.",
+      "createdAt": "2026-04-17T12:00:00.000Z",
+      "updatedAt": "2026-04-17T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-18",
+      "isPeriod": true,
+      "flow": "heavy",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-18",
+          "time": "07:18",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-18T12:00:00.000Z",
+      "updatedAt": "2026-04-18T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-19",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-19",
+          "time": "06:50",
+          "value": 36.41,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-19T12:00:00.000Z",
+      "updatedAt": "2026-04-19T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-20",
+      "isPeriod": true,
+      "flow": "medium",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-20",
+          "time": "07:02",
+          "value": 36.37,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-20T12:00:00.000Z",
+      "updatedAt": "2026-04-20T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-21",
+      "isPeriod": true,
+      "flow": "light",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-21",
+          "time": "07:10",
+          "value": 36.4,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-21T12:00:00.000Z",
+      "updatedAt": "2026-04-21T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-22",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-22",
+          "time": "07:18",
+          "value": 36.33,
+          "isResting": true,
+          "note": ""
+        },
+        {
+          "id": "demo-2026-04-22-extra",
+          "time": "11:15",
+          "value": 36.94,
+          "isResting": false,
+          "note": "Segunda medicion del dia."
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-22T12:00:00.000Z",
+      "updatedAt": "2026-04-22T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-23",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-23",
+          "time": "06:50",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-23T12:00:00.000Z",
+      "updatedAt": "2026-04-23T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-24",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-24",
+          "time": "07:02",
+          "value": 36.31,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-24T12:00:00.000Z",
+      "updatedAt": "2026-04-24T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-25",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-25",
+          "time": "07:10",
+          "value": 36.29,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-25T12:00:00.000Z",
+      "updatedAt": "2026-04-25T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-26",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-26",
+          "time": "07:18",
+          "value": 36.36,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-26T12:00:00.000Z",
+      "updatedAt": "2026-04-26T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-27",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-27",
+          "time": "06:50",
+          "value": 36.34,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-27T12:00:00.000Z",
+      "updatedAt": "2026-04-27T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-28",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-28",
+          "time": "07:02",
+          "value": 36.32,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-28T12:00:00.000Z",
+      "updatedAt": "2026-04-28T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-29",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-29",
+          "time": "09:35",
+          "value": 36.5,
+          "isResting": false,
+          "note": "Medicion despues de actividad."
+        }
+      ],
+      "questionableTemp": true,
+      "note": "",
+      "createdAt": "2026-04-29T12:00:00.000Z",
+      "updatedAt": "2026-04-29T12:00:00.000Z"
+    },
+    {
+      "date": "2026-04-30",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-04-30",
+          "time": "07:18",
+          "value": 36.3,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-04-30T12:00:00.000Z",
+      "updatedAt": "2026-04-30T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-01",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-01",
+          "time": "06:50",
+          "value": 36.54,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-05-01T12:00:00.000Z",
+      "updatedAt": "2026-05-01T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-02",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-02",
+          "time": "07:02",
+          "value": 36.57,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "Subida de temperatura observada.",
+      "createdAt": "2026-05-02T12:00:00.000Z",
+      "updatedAt": "2026-05-02T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-03",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-03",
+          "time": "07:10",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-05-03T12:00:00.000Z",
+      "updatedAt": "2026-05-03T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-04",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-04",
+          "time": "07:18",
+          "value": 36.67,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-05-04T12:00:00.000Z",
+      "updatedAt": "2026-05-04T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-05",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-05",
+          "time": "06:50",
+          "value": 36.72,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-05-05T12:00:00.000Z",
+      "updatedAt": "2026-05-05T12:00:00.000Z"
+    },
+    {
+      "date": "2026-05-06",
+      "isPeriod": false,
+      "flow": "none",
+      "temperatureReadings": [
+        {
+          "id": "demo-2026-05-06",
+          "time": "07:02",
+          "value": 36.62,
+          "isResting": true,
+          "note": ""
+        }
+      ],
+      "questionableTemp": false,
+      "note": "",
+      "createdAt": "2026-05-06T12:00:00.000Z",
+      "updatedAt": "2026-05-06T12:00:00.000Z"
+    }
+  ]
+}

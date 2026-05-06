@@ -1,0 +1,33 @@
+import type { CycleEntry, CycleStats } from "../types";
+
+export interface GeminiInsightPayload {
+  entries: CycleEntry[];
+  stats: CycleStats;
+  selectedDate: string;
+}
+
+export function buildGeminiPrompt(payload: GeminiInsightPayload): string {
+  const compactEntries = payload.entries.slice(-90).map((entry) => ({
+    date: entry.date,
+    period: entry.isPeriod,
+    flow: entry.flow,
+    temperatures: entry.temperatureReadings.map((reading) => ({
+      time: reading.time,
+      value: reading.value,
+      resting: reading.isResting,
+    })),
+    note: entry.note || undefined,
+  }));
+
+  return [
+    "Eres una asistente educativa para una app privada de registro menstrual y temperatura basal.",
+    "Responde en espanol claro, calido y breve. No diagnostiques, no des recomendaciones anticonceptivas, no afirmes ovulacion con certeza y no sustituyas atencion medica.",
+    "Interpreta los datos como patrones observacionales. Si faltan datos, dilo con suavidad.",
+    "Incluye 3 secciones con titulos cortos: Lectura, Datos a cuidar, Siguiente registro.",
+    "Maximo 170 palabras.",
+    "",
+    `Fecha seleccionada: ${payload.selectedDate}`,
+    `Resumen calculado: ${JSON.stringify(payload.stats)}`,
+    `Registros recientes: ${JSON.stringify(compactEntries)}`,
+  ].join("\n");
+}
