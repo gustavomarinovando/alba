@@ -811,20 +811,37 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
 function StoryPhoto({ src, index }: { src: string; index: number }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const tiltPattern = [-3.2, 2.4, -1.7, 3.1, -2.2, 1.5, -0.8, 2.7];
+  const xPattern = [-14, 10, -6, 15, -11, 5, -2, 12];
+  const tilt = tiltPattern[(index - 1) % tiltPattern.length];
+  const xOffset = xPattern[(index - 1) % xPattern.length];
+  const settledY = Math.max(-34, (index - 1) * -1.2);
 
   return (
-    <figure className="story-photo" style={{ "--tilt": `${((index % 7) - 3) * 1.4}deg`, "--lift": `${index * -10}px` } as React.CSSProperties}>
-      {!failed ? (
-        <img
-          src={src}
-          alt=""
-          className={loaded ? "story-image loaded" : "story-image"}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-        />
-      ) : null}
-      <div className="story-photo-fallback" aria-hidden="true" />
-    </figure>
+    <div className="story-photo-step">
+      <figure
+        className="story-photo"
+        style={
+          {
+            "--tilt": `${tilt}deg`,
+            "--x-offset": `${xOffset}px`,
+            "--settled-y": `${settledY}px`,
+            "--z": index,
+          } as React.CSSProperties
+        }
+      >
+        {!failed ? (
+          <img
+            src={src}
+            alt=""
+            className={loaded ? "story-image loaded" : "story-image"}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+          />
+        ) : null}
+        <div className="story-photo-fallback" aria-hidden="true" />
+      </figure>
+    </div>
   );
 }
 
