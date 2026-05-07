@@ -1,4 +1,10 @@
-import type { CycleEntry, TemperatureReading } from "../types";
+import type { CycleEntry, TemperatureReading, TemperatureSite } from "../types";
+
+const allowedSites = new Set<TemperatureSite>(["oral", "axillary", "vaginal"]);
+
+function normalizeSite(site?: string): TemperatureSite {
+  return allowedSites.has(site as TemperatureSite) ? (site as TemperatureSite) : "oral";
+}
 
 export function createTemperatureReading(value?: number): TemperatureReading {
   const now = new Date();
@@ -8,6 +14,7 @@ export function createTemperatureReading(value?: number): TemperatureReading {
     time: now.toTimeString().slice(0, 5),
     value: value ?? 36.5,
     isResting: true,
+    site: "oral",
     note: "",
   };
 }
@@ -21,6 +28,7 @@ export function normalizeTemperatureReadings(entry: Partial<CycleEntry>): Temper
         time: reading.time || "07:00",
         value: reading.value,
         isResting: reading.isResting !== false,
+        site: normalizeSite(reading.site),
         note: reading.note || "",
       }));
   }
@@ -32,6 +40,7 @@ export function normalizeTemperatureReadings(entry: Partial<CycleEntry>): Temper
         time: "07:00",
         value: entry.temperature,
         isResting: !entry.questionableTemp,
+        site: "oral",
         note: "",
       },
     ];
@@ -42,7 +51,17 @@ export function normalizeTemperatureReadings(entry: Partial<CycleEntry>): Temper
 
 export function getPrimaryTemperature(entry?: CycleEntry): TemperatureReading | undefined {
   if (!entry || entry.temperatureReadings.length === 0) return undefined;
-  return entry.temperatureReadings.find((reading) => reading.isResting) ?? entry.temperatureReadings[0];
+  return (
+    entry.temperatureReadings.find((reading) => reading.site === "oral" && reading.isResting) ??
+    entry.temperatureReadings.find((reading) => reading.site === "oral") ??
+    entry.temperatureReadings.find((reading) => reading.isResting) ??
+    entry.temperatureReadings[0]
+  );
+}
+
+export function getOralTemperature(entry?: CycleEntry): TemperatureReading | undefined {
+  if (!entry || entry.temperatureReadings.length === 0) return undefined;
+  return entry.temperatureReadings.find((reading) => reading.site === "oral" && reading.isResting) ?? entry.temperatureReadings.find((reading) => reading.site === "oral");
 }
 
 export function hasMeaningfulEntry(entry: CycleEntry): boolean {

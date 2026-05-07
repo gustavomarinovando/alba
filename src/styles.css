@@ -106,6 +106,10 @@ textarea {
     @apply hover:border-coral hover:bg-coral/10 hover:text-coral focus:ring-coral/30;
   }
 
+  .secondary-button.active-demo {
+    @apply border-marigold/70 bg-marigold/20 text-white shadow-[0_0_0_1px_rgba(215,199,131,0.16),0_14px_38px_rgba(215,199,131,0.13)] hover:border-marigold hover:bg-marigold/25 hover:text-white focus:ring-marigold/35;
+  }
+
   .text-button {
     @apply inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-moss transition hover:bg-moss/10 focus:outline-none focus:ring-2 focus:ring-moss/30;
   }
@@ -225,7 +229,7 @@ textarea {
   }
 
   .temperature-row {
-    @apply grid grid-cols-[1fr_1fr_auto_auto] items-center gap-2 rounded border border-white/10 bg-white/5 p-2;
+    @apply grid grid-cols-2 items-center gap-2 rounded border border-white/10 bg-white/5 p-2 sm:grid-cols-[0.8fr_0.8fr_1fr_auto_auto];
   }
 
   .mini-check {
@@ -239,6 +243,18 @@ textarea {
   .advanced-panel {
     @apply rounded border border-white/10 bg-white/[0.04] p-3;
     animation: rise-in 220ms ease both;
+  }
+
+  .input-card {
+    @apply rounded border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)];
+  }
+
+  .input-card h3 {
+    @apply text-base font-semibold text-white;
+  }
+
+  .input-card p {
+    @apply mb-3 mt-1 text-sm leading-6 text-white/70;
   }
 
   .phase-strip {
@@ -256,6 +272,18 @@ textarea {
   .legend-row span {
     @apply h-3 w-3 rounded-full;
   }
+
+  .phase-explainer {
+    @apply rounded border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-white/75;
+  }
+
+  .phase-explainer strong {
+    @apply mb-1 block text-sm font-semibold;
+  }
+
+.phase-explainer span {
+  @apply text-white/70;
+}
 
   .anniversary-story {
     @apply fixed inset-0 z-50 overflow-y-auto bg-[#05080d] text-white;

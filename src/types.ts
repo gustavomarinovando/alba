@@ -4,12 +4,14 @@ export type CervicalMucus = "dry" | "sticky" | "creamy" | "watery" | "eggwhite";
 export type CervixHeight = "low" | "middle" | "high";
 export type CervixFirmness = "firm" | "medium" | "soft";
 export type CervixOpenness = "closed" | "middle" | "open";
+export type TemperatureSite = "oral" | "axillary" | "vaginal";
 
 export interface TemperatureReading {
   id: string;
   time: string;
   value: number;
   isResting: boolean;
+  site: TemperatureSite;
   note: string;
 }
 

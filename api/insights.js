@@ -53,7 +53,14 @@ function buildGeminiPrompt(payload) {
       time: reading.time,
       value: reading.value,
       resting: reading.isResting,
+      site: reading.site,
     })),
+    cervicalMucus: entry.cervicalMucus,
+    cervix: {
+      height: entry.cervixHeight,
+      firmness: entry.cervixFirmness,
+      openness: entry.cervixOpenness,
+    },
     note: entry.note || undefined,
   }));
 

@@ -4,7 +4,7 @@ import { getPeriodStarts } from "./cycles";
 import { isoDate } from "./date";
 import { getPrimaryTemperature } from "./temperature";
 
-export type CyclePhase = "period" | "follicular" | "fertile" | "thermal-shift" | "luteal" | "expected-period";
+export type CyclePhase = "period" | "follicular" | "fertile" | "possible-ovulation" | "thermal-shift" | "luteal" | "expected-period";
 export type PhaseConfidence = "alta" | "media" | "baja";
 
 export interface PhaseDay {
@@ -20,6 +20,7 @@ export const phaseMeta: Record<CyclePhase, { label: string; color: string; soft:
   period: { label: "Menstruacion", color: "#d89b8b", soft: "rgba(216,155,139,0.24)" },
   follicular: { label: "Folicular", color: "#8fb9ad", soft: "rgba(143,185,173,0.18)" },
   fertile: { label: "Ventana fertil estimada", color: "#d7c783", soft: "rgba(215,199,131,0.2)" },
+  "possible-ovulation": { label: "Posible ovulacion", color: "#f0dca2", soft: "rgba(240,220,162,0.24)" },
   "thermal-shift": { label: "Transicion termica", color: "#aeb7dc", soft: "rgba(174,183,220,0.22)" },
   luteal: { label: "Lutea", color: "#9fb7d8", soft: "rgba(159,183,216,0.18)" },
   "expected-period": { label: "Menstruacion estimada", color: "#c9a0b5", soft: "rgba(201,160,181,0.2)" },
@@ -58,9 +59,15 @@ export function buildPhaseMap(entries: CycleEntry[]): Map<string, PhaseDay> {
     } else if (tempShiftDay && cycleDay && cycleDay >= tempShiftDay + 1) {
       phase = "luteal";
       confidence = "media";
-    } else if (tempShiftDay && cycleDay && cycleDay >= tempShiftDay - 1 && cycleDay <= tempShiftDay + 1) {
+    } else if (tempShiftDay && cycleDay && cycleDay === tempShiftDay - 1) {
+      phase = "possible-ovulation";
+      confidence = "media";
+    } else if (tempShiftDay && cycleDay && cycleDay >= tempShiftDay && cycleDay <= tempShiftDay + 1) {
       phase = "thermal-shift";
       confidence = "media";
+    } else if (cycleDay && cycleDay === 15) {
+      phase = "possible-ovulation";
+      confidence = entry?.cervicalMucus === "eggwhite" ? "media" : "baja";
     } else if (cycleDay && cycleDay >= 9 && cycleDay <= 17) {
       phase = "fertile";
       confidence = entry?.cervicalMucus === "watery" || entry?.cervicalMucus === "eggwhite" ? "media" : "baja";
@@ -115,6 +122,7 @@ function describePhase(phase: CyclePhase, confidence: PhaseConfidence): string {
   const suffix = `Confianza ${confidence}.`;
   if (phase === "period") return `Dia marcado con menstruacion. ${suffix}`;
   if (phase === "fertile") return `Ventana fertil estimada por calendario y observaciones disponibles. ${suffix}`;
+  if (phase === "possible-ovulation") return `Dia donde podria concentrarse la ovulacion, segun calendario y/o cambio termico. No es confirmacion. ${suffix}`;
   if (phase === "thermal-shift") return `Posible transicion termica; conviene observar si la temperatura se sostiene. ${suffix}`;
   if (phase === "luteal") return `Temperaturas o dia del ciclo sugieren fase lutea. ${suffix}`;
   if (phase === "expected-period") return `Rango donde podria iniciar la siguiente menstruacion. ${suffix}`;

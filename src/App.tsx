@@ -1,4 +1,4 @@
-import { addMonths, format, isSameMonth, subMonths } from "date-fns";
+import { addDays, addMonths, differenceInCalendarDays, format, isSameMonth, parseISO, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   CalendarDays,
@@ -44,7 +44,8 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { createTemperatureReading, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
+import { isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
   CervixFirmness,
@@ -53,6 +54,7 @@ import type {
   CycleEntry,
   FlowLevel,
   TemperatureReading,
+  TemperatureSite,
 } from "./types";
 
 const flowOptions: Array<{ value: FlowLevel; label: string }> = [
@@ -63,6 +65,11 @@ const flowOptions: Array<{ value: FlowLevel; label: string }> = [
 ];
 
 const weekdayLabels = ["L", "M", "M", "J", "V", "S", "D"];
+const temperatureSiteOptions: Array<{ value: TemperatureSite; label: string }> = [
+  { value: "oral", label: "Bucal" },
+  { value: "axillary", label: "Axilar" },
+  { value: "vaginal", label: "Vaginal" },
+];
 const tabs = [
   { id: "today", label: "Hoy", icon: ClipboardList },
   { id: "calendar", label: "Calendario", icon: CalendarDays },
@@ -96,6 +103,9 @@ export default function App() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [insight, setInsight] = useState("");
   const [isInsightLoading, setIsInsightLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -111,21 +121,14 @@ export default function App() {
     async function loadInitialData() {
       try {
         const storedEntries = await getAllEntries();
-        if (storedEntries.length > 0) {
-          setEntries(storedEntries);
+        if (safeLocalGet("alba-demo-mode") === "true") {
+          setEntries(await loadMappedDemoEntries());
+          setIsDemoMode(true);
+          setStatus("Modo demo activo. Estos datos no se sincronizan.");
           return;
         }
 
-        if (safeLocalGet("alba-demo-autoloaded") === "true") {
-          setEntries([]);
-          return;
-        }
-
-        const response = await fetch("/sample-data/alba-demo.json");
-        const demoEntries = parseImport(await response.text());
-        await replaceEntries(demoEntries);
-        safeLocalSet("alba-demo-autoloaded", "true");
-        setEntries(await getAllEntries());
+        setEntries(storedEntries);
       } catch {
         setStatus("No se pudo abrir la base local.");
       }
@@ -188,9 +191,9 @@ export default function App() {
     date: entry.date,
     label: displayDate(entry.date, "d MMM"),
     tickLabel: index % 7 === 0 ? displayDate(entry.date, "d MMM") : "",
-    temperature: getPrimaryTemperature(entry)?.value,
+    temperature: getOralTemperature(entry)?.value,
     period: entry.isPeriod ? 1 : 0,
-    questionable: getPrimaryTemperature(entry)?.isResting === false,
+    questionable: getOralTemperature(entry)?.isResting === false,
   }));
   const chartStartIndex = Math.max(0, chartEndIndex - chartWindow + 1);
   const chartData = allChartData.slice(chartStartIndex, chartEndIndex + 1);
@@ -218,6 +221,13 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     };
 
+    if (isDemoMode) {
+      setEntries((current) => upsertEntry(current, normalized));
+      setSaveState("saved");
+      if (!options?.quiet) setStatus(`Registro demo de ${displayDate(normalized.date)} actualizado.`);
+      return;
+    }
+
     await saveEntry(normalized);
     setEntries(await getAllEntries());
     setSaveState("saved");
@@ -225,6 +235,13 @@ export default function App() {
   }
 
   async function removeSelected() {
+    if (isDemoMode) {
+      setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
+      setDraft(emptyEntry(selectedDate));
+      setStatus(`Registro demo de ${displayDate(selectedDate)} eliminado.`);
+      return;
+    }
+
     await deleteEntry(selectedDate);
     setEntries(await getAllEntries());
     setDraft(emptyEntry(selectedDate));
@@ -232,6 +249,14 @@ export default function App() {
   }
 
   async function wipeData() {
+    if (isDemoMode) {
+      safeLocalSet("alba-demo-mode", "false");
+      setIsDemoMode(false);
+      setEntries(await getAllEntries());
+      setStatus("Saliste del modo demo. Tus datos reales siguen intactos.");
+      return;
+    }
+
     if (!window.confirm("Esto borrara todos los registros locales de este dispositivo.")) return;
     await clearEntries();
     setEntries([]);
@@ -239,16 +264,66 @@ export default function App() {
   }
 
   async function loadDemoData() {
-    if (entries.length > 0 && !window.confirm("Esto reemplazara tus registros locales por datos de prueba.")) return;
-
     try {
-      const response = await fetch("/sample-data/alba-demo.json");
-      const imported = parseImport(await response.text());
-      await replaceEntries(imported);
-      setEntries(await getAllEntries());
-      setStatus("Datos de prueba cargados.");
+      const imported = await loadMappedDemoEntries();
+      safeLocalSet("alba-demo-mode", "true");
+      setIsDemoMode(true);
+      setEntries(imported);
+      setSelectedDate(imported.at(-1)?.date ?? isoDate(new Date()));
+      setVisibleMonth(new Date());
+      setStatus("Modo demo activo con los ultimos 90 dias. No se sincroniza con la nube.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudieron cargar los datos de prueba.");
+    }
+  }
+
+  async function exitDemoMode() {
+    safeLocalSet("alba-demo-mode", "false");
+    setIsDemoMode(false);
+    const storedEntries = await getAllEntries();
+    setEntries(storedEntries);
+    setSelectedDate(isoDate(new Date()));
+    setStatus("Modo demo desactivado. Volviste a tus datos reales.");
+  }
+
+  async function syncCloudData() {
+    if (isDemoMode) {
+      setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const mergedEntries = await syncWithSupabase(await getAllEntries());
+      await replaceEntries(mergedEntries);
+      setEntries(await getAllEntries());
+      setStatus("Datos sincronizados con la nube.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo sincronizar.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function testCloudConnection() {
+    if (!isSupabaseConfigured()) {
+      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para probar Supabase.");
+      return;
+    }
+
+    setIsTestingCloud(true);
+    try {
+      await testSupabaseConnection();
+      setStatus("Conexion con Supabase correcta. Tabla y permisos responden bien.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo probar Supabase.");
+    } finally {
+      setIsTestingCloud(false);
     }
   }
 
@@ -290,6 +365,8 @@ export default function App() {
     if (!file) return;
     try {
       const imported = parseImport(await file.text());
+      safeLocalSet("alba-demo-mode", "false");
+      setIsDemoMode(false);
       await replaceEntries(imported);
       setEntries(await getAllEntries());
       setStatus(`Importados ${imported.length} registros.`);
@@ -335,6 +412,11 @@ export default function App() {
             <div className="rounded border border-moss/25 bg-moss/10 px-3 py-2 text-sm text-white/82">
               <Info className="mr-2 inline h-4 w-4 text-moss" aria-hidden="true" />
               {status}
+            </div>
+          ) : null}
+          {isDemoMode ? (
+            <div className="rounded border border-marigold/35 bg-marigold/10 px-3 py-2 text-sm leading-6 text-white/82">
+              Estas explorando datos demo mapeados a los ultimos 90 dias. No se guardan en Supabase.
             </div>
           ) : null}
         </div>
@@ -433,7 +515,7 @@ export default function App() {
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Thermometer className="h-5 w-5 text-coral" aria-hidden="true" />
             <div>
-              <h2 className="text-lg font-semibold">Temperaturas recientes</h2>
+              <h2 className="text-lg font-semibold">Temperaturas bucales recientes</h2>
               <p className="text-xs text-white/55">
                 {chartData.length ? `${displayDate(chartData[0].date, "d MMM")} - ${displayDate(chartData.at(-1)!.date, "d MMM")}` : "Sin datos"}
               </p>
@@ -478,7 +560,7 @@ export default function App() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyState text="Registra temperaturas para ver la curva del ciclo." />
+            <EmptyState text="Registra temperaturas bucales para ver una curva comparable." />
           )}
         </div>
       </Panel>
@@ -497,6 +579,9 @@ export default function App() {
             </p>
           </div>
           <div className="space-y-3">
+            <div className="info-box">
+              Alba puede empezar simple: marca menstruacion, agrega temperatura si la tienes, y deja lo demas para cuando haga falta.
+            </div>
             <Stat label="Fase probable" value={selectedPhase?.label ?? "Sin datos"} />
             <Stat label="Dia del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
             <div className="info-box">{selectedPhase?.description ?? "Agrega datos para construir el mapa del ciclo."}</div>
@@ -511,6 +596,9 @@ export default function App() {
             </button>
           </div>
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
+            <div className="input-card">
+              <h3>1. Menstruacion</h3>
+              <p>Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado.</p>
             <label className="toggle-row">
               <input
                 type="checkbox"
@@ -538,7 +626,11 @@ export default function App() {
                 ))}
               </select>
             </div>
+            </div>
 
+            <div className="input-card">
+              <h3>2. Temperatura</h3>
+              <p>La toma bucal queda como referencia principal para la grafica. Si registras axilar o vaginal, Alba la guarda como contexto sin mezclar rutinas.</p>
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="field-label">Temperaturas</label>
@@ -557,6 +649,13 @@ export default function App() {
                     <div className="temperature-row" key={reading.id}>
                       <input aria-label="Hora" className="input mt-0" type="time" value={reading.time} onChange={(event) => updateTemperature(reading.id, { time: event.target.value })} />
                       <input aria-label="Temperatura" className="input mt-0" type="number" inputMode="decimal" min="34" max="42" step="0.01" value={reading.value} onChange={(event) => updateTemperature(reading.id, { value: Number(event.target.value) })} />
+                      <select className="input mt-0" aria-label="Lugar de medicion" value={reading.site} onChange={(event) => updateTemperature(reading.id, { site: event.target.value as TemperatureSite })}>
+                        {temperatureSiteOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                       <label className="mini-check">
                         <input type="checkbox" checked={reading.isResting} onChange={(event) => updateTemperature(reading.id, { isResting: event.target.checked })} />
                         Reposo
@@ -571,21 +670,29 @@ export default function App() {
             </div>
 
             <div className="info-box">
-              Marca reposo cuando la temperatura se tomo al despertar, antes de levantarse, o despues de un periodo sin actividad.
+              Marca reposo cuando la temperatura se tomo al despertar, antes de levantarse, o despues de un periodo sin actividad. Para comparar patrones, intenta usar siempre el mismo lugar de medicion.
+            </div>
             </div>
 
+            <div className="input-card">
+              <h3>3. Senales opcionales</h3>
+              <p>El moco cervical y el cuello ayudan a entender mejor el mapa, pero no hace falta llenarlos todos los dias.</p>
             <label className="toggle-row">
               <input type="checkbox" checked={showAdvanced} onChange={(event) => setShowAdvanced(event.target.checked)} />
               <span>Anadir mas informacion</span>
             </label>
 
             {showAdvanced ? renderAdvancedFields() : null}
+            </div>
 
+            <div className="input-card">
+              <h3>4. Nota libre</h3>
             <div>
               <label className="field-label" htmlFor="note">
                 Nota
               </label>
               <textarea id="note" className="input min-h-28 resize-y" placeholder="Ej: dormi poco, fiebre, dolor, viaje..." value={draft.note} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} />
+            </div>
             </div>
 
             <button className="primary-button" type="button" onClick={() => persistDraft()}>
@@ -651,6 +758,14 @@ export default function App() {
               </div>
             ))}
           </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {Object.entries(phaseMeta).map(([key, meta]) => (
+              <div className="phase-explainer" key={`explain-${key}`}>
+                <strong style={{ color: meta.color }}>{meta.label}</strong>
+                <span>{phaseExplanation(key)}</span>
+              </div>
+            ))}
+          </div>
         </Panel>
 
         <Panel>
@@ -705,9 +820,9 @@ export default function App() {
           <h2 className="text-lg font-semibold">Ajustes</h2>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <button className="secondary-button" type="button" onClick={loadDemoData}>
+          <button className={isDemoMode ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={isDemoMode ? exitDemoMode : loadDemoData}>
             <Database aria-hidden="true" size={17} />
-            Demo
+            {isDemoMode ? "Salir demo" : "Demo"}
           </button>
           <button className="secondary-button" type="button" onClick={exportData}>
             <Download aria-hidden="true" size={17} />
@@ -721,11 +836,32 @@ export default function App() {
             <Eraser aria-hidden="true" size={17} />
             Borrar
           </button>
+          <button className="secondary-button col-span-2" type="button" onClick={testCloudConnection} disabled={isTestingCloud}>
+            <Database aria-hidden="true" size={17} />
+            {isTestingCloud ? "Probando..." : "Probar conexion Supabase"}
+          </button>
+          <button className="secondary-button col-span-2" type="button" onClick={syncCloudData} disabled={isSyncing || isDemoMode}>
+            <Database aria-hidden="true" size={17} />
+            {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : "Sincronizar nube"}
+          </button>
+        </div>
+        <div className="info-box mt-3">
+          Sync usa Supabase con <strong>couple_id = 1</strong>. Los datos demo son solo para explorar y nunca se suben.
         </div>
         <input ref={importInput} className="hidden" type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} />
       </Panel>
     );
   }
+}
+
+function phaseExplanation(phase: string): string {
+  if (phase === "period") return "Dias donde se registro sangrado.";
+  if (phase === "follicular") return "El cuerpo se prepara para ovular; suele venir despues de la menstruacion.";
+  if (phase === "fertile") return "Ventana estimada donde conviene observar moco cervical y temperatura con mas atencion.";
+  if (phase === "possible-ovulation") return "Dia probable, no seguro. Alba lo estima con calendario y subida termica cuando existe.";
+  if (phase === "thermal-shift") return "La temperatura podria estar cambiando; se observa si se sostiene varios dias.";
+  if (phase === "luteal") return "Fase posterior a ovulacion probable; la temperatura suele verse mas alta.";
+  return "Rango estimado donde podria iniciar el siguiente periodo.";
 }
 
 function AdvancedSelect({
@@ -843,6 +979,38 @@ function StoryPhoto({ src, index }: { src: string; index: number }) {
       </figure>
     </div>
   );
+}
+
+async function loadMappedDemoEntries(): Promise<CycleEntry[]> {
+  const response = await fetch("/sample-data/alba-demo.json");
+  const imported = parseImport(await response.text()).slice(-90);
+  if (imported.length === 0) return [];
+
+  const firstDate = parseISO(imported[0].date);
+  const targetStart = addDays(new Date(), -(imported.length - 1));
+
+  return imported.map((entry) => {
+    const offset = differenceInCalendarDays(parseISO(entry.date), firstDate);
+    const date = isoDate(addDays(targetStart, offset));
+    const timestamp = `${date}T12:00:00.000Z`;
+
+    return {
+      ...entry,
+      date,
+      temperatureReadings: entry.temperatureReadings.map((reading) => ({
+        ...reading,
+        id: reading.id.startsWith("demo-") ? `demo-${date}-${reading.id.split("-").at(-1) ?? "temp"}` : `demo-${date}-${reading.id}`,
+      })),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+  });
+}
+
+function upsertEntry(entries: CycleEntry[], nextEntry: CycleEntry): CycleEntry[] {
+  const byDate = new Map(entries.map((entry) => [entry.date, entry]));
+  byDate.set(nextEntry.date, nextEntry);
+  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function safeSessionGet(key: string): string | null {
