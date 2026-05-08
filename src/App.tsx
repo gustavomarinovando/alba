@@ -111,12 +111,14 @@ export default function App() {
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
+  const [pendingTemperatureInput, setPendingTemperatureInput] = useState("36.9");
   const [pendingTemperatureSite, setPendingTemperatureSite] = useState<TemperatureSite>("oral");
   const [prioritizedEntryDate, setPrioritizedEntryDate] = useState<string | null>(null);
   const [lastTemperatureActionAt, setLastTemperatureActionAt] = useState(0);
   const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
   const [focusedSegmentId, setFocusedSegmentId] = useState<string | null>(null);
   const [mapTooltip, setMapTooltip] = useState<{ segmentId: string; anchorDate: string; pinned: boolean } | null>(null);
+  const [isMobileMap, setIsMobileMap] = useState(false);
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -159,6 +161,14 @@ export default function App() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileMap(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
   const entryByDate = useMemo(() => new Map(entries.map((entry) => [entry.date, entry])), [entries]);
   const stats = useMemo(() => calculateStats(entries), [entries]);
   const recentEntries = useMemo(() => getRecentEntries(entries, 92), [entries]);
@@ -169,7 +179,11 @@ export default function App() {
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
-  const registerTemperatureBlocked = Date.now() - lastTemperatureActionAt < 6000 || hasSameMinuteTemperature(draft, pendingTemperature, pendingTemperatureSite);
+  const parsedPendingTemperature = parseTemperatureInput(pendingTemperatureInput);
+  const registerTemperatureBlocked =
+    parsedPendingTemperature === undefined ||
+    Date.now() - lastTemperatureActionAt < 6000 ||
+    hasSameMinuteTemperature(draft, parsedPendingTemperature, pendingTemperatureSite);
   const selectedSegment = phaseSegments.find((segment) => selectedDate >= segment.start && selectedDate <= segment.end);
   const activeMapSegment = phaseSegments.find((segment) => segment.id === focusedSegmentId) ?? selectedSegment ?? phaseSegments[0];
   const activeMapPhase: CyclePhase = activeMapSegment?.phase ?? "follicular";
@@ -380,24 +394,39 @@ export default function App() {
       temperatureReadings: [...current.temperatureReadings, createTemperatureReading(value, site)],
     }));
     setPendingTemperature(36.9);
+    setPendingTemperatureInput("36.9");
     setPendingTemperatureSite("oral");
   }
 
   function saveQuickTemperature() {
     if (registerTemperatureBlocked) {
-      setStatus("Pausa unos segundos antes de registrar otra toma similar.");
+      setStatus(parsedPendingTemperature === undefined ? "Introduce una temperatura valida." : "Pausa unos segundos antes de registrar otra toma similar.");
       return;
     }
-    addTemperature(pendingTemperature, pendingTemperatureSite);
+    addTemperature(parsedPendingTemperature, pendingTemperatureSite);
     setLastTemperatureActionAt(Date.now());
   }
 
   function setPendingTemperatureValue(value: number) {
-    setPendingTemperature(clampTemperature(value));
+    const nextValue = clampTemperature(value);
+    setPendingTemperature(nextValue);
+    setPendingTemperatureInput(nextValue.toFixed(1));
   }
 
   function adjustPendingTemperature(delta: number) {
-    setPendingTemperatureValue(pendingTemperature + delta);
+    setPendingTemperatureValue((parseTemperatureInput(pendingTemperatureInput) ?? pendingTemperature) + delta);
+  }
+
+  function commitPendingTemperatureInput() {
+    const parsed = parseTemperatureInput(pendingTemperatureInput);
+    if (parsed === undefined) {
+      setPendingTemperatureInput(pendingTemperature.toFixed(1));
+      return;
+    }
+
+    const nextValue = clampTemperature(parsed);
+    setPendingTemperature(nextValue);
+    setPendingTemperatureInput(formatPendingTemperature(nextValue));
   }
 
   function updateTemperature(id: string, changes: Partial<TemperatureReading>) {
@@ -693,13 +722,12 @@ export default function App() {
                 <label className="temperature-display">
                   <input
                     aria-label="Temperatura"
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="34"
-                    max="42"
-                    step="0.1"
-                    value={pendingTemperature.toFixed(1)}
-                    onChange={(event) => setPendingTemperatureValue(Number(event.target.value))}
+                    placeholder="36.90"
+                    value={pendingTemperatureInput}
+                    onBlur={commitPendingTemperatureInput}
+                    onChange={(event) => setPendingTemperatureInput(cleanTemperatureInput(event.target.value))}
                   />
                   <span>C</span>
                 </label>
@@ -922,6 +950,7 @@ export default function App() {
                       theme="alba"
                       trigger="manual"
                       visible={mapTooltip?.segmentId === segment.id && mapTooltip.anchorDate === day.date}
+                      disabled={isMobileMap}
                     >
                       <button
                         className={segment.id === activeMapSegment?.id ? "phase-chip active" : "phase-chip"}
@@ -931,15 +960,15 @@ export default function App() {
                           event.stopPropagation();
                           setFocusedSegmentId(segment.id);
                           setSelectedDate(day.date);
-                          setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: true });
+                          setMapTooltip(isMobileMap ? null : { segmentId: segment.id, anchorDate: day.date, pinned: true });
                         }}
                         onFocus={() => {
                           setFocusedSegmentId(segment.id);
-                          if (!mapTooltip?.pinned && mapTooltip?.segmentId !== segment.id) setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
+                          if (!isMobileMap && !mapTooltip?.pinned && mapTooltip?.segmentId !== segment.id) setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
                         }}
                         onMouseEnter={() => {
                           setFocusedSegmentId(segment.id);
-                          if (mapTooltip?.pinned) return;
+                          if (isMobileMap || mapTooltip?.pinned) return;
                           if (mapTooltip?.segmentId === segment.id) return;
                           setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
                         }}
@@ -952,7 +981,7 @@ export default function App() {
               );
             })}
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="phase-legend mt-4 grid gap-2 sm:grid-cols-2">
             {Object.entries(phaseMeta).map(([key, meta]) => (
               <button
                 className={key === activeMapPhase ? "legend-row active" : "legend-row"}
@@ -961,12 +990,12 @@ export default function App() {
                 onClick={() => {
                   const segment = phaseSegments.find((item) => item.phase === key);
                   setFocusedSegmentId(segment?.id ?? null);
-                  setMapTooltip(segment ? { segmentId: segment.id, anchorDate: segment.start, pinned: true } : null);
+                  setMapTooltip(segment && !isMobileMap ? { segmentId: segment.id, anchorDate: segment.start, pinned: true } : null);
                   if (segment) setSelectedDate(segment.start);
                 }}
                 onFocus={() => setFocusedSegmentId(phaseSegments.find((segment) => segment.phase === key)?.id ?? null)}
                 onMouseEnter={() => {
-                  if (mapTooltip?.pinned) return;
+                  if (isMobileMap || mapTooltip?.pinned) return;
                   const segment = phaseSegments.find((item) => item.phase === key);
                   setFocusedSegmentId(segment?.id ?? null);
                   setMapTooltip(segment ? { segmentId: segment.id, anchorDate: segment.start, pinned: false } : null);
@@ -1091,7 +1120,25 @@ function phaseExplanation(phase: string): string {
 
 function clampTemperature(value: number): number {
   if (!Number.isFinite(value)) return 36.9;
-  return Math.min(42, Math.max(34, Math.round(value * 10) / 10));
+  return Math.min(42, Math.max(34, Math.round(value * 100) / 100));
+}
+
+function cleanTemperatureInput(value: string): string {
+  const normalized = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const [whole = "", ...rest] = normalized.split(".");
+  const decimal = rest.join("").slice(0, 2);
+  return rest.length > 0 ? `${whole.slice(0, 2)}.${decimal}` : whole.slice(0, 2);
+}
+
+function parseTemperatureInput(value: string): number | undefined {
+  if (!value || value === ".") return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 34 || parsed > 42) return undefined;
+  return parsed;
+}
+
+function formatPendingTemperature(value: number): string {
+  return Number.isInteger(value * 10) ? value.toFixed(1) : value.toFixed(2);
 }
 
 function shouldSurfacePeriod(entries: CycleEntry[], selectedDate: string, draft: CycleEntry): boolean {

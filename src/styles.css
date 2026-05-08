@@ -261,15 +261,15 @@ textarea {
   }
 
   .temperature-display {
-    @apply flex min-w-0 items-end justify-center gap-2 rounded border border-white/10 bg-[#101722] px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+    @apply flex min-w-0 items-center justify-center gap-1 rounded border border-white/10 bg-[#101722] px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
   }
 
   .temperature-display input {
-    @apply w-[7.5ch] bg-transparent text-center text-5xl font-semibold leading-none text-white outline-none sm:text-6xl;
+    @apply w-[5.4ch] bg-transparent text-center text-5xl font-semibold leading-none text-white outline-none placeholder:text-white/25 sm:text-6xl;
   }
 
   .temperature-display span {
-    @apply pb-1 text-lg font-semibold text-white/75;
+    @apply translate-y-1 text-lg font-semibold text-white/75;
   }
 
   .temperature-options {
@@ -351,6 +351,10 @@ textarea {
 
   .legend-row {
     @apply flex items-center gap-2 rounded border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-sm text-white/80 transition hover:border-moss/40 hover:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-moss/30;
+  }
+
+  .phase-legend {
+    @apply hidden md:grid;
   }
 
   .legend-row.active {
