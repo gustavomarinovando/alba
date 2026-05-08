@@ -48,7 +48,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { deleteSupabaseEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -146,6 +146,10 @@ export default function App() {
 
         setEntries(storedEntries);
         setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, storedEntries) ? selectedDate : null);
+
+        if (isSupabaseConfigured()) {
+          void syncCloudData({ quiet: true, entriesOverride: storedEntries });
+        }
       } catch {
         setStatus("No se pudo abrir la base local.");
       }
@@ -283,9 +287,13 @@ export default function App() {
     }
 
     await saveEntry(normalized);
-    setEntries(await getAllEntries());
+    const storedEntries = await getAllEntries();
+    setEntries(storedEntries);
     setSaveState("saved");
     if (!options?.quiet) setStatus(`Registro de ${displayDate(normalized.date)} guardado.`);
+    if (isSupabaseConfigured()) {
+      void syncCloudData({ quiet: true, entriesOverride: storedEntries });
+    }
   }
 
   async function removeSelected() {
@@ -302,6 +310,9 @@ export default function App() {
 
     setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
     await deleteEntry(selectedDate);
+    if (isSupabaseConfigured()) {
+      await deleteSupabaseEntry(selectedDate);
+    }
     const storedEntries = await getAllEntries();
     setEntries(storedEntries);
     setStatus(`Registro de ${displayDate(selectedDate)} eliminado.`);
@@ -347,25 +358,25 @@ export default function App() {
     setStatus("Modo demo desactivado. Volviste a tus datos reales.");
   }
 
-  async function syncCloudData() {
+  async function syncCloudData(options?: { quiet?: boolean; entriesOverride?: CycleEntry[] }) {
     if (isDemoMode) {
-      setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
+      if (!options?.quiet) setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
       return;
     }
 
     if (!isSupabaseConfigured()) {
-      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
+      if (!options?.quiet) setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
       return;
     }
 
     setIsSyncing(true);
     try {
-      const mergedEntries = await syncWithSupabase(await getAllEntries());
+      const mergedEntries = await syncWithSupabase(options?.entriesOverride ?? (await getAllEntries()));
       await replaceEntries(mergedEntries);
       setEntries(await getAllEntries());
-      setStatus("Datos sincronizados con la nube.");
+      if (!options?.quiet) setStatus("Datos sincronizados con la nube.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo sincronizar.");
+      if (!options?.quiet) setStatus(error instanceof Error ? error.message : "No se pudo sincronizar.");
     } finally {
       setIsSyncing(false);
     }
@@ -1094,7 +1105,7 @@ export default function App() {
             <Database aria-hidden="true" size={17} />
             {isTestingCloud ? "Probando..." : "Probar conexion Supabase"}
           </button>
-          <button className="secondary-button col-span-2" type="button" onClick={syncCloudData} disabled={isSyncing || isDemoMode}>
+          <button className="secondary-button col-span-2" type="button" onClick={() => syncCloudData()} disabled={isSyncing || isDemoMode}>
             <Database aria-hidden="true" size={17} />
             {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : "Sincronizar nube"}
           </button>

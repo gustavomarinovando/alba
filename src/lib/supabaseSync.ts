@@ -30,6 +30,17 @@ export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<Cycl
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function deleteSupabaseEntry(date: string): Promise<void> {
+  const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&date=eq.${date}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo borrar ese dia en Supabase.");
+  }
+}
+
 async function fetchRemoteEntries(): Promise<CycleEntry[]> {
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&select=date,entry,updated_at`, {
     headers: headers(),
