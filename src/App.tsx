@@ -1,5 +1,8 @@
 import { addDays, addMonths, differenceInCalendarDays, format, isSameMonth, parseISO, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
+import Tippy from "@tippyjs/react";
+import "tippy.js/dist/tippy.css";
+import "tippy.js/animations/shift-away-subtle.css";
 import {
   CalendarDays,
   ChevronLeft,
@@ -12,6 +15,7 @@ import {
   HeartPulse,
   Info,
   Loader2,
+  Minus,
   Plus,
   Save,
   Sparkles,
@@ -42,7 +46,7 @@ import {
   mucusOptions,
   optionLabel,
 } from "./lib/observations";
-import { buildPhaseMap, phaseMeta } from "./lib/phases";
+import { buildPhaseMap, phaseMeta, type CyclePhase } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
 import { isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
@@ -106,6 +110,12 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [pendingTemperature, setPendingTemperature] = useState(36.9);
+  const [pendingTemperatureSite, setPendingTemperatureSite] = useState<TemperatureSite>("oral");
+  const [prioritizedEntryDate, setPrioritizedEntryDate] = useState<string | null>(null);
+  const [lastTemperatureActionAt, setLastTemperatureActionAt] = useState(0);
+  const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
+  const [focusedPhase, setFocusedPhase] = useState<CyclePhase | null>(null);
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -122,13 +132,16 @@ export default function App() {
       try {
         const storedEntries = await getAllEntries();
         if (safeLocalGet("alba-demo-mode") === "true") {
-          setEntries(await loadMappedDemoEntries());
+          const demoEntries = await loadMappedDemoEntries();
+          setEntries(demoEntries);
+          setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, demoEntries) ? selectedDate : null);
           setIsDemoMode(true);
           setStatus("Modo demo activo. Estos datos no se sincronizan.");
           return;
         }
 
         setEntries(storedEntries);
+        setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, storedEntries) ? selectedDate : null);
       } catch {
         setStatus("No se pudo abrir la base local.");
       }
@@ -150,6 +163,15 @@ export default function App() {
   const phaseByDate = useMemo(() => buildPhaseMap(entries), [entries]);
   const selectedPhase = phaseByDate.get(selectedDate);
   const visiblePhaseDays = useMemo(() => getRecentEntries(entries, 60).map((entry) => phaseByDate.get(entry.date)).filter(Boolean), [entries, phaseByDate]);
+  const hasTemperatureToday = draft.temperatureReadings.length > 0;
+  const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
+  const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
+  const registerTemperatureBlocked = Date.now() - lastTemperatureActionAt < 6000 || hasSameMinuteTemperature(draft, pendingTemperature, pendingTemperatureSite);
+  const focusedPhaseDay = focusedPhase ? visiblePhaseDays.find((phase) => phase?.phase === focusedPhase) : undefined;
+  const activeMapDay = selectedPhase ?? focusedPhaseDay ?? visiblePhaseDays[0];
+  const activeMapPhase: CyclePhase = activeMapDay?.phase ?? focusedPhase ?? "follicular";
+  const activeMapMeta = phaseMeta[activeMapPhase];
+  const activeMapInsights = getPhaseDayInsights(activeMapDay, entryByDate.get(activeMapDay?.date ?? selectedDate), entries);
 
   useEffect(() => {
     if (!status) return;
@@ -166,6 +188,10 @@ export default function App() {
     setDraft(nextDraft);
     setShowAdvanced(Boolean(nextDraft.cervicalMucus || nextDraft.cervixHeight || nextDraft.cervixFirmness || nextDraft.cervixOpenness));
   }, [entryByDate, selectedDate]);
+
+  useEffect(() => {
+    setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, entries) ? selectedDate : null);
+  }, [selectedDate]);
 
   useEffect(() => {
     const existing = entryByDate.get(draft.date);
@@ -269,6 +295,7 @@ export default function App() {
       safeLocalSet("alba-demo-mode", "true");
       setIsDemoMode(true);
       setEntries(imported);
+      setPrioritizedEntryDate(shouldPrioritizeDate(imported.at(-1)?.date ?? isoDate(new Date()), imported) ? (imported.at(-1)?.date ?? isoDate(new Date())) : null);
       setSelectedDate(imported.at(-1)?.date ?? isoDate(new Date()));
       setVisibleMonth(new Date());
       setStatus("Modo demo activo con los ultimos 90 dias. No se sincroniza con la nube.");
@@ -283,6 +310,7 @@ export default function App() {
     const storedEntries = await getAllEntries();
     setEntries(storedEntries);
     setSelectedDate(isoDate(new Date()));
+    setPrioritizedEntryDate(shouldPrioritizeDate(isoDate(new Date()), storedEntries) ? isoDate(new Date()) : null);
     setStatus("Modo demo desactivado. Volviste a tus datos reales.");
   }
 
@@ -327,11 +355,30 @@ export default function App() {
     }
   }
 
-  function addTemperature() {
+  function addTemperature(value = pendingTemperature, site = pendingTemperatureSite) {
     setDraft((current) => ({
       ...current,
-      temperatureReadings: [...current.temperatureReadings, createTemperatureReading()],
+      temperatureReadings: [...current.temperatureReadings, createTemperatureReading(value, site)],
     }));
+    setPendingTemperature(36.9);
+    setPendingTemperatureSite("oral");
+  }
+
+  function saveQuickTemperature() {
+    if (registerTemperatureBlocked) {
+      setStatus("Pausa unos segundos antes de registrar otra toma similar.");
+      return;
+    }
+    addTemperature(pendingTemperature, pendingTemperatureSite);
+    setLastTemperatureActionAt(Date.now());
+  }
+
+  function setPendingTemperatureValue(value: number) {
+    setPendingTemperature(clampTemperature(value));
+  }
+
+  function adjustPendingTemperature(delta: number) {
+    setPendingTemperatureValue(pendingTemperature + delta);
   }
 
   function updateTemperature(id: string, changes: Partial<TemperatureReading>) {
@@ -570,7 +617,7 @@ export default function App() {
   function renderToday() {
     return (
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
-        <Panel>
+        <Panel className={shouldPrioritizeEntry ? "order-2" : ""}>
           <div className="mb-4">
             <p className="text-sm text-white/70">{displayDate(selectedDate, "EEEE")}</p>
             <h2 className="text-xl font-semibold capitalize">{displayDate(selectedDate)}</h2>
@@ -588,94 +635,174 @@ export default function App() {
           </div>
         </Panel>
 
-        <Panel>
+        <Panel className={shouldPrioritizeEntry ? "order-1" : ""}>
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Registro del dia</h2>
-            <button className="icon-button danger" title="Eliminar registro del dia" onClick={removeSelected} type="button">
+            <button className="icon-button danger" title="Eliminar todos los registros de este dia" onClick={() => setShowDeleteDayConfirm(true)} type="button">
               <Trash2 aria-hidden="true" size={18} />
             </button>
           </div>
-          <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-            <div className="input-card">
-              <h3>1. Menstruacion</h3>
-              <p>Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado.</p>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={draft.isPeriod}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    isPeriod: event.target.checked,
-                    flow: event.target.checked ? (current.flow === "none" ? "light" : current.flow) : "none",
-                  }))
-                }
-              />
-              <span>Hoy hubo menstruacion</span>
-            </label>
-
-            <div>
-              <label className="field-label" htmlFor="flow">
-                Flujo menstrual
-              </label>
-              <select id="flow" className="input" value={draft.flow} disabled={!draft.isPeriod} onChange={(event) => setDraft((current) => ({ ...current, flow: event.target.value as FlowLevel }))}>
-                {flowOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            </div>
-
-            <div className="input-card">
-              <h3>2. Temperatura</h3>
-              <p>La toma bucal queda como referencia principal para la grafica. Si registras axilar o vaginal, Alba la guarda como contexto sin mezclar rutinas.</p>
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="field-label">Temperaturas</label>
-                <button className="text-button" type="button" onClick={addTemperature}>
-                  <Plus aria-hidden="true" size={16} />
-                  Agregar
+          {showDeleteDayConfirm ? (
+            <div className="confirm-box">
+              <strong>Eliminar registros del dia</strong>
+              <span>Esto borrara menstruacion, temperaturas, senales y notas de {displayDate(selectedDate)}.</span>
+              <div className="flex gap-2">
+                <button className="secondary-button danger" type="button" onClick={() => { void removeSelected(); setShowDeleteDayConfirm(false); }}>
+                  Eliminar dia
+                </button>
+                <button className="secondary-button" type="button" onClick={() => setShowDeleteDayConfirm(false)}>
+                  Cancelar
                 </button>
               </div>
-              <div className="space-y-2">
-                {draft.temperatureReadings.length === 0 ? (
-                  <div className="rounded border border-dashed border-white/15 p-3 text-sm text-white/65">
-                    Agrega una temperatura cuando quieras registrar una medicion.
-                  </div>
-                ) : (
-                  draft.temperatureReadings.map((reading) => (
-                    <div className="temperature-row" key={reading.id}>
-                      <input aria-label="Hora" className="input mt-0" type="time" value={reading.time} onChange={(event) => updateTemperature(reading.id, { time: event.target.value })} />
-                      <input aria-label="Temperatura" className="input mt-0" type="number" inputMode="decimal" min="34" max="42" step="0.01" value={reading.value} onChange={(event) => updateTemperature(reading.id, { value: Number(event.target.value) })} />
-                      <select className="input mt-0" aria-label="Lugar de medicion" value={reading.site} onChange={(event) => updateTemperature(reading.id, { site: event.target.value as TemperatureSite })}>
-                        {temperatureSiteOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="mini-check">
-                        <input type="checkbox" checked={reading.isResting} onChange={(event) => updateTemperature(reading.id, { isResting: event.target.checked })} />
-                        Reposo
-                      </label>
-                      <button className="icon-button compact danger" title="Quitar temperatura" type="button" onClick={() => removeTemperature(reading.id)}>
-                        <Trash2 aria-hidden="true" size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
+            </div>
+          ) : null}
+          <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
+            <div className="input-card primary-entry-card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="eyebrow">Principal</span>
+                  <h3>Temperatura de hoy</h3>
+                  <p>Escribe la temperatura. La hora se guarda sola al registrar la toma.</p>
+                </div>
+                {hasTemperatureToday ? <span className="saved-pill">Lista</span> : null}
               </div>
+
+              <div className="temperature-picker" aria-label="Temperatura">
+                <button className="temp-stepper" type="button" aria-label="Bajar temperatura" onClick={() => adjustPendingTemperature(-0.1)}>
+                  <Minus aria-hidden="true" size={20} />
+                </button>
+                <label className="temperature-display">
+                  <input
+                    aria-label="Temperatura"
+                    type="number"
+                    inputMode="decimal"
+                    min="34"
+                    max="42"
+                    step="0.1"
+                    value={pendingTemperature.toFixed(1)}
+                    onChange={(event) => setPendingTemperatureValue(Number(event.target.value))}
+                  />
+                  <span>C</span>
+                </label>
+                <button className="temp-stepper" type="button" aria-label="Subir temperatura" onClick={() => adjustPendingTemperature(0.1)}>
+                  <Plus aria-hidden="true" size={20} />
+                </button>
+              </div>
+
+              <div className="temperature-options">
+                <select
+                  className="input mt-0"
+                  aria-label="Lugar de medicion"
+                  value={pendingTemperatureSite}
+                  onChange={(event) => {
+                    const site = event.target.value as TemperatureSite;
+                    setPendingTemperatureSite(site);
+                  }}
+                >
+                  {temperatureSiteOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <label className="mini-check">
+                  <input type="checkbox" checked readOnly />
+                  Reposo
+                </label>
+              </div>
+
+              <button className="primary-button" type="button" onClick={saveQuickTemperature} disabled={registerTemperatureBlocked}>
+                <Plus aria-hidden="true" size={17} />
+                {registerTemperatureBlocked ? "Temperatura ya tomada" : "Registrar temperatura"}
+              </button>
+
+              {draft.temperatureReadings.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="field-label">Tomas guardadas hoy</label>
+                  {draft.temperatureReadings
+                    .map((reading) => (
+                      <details className="temperature-saved-row" key={reading.id}>
+                        <summary>
+                          <strong>{reading.value.toFixed(1)} C</strong>
+                          <span>{temperatureSiteLabel(reading.site)}</span>
+                          <span>{reading.time}</span>
+                          <span>{reading.isResting ? "Reposo" : "Dudosa"}</span>
+                        </summary>
+                        <div className="temperature-edit-row">
+                          <input
+                            aria-label="Temperatura guardada"
+                            className="input mt-0"
+                            type="number"
+                            inputMode="decimal"
+                            min="34"
+                            max="42"
+                            step="0.1"
+                            value={reading.value.toFixed(1)}
+                            onChange={(event) => updateTemperature(reading.id, { value: clampTemperature(Number(event.target.value)) })}
+                          />
+                          <select className="input mt-0" aria-label="Lugar de medicion" value={reading.site} onChange={(event) => updateTemperature(reading.id, { site: event.target.value as TemperatureSite })}>
+                            {temperatureSiteOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input aria-label="Hora de la toma" className="input mt-0" type="time" value={reading.time} onChange={(event) => updateTemperature(reading.id, { time: event.target.value })} />
+                          <label className="mini-check">
+                            <input type="checkbox" checked={reading.isResting} onChange={(event) => updateTemperature(reading.id, { isResting: event.target.checked })} />
+                            Reposo
+                          </label>
+                          <button className="icon-button compact danger" title="Quitar temperatura" type="button" onClick={() => removeTemperature(reading.id)}>
+                            <Trash2 aria-hidden="true" size={16} />
+                          </button>
+                        </div>
+                      </details>
+                    ))}
+                </div>
+              ) : null}
             </div>
 
-            <div className="info-box">
-              Marca reposo cuando la temperatura se tomo al despertar, antes de levantarse, o despues de un periodo sin actividad. Para comparar patrones, intenta usar siempre el mismo lugar de medicion.
-            </div>
+            <div className={periodNeedsAttention ? "input-card period-card attention" : "input-card period-card"}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3>Menstruacion</h3>
+                  <p>{periodNeedsAttention ? "Como venias registrando menstruacion, confirma si hoy continua." : "Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado."}</p>
+                </div>
+                {periodNeedsAttention ? <span className="saved-pill warm">Revisar</span> : null}
+              </div>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={draft.isPeriod}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      isPeriod: event.target.checked,
+                      flow: event.target.checked ? (current.flow === "none" ? "light" : current.flow) : "none",
+                    }))
+                  }
+                />
+                <span>{draft.isPeriod ? "Si, hubo menstruacion" : "No hubo menstruacion"}</span>
+              </label>
+
+              {draft.isPeriod ? (
+                <div>
+                  <label className="field-label" htmlFor="flow">
+                    Flujo menstrual
+                  </label>
+                  <select id="flow" className="input" value={draft.flow} onChange={(event) => setDraft((current) => ({ ...current, flow: event.target.value as FlowLevel }))}>
+                    {flowOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
             </div>
 
             <div className="input-card">
-              <h3>3. Senales opcionales</h3>
+              <h3>Senales opcionales</h3>
               <p>El moco cervical y el cuello ayudan a entender mejor el mapa, pero no hace falta llenarlos todos los dias.</p>
             <label className="toggle-row">
               <input type="checkbox" checked={showAdvanced} onChange={(event) => setShowAdvanced(event.target.checked)} />
@@ -686,7 +813,7 @@ export default function App() {
             </div>
 
             <div className="input-card">
-              <h3>4. Nota libre</h3>
+              <h3>Nota libre</h3>
             <div>
               <label className="field-label" htmlFor="note">
                 Nota
@@ -744,27 +871,56 @@ export default function App() {
           <div className="phase-strip">
             {visiblePhaseDays.map((phase) =>
               phase ? (
-                <button key={phase.date} className="phase-chip" type="button" title={`${displayDate(phase.date)} - ${phase.label}`} style={{ background: phaseMeta[phase.phase].soft, borderColor: phaseMeta[phase.phase].color }} onClick={() => setSelectedDate(phase.date)}>
-                  <span>{displayDate(phase.date, "d")}</span>
-                </button>
+                <Tippy
+                  key={phase.date}
+                  content={<PhaseTooltip phase={phase} entry={entryByDate.get(phase.date)} entries={entries} />}
+                  animation="shift-away-subtle"
+                  interactive
+                  maxWidth={280}
+                  placement="top"
+                  theme="alba"
+                  trigger="mouseenter focus click"
+                >
+                  <button
+                    className={phase.date === selectedDate ? "phase-chip active" : "phase-chip"}
+                    type="button"
+                    style={{ background: phaseMeta[phase.phase].soft, borderColor: phaseMeta[phase.phase].color }}
+                    onClick={() => {
+                      setSelectedDate(phase.date);
+                      setFocusedPhase(null);
+                    }}
+                    onFocus={() => setFocusedPhase(phase.phase)}
+                    onMouseEnter={() => setFocusedPhase(phase.phase)}
+                  >
+                    <span>{displayDate(phase.date, "d")}</span>
+                  </button>
+                </Tippy>
               ) : null,
             )}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {Object.entries(phaseMeta).map(([key, meta]) => (
-              <div className="legend-row" key={key}>
+              <button
+                className={key === activeMapPhase ? "legend-row active" : "legend-row"}
+                key={key}
+                type="button"
+                onClick={() => setFocusedPhase(key as CyclePhase)}
+                onFocus={() => setFocusedPhase(key as CyclePhase)}
+                onMouseEnter={() => setFocusedPhase(key as CyclePhase)}
+              >
                 <span style={{ background: meta.color }} />
                 {meta.label}
-              </div>
+              </button>
             ))}
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {Object.entries(phaseMeta).map(([key, meta]) => (
-              <div className="phase-explainer" key={`explain-${key}`}>
-                <strong style={{ color: meta.color }}>{meta.label}</strong>
-                <span>{phaseExplanation(key)}</span>
-              </div>
-            ))}
+          <div className="phase-focus-card mt-4" style={{ borderColor: activeMapMeta.color }}>
+            <strong style={{ color: activeMapMeta.color }}>{activeMapMeta.label}</strong>
+            <span>{activeMapDay?.description ?? phaseExplanation(activeMapPhase)}</span>
+            <ul>
+              {activeMapInsights.map((insight) => (
+                <li key={insight}>{insight}</li>
+              ))}
+            </ul>
           </div>
         </Panel>
 
@@ -784,6 +940,11 @@ export default function App() {
           <div className="info-box warning mt-3">
             Proxima menstruacion estimada:{" "}
             <strong>{stats.predictedNextPeriod ? displayDate(stats.predictedNextPeriod) : "requiere mas ciclos"}</strong>. Es una prediccion simple, no una indicacion de fertilidad.
+          </div>
+          <div className="info-box mt-3">
+            {entries.filter((entry) => entry.temperatureReadings.length > 0).length >= 20
+              ? "Ya hay suficientes tomas para empezar a mirar tendencia termica, aunque Alba todavia evita conclusiones fuertes."
+              : "Con mas temperaturas diarias, Alba podra explicar mejor patrones y cambios de fase."}
           </div>
         </Panel>
       </div>
@@ -864,6 +1025,95 @@ function phaseExplanation(phase: string): string {
   return "Rango estimado donde podria iniciar el siguiente periodo.";
 }
 
+function clampTemperature(value: number): number {
+  if (!Number.isFinite(value)) return 36.9;
+  return Math.min(42, Math.max(34, Math.round(value * 10) / 10));
+}
+
+function shouldSurfacePeriod(entries: CycleEntry[], selectedDate: string, draft: CycleEntry): boolean {
+  if (draft.isPeriod) return true;
+
+  const selected = parseISO(selectedDate);
+  const recentEntries = entries
+    .filter((entry) => entry.date < selectedDate)
+    .filter((entry) => differenceInCalendarDays(selected, parseISO(entry.date)) <= 7)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const lastPeriod = recentEntries.find((entry) => entry.isPeriod);
+
+  if (!lastPeriod) return false;
+  const daysSinceLastPeriod = differenceInCalendarDays(selected, parseISO(lastPeriod.date));
+  if (daysSinceLastPeriod < 1 || daysSinceLastPeriod > 7) return false;
+
+  const newerNonPeriodEntry = recentEntries.some((entry) => entry.date > lastPeriod.date && !entry.isPeriod);
+  return !newerNonPeriodEntry;
+}
+
+function shouldPrioritizeDate(date: string, entries: CycleEntry[]): boolean {
+  if (date !== isoDate(new Date())) return false;
+  const entry = entries.find((item) => item.date === date);
+  return !entry || entry.temperatureReadings.length === 0;
+}
+
+function hasSameMinuteTemperature(entry: CycleEntry, value: number, site: TemperatureSite): boolean {
+  const currentTime = new Date().toTimeString().slice(0, 5);
+  return entry.temperatureReadings.some((reading) => reading.time === currentTime && reading.site === site && Math.abs(reading.value - value) < 0.05);
+}
+
+function temperatureSiteLabel(site: TemperatureSite): string {
+  return temperatureSiteOptions.find((option) => option.value === site)?.label ?? "Bucal";
+}
+
+function getPhaseDayInsights(phase: { date: string; phase: CyclePhase; confidence: string; cycleDay?: number } | undefined, entry: CycleEntry | undefined, entries: CycleEntry[]): string[] {
+  if (!phase) return ["Aun faltan datos para interpretar este dia."];
+
+  const insights: string[] = [];
+  const temperature = getOralTemperature(entry)?.value;
+
+  if (phase.phase === "period") {
+    const periodLength = getCurrentPeriodLength(entries, phase.date);
+    insights.push(periodLength ? `Menstruacion registrada por ${periodLength} dia${periodLength === 1 ? "" : "s"}.` : "Dia marcado con sangrado.");
+    insights.push(entry?.flow && entry.flow !== "none" ? `Flujo: ${optionLabel(flowOptions, entry.flow).toLowerCase()}.` : "Sin nivel de flujo registrado.");
+  } else if (phase.phase === "fertile") {
+    insights.push("Ventana fertil estimada, util para observar moco cervical.");
+    insights.push(entry?.cervicalMucus ? `Moco: ${optionLabel(mucusOptions, entry.cervicalMucus).toLowerCase()}.` : "Sin moco cervical registrado este dia.");
+  } else if (phase.phase === "possible-ovulation") {
+    insights.push("Posible ovulacion, no confirmacion.");
+    insights.push(temperature ? `Temperatura bucal: ${temperature.toFixed(1)} C.` : "Una toma bucal ayudaria a interpretar mejor.");
+  } else if (phase.phase === "thermal-shift") {
+    insights.push("Alba observa si la subida termica se sostiene.");
+    insights.push(temperature ? `Toma bucal usada: ${temperature.toFixed(1)} C.` : "Falta toma bucal para comparar.");
+  } else if (phase.phase === "luteal") {
+    insights.push("Suele venir despues de la ovulacion probable.");
+    insights.push(temperature ? `Temperatura registrada: ${temperature.toFixed(1)} C.` : "Sin temperatura bucal este dia.");
+  } else if (phase.phase === "expected-period") {
+    insights.push("Inicio estimado por promedio de ciclos.");
+    insights.push("No es una indicacion medica ni fertilidad segura.");
+  } else {
+    insights.push("Fase posterior a la menstruacion donde el cuerpo se prepara para ovular.");
+    insights.push(phase.cycleDay ? `Dia ${phase.cycleDay} del ciclo.` : "Dia de ciclo pendiente.");
+  }
+
+  insights.push(`Confianza ${phase.confidence}.`);
+  return insights;
+}
+
+function getCurrentPeriodLength(entries: CycleEntry[], date: string): number {
+  const byDate = new Map(entries.map((entry) => [entry.date, entry]));
+  const cursor = parseISO(date);
+  let start = cursor;
+  let end = cursor;
+
+  while (byDate.get(isoDate(addDays(start, -1)))?.isPeriod) {
+    start = addDays(start, -1);
+  }
+
+  while (byDate.get(isoDate(addDays(end, 1)))?.isPeriod) {
+    end = addDays(end, 1);
+  }
+
+  return differenceInCalendarDays(end, start) + 1;
+}
+
 function AdvancedSelect({
   id,
   label,
@@ -893,8 +1143,8 @@ function AdvancedSelect({
   );
 }
 
-function Panel({ children }: { children: React.ReactNode }) {
-  return <section className="panel rounded border border-white/10 bg-[#171d26] p-4 shadow-soft sm:p-5">{children}</section>;
+function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <section className={`panel rounded border border-white/10 bg-[#171d26] p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -906,6 +1156,23 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded border border-white/10 bg-paper/70 p-3">
       <dt className="text-xs font-medium uppercase tracking-[0.12em] text-white/58">{label}</dt>
       <dd className="mt-1 text-lg font-semibold">{value}</dd>
+    </div>
+  );
+}
+
+function PhaseTooltip({ phase, entry, entries }: { phase: NonNullable<ReturnType<typeof buildPhaseMap> extends Map<string, infer T> ? T : never>; entry?: CycleEntry; entries: CycleEntry[] }) {
+  const meta = phaseMeta[phase.phase];
+  const insights = getPhaseDayInsights(phase, entry, entries);
+
+  return (
+    <div className="phase-tooltip">
+      <strong style={{ color: meta.color }}>{displayDate(phase.date)} · {phase.label}</strong>
+      <span>{phase.description}</span>
+      <ul>
+        {insights.map((insight) => (
+          <li key={insight}>{insight}</li>
+        ))}
+      </ul>
     </div>
   );
 }
