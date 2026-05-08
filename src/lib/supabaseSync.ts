@@ -37,7 +37,18 @@ export async function deleteSupabaseEntry(date: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error("No se pudo borrar ese dia en Supabase.");
+    throw new Error(`No se pudo borrar ese dia en Supabase (${response.status}). Revisa la policy DELETE.`);
+  }
+}
+
+export async function deleteAllSupabaseEntries(): Promise<void> {
+  const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudieron borrar los datos en Supabase (${response.status}). Revisa la policy DELETE.`);
   }
 }
 

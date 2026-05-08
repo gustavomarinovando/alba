@@ -25,3 +25,8 @@ on public.cycle_entries
 for update
 using (couple_id = 1)
 with check (couple_id = 1);
+
+create policy "cycle_entries_shared_delete"
+on public.cycle_entries
+for delete
+using (couple_id = 1);

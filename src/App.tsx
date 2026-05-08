@@ -48,7 +48,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteSupabaseEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, deleteSupabaseEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -327,10 +327,17 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Esto borrara todos los registros locales de este dispositivo.")) return;
-    await clearEntries();
-    setEntries([]);
-    setStatus("Todos los datos locales fueron eliminados.");
+    if (!window.confirm("Esto borrara todos los registros de este dispositivo y de la nube compartida.")) return;
+    try {
+      if (isSupabaseConfigured()) {
+        await deleteAllSupabaseEntries();
+      }
+      await clearEntries();
+      setEntries([]);
+      setStatus("Todos los datos fueron eliminados en local y nube.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudieron borrar todos los datos.");
+    }
   }
 
   async function loadDemoData() {
