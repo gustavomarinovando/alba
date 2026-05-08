@@ -48,7 +48,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteAllSupabaseEntries, deleteSupabaseEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -144,11 +144,17 @@ export default function App() {
           return;
         }
 
-        setEntries(storedEntries);
-        setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, storedEntries) ? selectedDate : null);
+        const realEntries = storedEntries.filter((entry) => !isDemoEntry(entry));
+        if (realEntries.length !== storedEntries.length) {
+          await replaceEntries(realEntries);
+          safeLocalSet("alba-demo-mode", "false");
+        }
+
+        setEntries(realEntries);
+        setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, realEntries) ? selectedDate : null);
 
         if (isSupabaseConfigured()) {
-          void syncCloudData({ quiet: true, entriesOverride: storedEntries });
+          void syncCloudData({ quiet: true, entriesOverride: realEntries });
         }
       } catch {
         setStatus("No se pudo abrir la base local.");
@@ -378,7 +384,8 @@ export default function App() {
 
     setIsSyncing(true);
     try {
-      const mergedEntries = await syncWithSupabase(options?.entriesOverride ?? (await getAllEntries()));
+      const sourceEntries = (options?.entriesOverride ?? (await getAllEntries())).filter((entry) => !isDemoEntry(entry));
+      const mergedEntries = await syncWithSupabase(sourceEntries);
       await replaceEntries(mergedEntries);
       setEntries(await getAllEntries());
       if (!options?.quiet) setStatus("Datos sincronizados con la nube.");

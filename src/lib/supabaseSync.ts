@@ -24,8 +24,11 @@ export async function testSupabaseConnection(): Promise<void> {
 }
 
 export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<CycleEntry[]> {
-  const remoteEntries = await fetchRemoteEntries();
-  const merged = mergeEntries(localEntries, remoteEntries);
+  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+  const merged = mergeEntries(
+    localEntries.filter((entry) => !isDemoEntry(entry)),
+    remoteEntries,
+  );
   await pushRemoteEntries(merged);
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -66,7 +69,8 @@ async function fetchRemoteEntries(): Promise<CycleEntry[]> {
 }
 
 async function pushRemoteEntries(entries: CycleEntry[]): Promise<void> {
-  const rows: SupabaseCycleRow[] = entries.map((entry) => ({
+  const safeEntries = entries.filter((entry) => !isDemoEntry(entry));
+  const rows: SupabaseCycleRow[] = safeEntries.map((entry) => ({
     couple_id: COUPLE_ID,
     date: entry.date,
     entry,
@@ -86,6 +90,10 @@ async function pushRemoteEntries(entries: CycleEntry[]): Promise<void> {
   if (!response.ok) {
     throw new Error("No se pudieron subir los datos a Supabase.");
   }
+}
+
+export function isDemoEntry(entry: CycleEntry): boolean {
+  return entry.temperatureReadings.some((reading) => reading.id.startsWith("demo-"));
 }
 
 function mergeEntries(localEntries: CycleEntry[], remoteEntries: CycleEntry[]): CycleEntry[] {
