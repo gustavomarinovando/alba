@@ -333,12 +333,20 @@ textarea {
     @apply grid grid-cols-10 gap-1 sm:grid-cols-12;
   }
 
+  .phase-block {
+    @apply contents;
+  }
+
   .phase-chip {
     @apply grid aspect-square place-items-center rounded border text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-moss/30;
   }
 
   .phase-chip.active {
     @apply scale-105 ring-2 ring-white/35;
+  }
+
+  .phase-chip.active + .phase-chip.active {
+    @apply ring-white/20;
   }
 
   .legend-row {
@@ -366,33 +374,45 @@ textarea {
   }
 
   .phase-focus-card ul,
-  .phase-tooltip ul {
-    @apply mt-3 space-y-1 text-white/70;
+  .phase-tooltip-list {
+    @apply mt-2 list-disc space-y-1 pl-5 text-white/70;
   }
 
   .phase-focus-card li,
-  .phase-tooltip li {
-    @apply rounded bg-white/[0.05] px-2 py-1;
+  .phase-tooltip-list li {
+    @apply bg-transparent px-0 py-0;
   }
 
   .phase-tooltip {
-    @apply max-w-xs space-y-2 text-sm leading-6 text-white;
+    @apply max-w-xs space-y-3 text-sm leading-6 text-white;
   }
 
-  .phase-tooltip strong {
-    @apply block text-sm font-semibold;
+  .phase-tooltip-header {
+    @apply flex items-start gap-3;
   }
 
-  .phase-tooltip span {
+  .phase-tooltip-header strong {
+    @apply block text-base font-semibold text-white;
+  }
+
+  .phase-tooltip-header span {
     @apply block text-white/70;
   }
 
+  .phase-tooltip-dot {
+    @apply mt-1 h-3 w-3 shrink-0 rounded-full shadow-[0_0_0_5px_rgba(255,255,255,0.06)];
+  }
+
+  .phase-tooltip-pill {
+    @apply inline-flex rounded-full border border-marigold/30 bg-marigold/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-white;
+  }
+
   .tippy-box[data-theme~="alba"] {
-    @apply rounded border border-white/10 bg-[#101722] shadow-[0_18px_60px_rgba(0,0,0,0.38)];
+    @apply rounded border border-white/10 bg-[#101722]/95 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl;
   }
 
   .tippy-box[data-theme~="alba"] .tippy-content {
-    @apply p-3;
+    @apply p-4;
   }
 
   .anniversary-story {

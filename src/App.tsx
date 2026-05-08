@@ -1,4 +1,4 @@
-import { addDays, addMonths, differenceInCalendarDays, format, isSameMonth, parseISO, subMonths } from "date-fns";
+﻿import { addDays, addMonths, differenceInCalendarDays, format, isSameMonth, parseISO, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import Tippy from "@tippyjs/react";
 import "tippy.js/dist/tippy.css";
@@ -46,7 +46,7 @@ import {
   mucusOptions,
   optionLabel,
 } from "./lib/observations";
-import { buildPhaseMap, phaseMeta, type CyclePhase } from "./lib/phases";
+import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
 import { isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
@@ -115,7 +115,8 @@ export default function App() {
   const [prioritizedEntryDate, setPrioritizedEntryDate] = useState<string | null>(null);
   const [lastTemperatureActionAt, setLastTemperatureActionAt] = useState(0);
   const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
-  const [focusedPhase, setFocusedPhase] = useState<CyclePhase | null>(null);
+  const [focusedSegmentId, setFocusedSegmentId] = useState<string | null>(null);
+  const [mapTooltip, setMapTooltip] = useState<{ segmentId: string; anchorDate: string; pinned: boolean } | null>(null);
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -126,6 +127,7 @@ export default function App() {
     return today === "2026-05-06" && safeSessionGet("alba-anniversary-2026-05-06") !== "seen";
   });
   const importInput = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -163,15 +165,15 @@ export default function App() {
   const phaseByDate = useMemo(() => buildPhaseMap(entries), [entries]);
   const selectedPhase = phaseByDate.get(selectedDate);
   const visiblePhaseDays = useMemo(() => getRecentEntries(entries, 60).map((entry) => phaseByDate.get(entry.date)).filter(Boolean), [entries, phaseByDate]);
+  const phaseSegments = useMemo(() => buildPhaseSegments(visiblePhaseDays, entries), [visiblePhaseDays, entries]);
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
   const registerTemperatureBlocked = Date.now() - lastTemperatureActionAt < 6000 || hasSameMinuteTemperature(draft, pendingTemperature, pendingTemperatureSite);
-  const focusedPhaseDay = focusedPhase ? visiblePhaseDays.find((phase) => phase?.phase === focusedPhase) : undefined;
-  const activeMapDay = selectedPhase ?? focusedPhaseDay ?? visiblePhaseDays[0];
-  const activeMapPhase: CyclePhase = activeMapDay?.phase ?? focusedPhase ?? "follicular";
+  const selectedSegment = phaseSegments.find((segment) => selectedDate >= segment.start && selectedDate <= segment.end);
+  const activeMapSegment = phaseSegments.find((segment) => segment.id === focusedSegmentId) ?? selectedSegment ?? phaseSegments[0];
+  const activeMapPhase: CyclePhase = activeMapSegment?.phase ?? "follicular";
   const activeMapMeta = phaseMeta[activeMapPhase];
-  const activeMapInsights = getPhaseDayInsights(activeMapDay, entryByDate.get(activeMapDay?.date ?? selectedDate), entries);
 
   useEffect(() => {
     if (!status) return;
@@ -192,6 +194,18 @@ export default function App() {
   useEffect(() => {
     setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, entries) ? selectedDate : null);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!mapTooltip?.pinned) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (mapRef.current?.contains(event.target as Node)) return;
+      setMapTooltip(null);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [mapTooltip?.pinned]);
 
   useEffect(() => {
     const existing = entryByDate.get(draft.date);
@@ -261,16 +275,21 @@ export default function App() {
   }
 
   async function removeSelected() {
+    const blankEntry = emptyEntry(selectedDate);
+    setDraft(blankEntry);
+    setLastTemperatureActionAt(0);
+    setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, entries.filter((entry) => entry.date !== selectedDate)) ? selectedDate : null);
+
     if (isDemoMode) {
       setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
-      setDraft(emptyEntry(selectedDate));
       setStatus(`Registro demo de ${displayDate(selectedDate)} eliminado.`);
       return;
     }
 
+    setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
     await deleteEntry(selectedDate);
-    setEntries(await getAllEntries());
-    setDraft(emptyEntry(selectedDate));
+    const storedEntries = await getAllEntries();
+    setEntries(storedEntries);
     setStatus(`Registro de ${displayDate(selectedDate)} eliminado.`);
   }
 
@@ -868,35 +887,70 @@ export default function App() {
             <HeartPulse className="h-5 w-5 text-moss" aria-hidden="true" />
             <h2 className="text-lg font-semibold">Mapa del ciclo</h2>
           </div>
-          <div className="phase-strip">
-            {visiblePhaseDays.map((phase) =>
-              phase ? (
-                <Tippy
-                  key={phase.date}
-                  content={<PhaseTooltip phase={phase} entry={entryByDate.get(phase.date)} entries={entries} />}
-                  animation="shift-away-subtle"
-                  interactive
-                  maxWidth={280}
-                  placement="top"
-                  theme="alba"
-                  trigger="mouseenter focus click"
-                >
-                  <button
-                    className={phase.date === selectedDate ? "phase-chip active" : "phase-chip"}
-                    type="button"
-                    style={{ background: phaseMeta[phase.phase].soft, borderColor: phaseMeta[phase.phase].color }}
-                    onClick={() => {
-                      setSelectedDate(phase.date);
-                      setFocusedPhase(null);
-                    }}
-                    onFocus={() => setFocusedPhase(phase.phase)}
-                    onMouseEnter={() => setFocusedPhase(phase.phase)}
-                  >
-                    <span>{displayDate(phase.date, "d")}</span>
-                  </button>
-                </Tippy>
-              ) : null,
-            )}
+          <div
+            ref={mapRef}
+            className="phase-strip"
+            role="list"
+            aria-label="Fases del ciclo"
+            onMouseLeave={() => {
+              if (!mapTooltip?.pinned) setMapTooltip(null);
+            }}
+          >
+            {phaseSegments.map((segment) => {
+              const meta = phaseMeta[segment.phase];
+              return (
+                <div className="phase-block" key={segment.id} role="listitem">
+                  {segment.days.map((day, index) => (
+                    <Tippy
+                      key={day.date}
+                      content={<PhaseSegmentTooltip segment={segment} />}
+                      animation="shift-away-subtle"
+                      duration={[160, 140]}
+                      hideOnClick={false}
+                      interactive
+                      interactiveBorder={18}
+                      maxWidth={320}
+                      offset={[0, 10]}
+                      onClickOutside={() => setMapTooltip(null)}
+                      placement="bottom"
+                      popperOptions={{
+                        modifiers: [
+                          { name: "flip", options: { fallbackPlacements: ["bottom", "right", "left"] } },
+                          { name: "preventOverflow", options: { padding: { top: 96, right: 16, bottom: 16, left: 16 } } },
+                        ],
+                      }}
+                      theme="alba"
+                      trigger="manual"
+                      visible={mapTooltip?.segmentId === segment.id && mapTooltip.anchorDate === day.date}
+                    >
+                      <button
+                        className={segment.id === activeMapSegment?.id ? "phase-chip active" : "phase-chip"}
+                        type="button"
+                        style={{ background: meta.soft, borderColor: meta.color }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setFocusedSegmentId(segment.id);
+                          setSelectedDate(day.date);
+                          setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: true });
+                        }}
+                        onFocus={() => {
+                          setFocusedSegmentId(segment.id);
+                          if (!mapTooltip?.pinned && mapTooltip?.segmentId !== segment.id) setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
+                        }}
+                        onMouseEnter={() => {
+                          setFocusedSegmentId(segment.id);
+                          if (mapTooltip?.pinned) return;
+                          if (mapTooltip?.segmentId === segment.id) return;
+                          setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
+                        }}
+                      >
+                        <span>{index === 0 ? segment.days.length : displayDate(day.date, "d")}</span>
+                      </button>
+                    </Tippy>
+                  ))}
+                </div>
+              );
+            })}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {Object.entries(phaseMeta).map(([key, meta]) => (
@@ -904,9 +958,19 @@ export default function App() {
                 className={key === activeMapPhase ? "legend-row active" : "legend-row"}
                 key={key}
                 type="button"
-                onClick={() => setFocusedPhase(key as CyclePhase)}
-                onFocus={() => setFocusedPhase(key as CyclePhase)}
-                onMouseEnter={() => setFocusedPhase(key as CyclePhase)}
+                onClick={() => {
+                  const segment = phaseSegments.find((item) => item.phase === key);
+                  setFocusedSegmentId(segment?.id ?? null);
+                  setMapTooltip(segment ? { segmentId: segment.id, anchorDate: segment.start, pinned: true } : null);
+                  if (segment) setSelectedDate(segment.start);
+                }}
+                onFocus={() => setFocusedSegmentId(phaseSegments.find((segment) => segment.phase === key)?.id ?? null)}
+                onMouseEnter={() => {
+                  if (mapTooltip?.pinned) return;
+                  const segment = phaseSegments.find((item) => item.phase === key);
+                  setFocusedSegmentId(segment?.id ?? null);
+                  setMapTooltip(segment ? { segmentId: segment.id, anchorDate: segment.start, pinned: false } : null);
+                }}
               >
                 <span style={{ background: meta.color }} />
                 {meta.label}
@@ -915,9 +979,9 @@ export default function App() {
           </div>
           <div className="phase-focus-card mt-4" style={{ borderColor: activeMapMeta.color }}>
             <strong style={{ color: activeMapMeta.color }}>{activeMapMeta.label}</strong>
-            <span>{activeMapDay?.description ?? phaseExplanation(activeMapPhase)}</span>
+            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} Â· ${activeMapSegment.days.length} dia${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
             <ul>
-              {activeMapInsights.map((insight) => (
+              {(activeMapSegment?.insights ?? ["Aun faltan datos para interpretar este bloque."]).map((insight) => (
                 <li key={insight}>{insight}</li>
               ))}
             </ul>
@@ -1063,55 +1127,110 @@ function temperatureSiteLabel(site: TemperatureSite): string {
   return temperatureSiteOptions.find((option) => option.value === site)?.label ?? "Bucal";
 }
 
-function getPhaseDayInsights(phase: { date: string; phase: CyclePhase; confidence: string; cycleDay?: number } | undefined, entry: CycleEntry | undefined, entries: CycleEntry[]): string[] {
-  if (!phase) return ["Aun faltan datos para interpretar este dia."];
+interface PhaseSegment {
+  id: string;
+  phase: CyclePhase;
+  start: string;
+  end: string;
+  days: PhaseDay[];
+  sourcePhases: CyclePhase[];
+  confidence: string;
+  insights: string[];
+}
 
+function buildPhaseSegments(days: Array<PhaseDay | undefined>, entries: CycleEntry[]): PhaseSegment[] {
+  const filtered = days.filter((day): day is PhaseDay => Boolean(day));
+  const segments: Omit<PhaseSegment, "id" | "confidence" | "insights" | "sourcePhases">[] = [];
+
+  for (const day of filtered) {
+    const displayPhase = mapPhaseForTimeline(day.phase);
+    const last = segments.at(-1);
+    if (!last || last.phase !== displayPhase) {
+      segments.push({ phase: displayPhase, start: day.date, end: day.date, days: [day] });
+      continue;
+    }
+
+    last.end = day.date;
+    last.days.push(day);
+  }
+
+  return segments.map((segment, index) => ({
+    ...segment,
+    id: `${segment.phase}-${segment.start}-${index}`,
+    sourcePhases: Array.from(new Set(segment.days.map((day) => day.phase))),
+    confidence: segmentConfidence(segment.days),
+    insights: getPhaseSegmentInsights(segment, entries),
+  }));
+}
+
+function mapPhaseForTimeline(phase: CyclePhase): CyclePhase {
+  return phase === "possible-ovulation" ? "fertile" : phase;
+}
+
+function segmentConfidence(days: PhaseDay[]): string {
+  if (days.some((day) => day.confidence === "alta")) return "alta";
+  if (days.some((day) => day.confidence === "media")) return "media";
+  return "baja";
+}
+
+function getPhaseSegmentInsights(segment: { phase: CyclePhase; start: string; end: string; days: PhaseDay[] }, entries: CycleEntry[]): string[] {
+  const segmentEntries = entries.filter((entry) => entry.date >= segment.start && entry.date <= segment.end);
   const insights: string[] = [];
-  const temperature = getOralTemperature(entry)?.value;
+  const temps = segmentEntries.map((entry) => getOralTemperature(entry)?.value).filter((value): value is number => typeof value === "number");
+  const mucus = segmentEntries.map((entry) => entry.cervicalMucus).filter(Boolean);
 
-  if (phase.phase === "period") {
-    const periodLength = getCurrentPeriodLength(entries, phase.date);
-    insights.push(periodLength ? `Menstruacion registrada por ${periodLength} dia${periodLength === 1 ? "" : "s"}.` : "Dia marcado con sangrado.");
-    insights.push(entry?.flow && entry.flow !== "none" ? `Flujo: ${optionLabel(flowOptions, entry.flow).toLowerCase()}.` : "Sin nivel de flujo registrado.");
-  } else if (phase.phase === "fertile") {
-    insights.push("Ventana fertil estimada, util para observar moco cervical.");
-    insights.push(entry?.cervicalMucus ? `Moco: ${optionLabel(mucusOptions, entry.cervicalMucus).toLowerCase()}.` : "Sin moco cervical registrado este dia.");
-  } else if (phase.phase === "possible-ovulation") {
-    insights.push("Posible ovulacion, no confirmacion.");
-    insights.push(temperature ? `Temperatura bucal: ${temperature.toFixed(1)} C.` : "Una toma bucal ayudaria a interpretar mejor.");
-  } else if (phase.phase === "thermal-shift") {
-    insights.push("Alba observa si la subida termica se sostiene.");
-    insights.push(temperature ? `Toma bucal usada: ${temperature.toFixed(1)} C.` : "Falta toma bucal para comparar.");
-  } else if (phase.phase === "luteal") {
-    insights.push("Suele venir despues de la ovulacion probable.");
-    insights.push(temperature ? `Temperatura registrada: ${temperature.toFixed(1)} C.` : "Sin temperatura bucal este dia.");
-  } else if (phase.phase === "expected-period") {
+  if (segment.phase === "period") {
+    const flows = segmentEntries.map((entry) => entry.flow).filter((flow) => flow && flow !== "none");
+    const dominantFlow = mostCommon(flows);
+    insights.push(`Duracion registrada: ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
+    insights.push(dominantFlow ? `Flujo predominante: ${optionLabel(flowOptions, dominantFlow).toLowerCase()}.` : "Falta registrar intensidad de flujo.");
+    insights.push(segment.days.length >= 2 && segment.days.length <= 7 ? "Duracion dentro de un rango menstrual comun." : "Duracion fuera de lo comun; conviene observar si se repite.");
+  } else if (segment.phase === "fertile") {
+    const ovulationDays = segment.days.filter((day) => day.phase === "possible-ovulation");
+    insights.push(`Ventana estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
+    if (ovulationDays.length > 0) {
+      insights.push(`Posible ovulacion alrededor de ${ovulationDays.map((day) => displayDate(day.date)).join(", ")}.`);
+    }
+    insights.push(mucus.length ? `Moco observado: ${mucus.map((value) => optionLabel(mucusOptions, value)).join(", ")}.` : "Sin moco cervical registrado en este bloque.");
+    insights.push("Alba la trata como estimacion educativa, no confirmacion.");
+  } else if (segment.phase === "possible-ovulation") {
+    insights.push("Punto probable de ovulacion, no confirmacion.");
+    insights.push(mucus.includes("eggwhite") ? "Hay moco tipo clara de huevo registrado cerca." : "Sin clara de huevo registrada en este bloque.");
+    insights.push(temps.length ? `Temperatura bucal en bloque: ${formatTempRange(temps)}.` : "Faltan tomas bucales para apoyar la lectura.");
+  } else if (segment.phase === "thermal-shift") {
+    insights.push("Bloque donde Alba busca si la subida termica se sostiene.");
+    insights.push(temps.length >= 2 ? `Temperaturas: ${formatTempRange(temps)}.` : "Faltan temperaturas para evaluar tendencia.");
+    insights.push(temps.length >= 2 && temps.at(-1)! > temps[0] ? "Se ve una tendencia de subida dentro del bloque." : "Todavia no se ve una subida clara dentro del bloque.");
+  } else if (segment.phase === "luteal") {
+    insights.push(`Fase lutea estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"} en esta vista.`);
+    insights.push(temps.length ? `Temperatura bucal promedio: ${average(temps).toFixed(1)} C.` : "Sin suficientes tomas bucales en este bloque.");
+    insights.push("Si la temperatura se mantiene mas alta, refuerza la lectura lutea.");
+  } else if (segment.phase === "expected-period") {
     insights.push("Inicio estimado por promedio de ciclos.");
     insights.push("No es una indicacion medica ni fertilidad segura.");
   } else {
-    insights.push("Fase posterior a la menstruacion donde el cuerpo se prepara para ovular.");
-    insights.push(phase.cycleDay ? `Dia ${phase.cycleDay} del ciclo.` : "Dia de ciclo pendiente.");
+    insights.push(`Fase folicular estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
+    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aun sin temperaturas bucales en este bloque.");
+    insights.push("Suele ser el tramo de preparacion antes de la ventana fertil.");
   }
 
-  insights.push(`Confianza ${phase.confidence}.`);
+  insights.push(`Confianza agregada ${segmentConfidence(segment.days)}.`);
   return insights;
 }
 
-function getCurrentPeriodLength(entries: CycleEntry[], date: string): number {
-  const byDate = new Map(entries.map((entry) => [entry.date, entry]));
-  const cursor = parseISO(date);
-  let start = cursor;
-  let end = cursor;
+function mostCommon<T extends string>(values: T[]): T | undefined {
+  const counts = new Map<T, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+}
 
-  while (byDate.get(isoDate(addDays(start, -1)))?.isPeriod) {
-    start = addDays(start, -1);
-  }
+function average(values: number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
 
-  while (byDate.get(isoDate(addDays(end, 1)))?.isPeriod) {
-    end = addDays(end, 1);
-  }
-
-  return differenceInCalendarDays(end, start) + 1;
+function formatTempRange(values: number[]): string {
+  if (values.length === 0) return "sin datos";
+  return `${Math.min(...values).toFixed(1)}-${Math.max(...values).toFixed(1)} C`;
 }
 
 function AdvancedSelect({
@@ -1160,15 +1279,24 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PhaseTooltip({ phase, entry, entries }: { phase: NonNullable<ReturnType<typeof buildPhaseMap> extends Map<string, infer T> ? T : never>; entry?: CycleEntry; entries: CycleEntry[] }) {
-  const meta = phaseMeta[phase.phase];
-  const insights = getPhaseDayInsights(phase, entry, entries);
+function PhaseSegmentTooltip({ segment }: { segment: PhaseSegment }) {
+  const meta = phaseMeta[segment.phase];
+  const insights = segment.insights;
+  const ovulationDay = segment.days.find((day) => day.phase === "possible-ovulation");
 
   return (
     <div className="phase-tooltip">
-      <strong style={{ color: meta.color }}>{displayDate(phase.date)} · {phase.label}</strong>
-      <span>{phase.description}</span>
-      <ul>
+      <div className="phase-tooltip-header">
+        <span className="phase-tooltip-dot" style={{ background: meta.color }} />
+        <div>
+          <strong>{meta.label}</strong>
+          <span>
+            {displayDate(segment.start)} - {displayDate(segment.end)} · {segment.days.length} dia{segment.days.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      </div>
+      {ovulationDay ? <div className="phase-tooltip-pill">Posible ovulacion · {displayDate(ovulationDay.date)}</div> : null}
+      <ul className="phase-tooltip-list">
         {insights.map((insight) => (
           <li key={insight}>{insight}</li>
         ))}
@@ -1311,3 +1439,4 @@ function safeLocalSet(key: string, value: string): void {
     // Demo autoload is best-effort only.
   }
 }
+
