@@ -981,7 +981,7 @@ export default function App() {
               );
             })}
           </div>
-          <div className="phase-legend mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="phase-legend mt-4 gap-2 sm:grid-cols-2">
             {Object.entries(phaseMeta).map(([key, meta]) => (
               <button
                 className={key === activeMapPhase ? "legend-row active" : "legend-row"}
@@ -1008,7 +1008,7 @@ export default function App() {
           </div>
           <div className="phase-focus-card mt-4" style={{ borderColor: activeMapMeta.color }}>
             <strong style={{ color: activeMapMeta.color }}>{activeMapMeta.label}</strong>
-            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} Â· ${activeMapSegment.days.length} dia${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
+            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} · ${activeMapSegment.days.length} dia${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
             <ul>
               {(activeMapSegment?.insights ?? ["Aun faltan datos para interpretar este bloque."]).map((insight) => (
                 <li key={insight}>{insight}</li>
