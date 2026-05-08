@@ -1,5 +1,5 @@
-const CACHE_NAME = "ciclo-local-v1";
-const STATIC_ASSETS = ["/", "/manifest.webmanifest", "/icon.svg"];
+const CACHE_NAME = "alba-v2";
+const STATIC_ASSETS = ["/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,6 +21,18 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith("/api/")) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => response)
+        .catch(() => caches.match("/").then((cached) => cached ?? Response.error())),
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
