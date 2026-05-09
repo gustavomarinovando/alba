@@ -17,13 +17,13 @@ export interface PhaseDay {
 }
 
 export const phaseMeta: Record<CyclePhase, { label: string; color: string; soft: string }> = {
-  period: { label: "Menstruacion", color: "#d89b8b", soft: "rgba(216,155,139,0.24)" },
+  period: { label: "Periodo", color: "#d89b8b", soft: "rgba(216,155,139,0.24)" },
   follicular: { label: "Folicular", color: "#8fb9ad", soft: "rgba(143,185,173,0.18)" },
-  fertile: { label: "Ventana fertil estimada", color: "#d7c783", soft: "rgba(215,199,131,0.2)" },
-  "possible-ovulation": { label: "Posible ovulacion", color: "#f0dca2", soft: "rgba(240,220,162,0.24)" },
-  "thermal-shift": { label: "Transicion termica", color: "#aeb7dc", soft: "rgba(174,183,220,0.22)" },
-  luteal: { label: "Lutea", color: "#9fb7d8", soft: "rgba(159,183,216,0.18)" },
-  "expected-period": { label: "Menstruacion estimada", color: "#c9a0b5", soft: "rgba(201,160,181,0.2)" },
+  fertile: { label: "Ventana fértil estimada", color: "#d7c783", soft: "rgba(215,199,131,0.2)" },
+  "possible-ovulation": { label: "Posible ovulación", color: "#f0dca2", soft: "rgba(240,220,162,0.24)" },
+  "thermal-shift": { label: "Transición térmica", color: "#aeb7dc", soft: "rgba(174,183,220,0.22)" },
+  luteal: { label: "Lútea", color: "#9fb7d8", soft: "rgba(159,183,216,0.18)" },
+  "expected-period": { label: "Periodo estimado", color: "#c9a0b5", soft: "rgba(201,160,181,0.2)" },
 };
 
 export function buildPhaseMap(entries: CycleEntry[]): Map<string, PhaseDay> {
@@ -120,11 +120,11 @@ function averageCycleLengthFromStarts(starts: string[]): number | undefined {
 
 function describePhase(phase: CyclePhase, confidence: PhaseConfidence): string {
   const suffix = `Confianza ${confidence}.`;
-  if (phase === "period") return `Dia marcado con menstruacion. ${suffix}`;
-  if (phase === "fertile") return `Ventana fertil estimada por calendario y observaciones disponibles. ${suffix}`;
-  if (phase === "possible-ovulation") return `Dia donde podria concentrarse la ovulacion, segun calendario y/o cambio termico. No es confirmacion. ${suffix}`;
-  if (phase === "thermal-shift") return `Posible transicion termica; conviene observar si la temperatura se sostiene. ${suffix}`;
-  if (phase === "luteal") return `Temperaturas o dia del ciclo sugieren fase lutea. ${suffix}`;
-  if (phase === "expected-period") return `Rango donde podria iniciar la siguiente menstruacion. ${suffix}`;
-  return `Dias previos a la ventana fertil estimada. ${suffix}`;
+  if (phase === "period") return `Día marcado con periodo. ${suffix}`;
+  if (phase === "fertile") return `Ventana fértil estimada por calendario y observaciones disponibles. ${suffix}`;
+  if (phase === "possible-ovulation") return `Día donde podría concentrarse la ovulación, segun calendario y/o cambio térmico. No es confirmación. ${suffix}`;
+  if (phase === "thermal-shift") return `Posible transición térmica; conviene observar si la temperatura se sostiene. ${suffix}`;
+  if (phase === "luteal") return `Temperaturas o dia del ciclo sugieren fase lútea. ${suffix}`;
+  if (phase === "expected-period") return `Rango donde podría iniciar la siguiente periodo. ${suffix}`;
+  return `Días previos a la ventana fértil estimada. ${suffix}`;
 }

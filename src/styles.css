@@ -3,10 +3,62 @@
 @tailwind utilities;
 
 :root {
+  --color-ink: #1f1f1f;
+  --color-paper: #fdfdfc;
+  --color-surface: rgba(255, 255, 255, 0.4);
+  --color-surface-variant: rgba(255, 255, 255, 0.6);
+  --color-outline: rgba(255, 255, 255, 0.5);
+  --color-moss: #006d5b;
+  --color-moss-light: rgba(0, 109, 91, 0.15);
+  --color-coral: #ba1a1a;
+  --color-coral-light: rgba(186, 26, 26, 0.15);
+  --color-marigold: #7d5700;
+  --color-marigold-light: rgba(125, 87, 0, 0.15);
+  --color-primary: #6750a4;
+
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.dark {
+  --color-ink: #f7f2e8;
+  --color-paper: #0d1117;
+  --color-surface: rgba(13, 17, 23, 0.4);
+  --color-surface-variant: rgba(23, 29, 38, 0.6);
+  --color-outline: rgba(255, 255, 255, 0.15);
+  --color-moss: #8fb9ad;
+  --color-moss-light: rgba(143, 185, 173, 0.15);
+  --color-coral: #d89b8b;
+  --color-coral-light: rgba(216, 155, 139, 0.15);
+  --color-marigold: #d7c783;
+  --color-marigold-light: rgba(215, 199, 131, 0.15);
+
+  --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 9999;
+}
+::view-transition-new(root) {
+  z-index: 1;
+}
+.dark::view-transition-old(root) {
+  z-index: 1;
+}
+.dark::view-transition-new(root) {
+  z-index: 9999;
+}
+:root {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #f7f2e8;
-  background: #0d1117;
+  color: var(--color-ink);
+  background: var(--color-paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -32,7 +84,7 @@ h3,
 h4,
 h5,
 h6 {
-  color: #ffffff;
+  color: var(--color-ink);
 }
 
 button,
@@ -44,7 +96,7 @@ textarea {
 
 @layer components {
   .app-nav {
-    @apply sticky top-0 z-20 border-b border-white/10 bg-[rgba(9,15,24,0.95)] px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.34)] backdrop-blur-xl transition-all duration-300 sm:px-6 lg:px-8;
+    @apply sticky top-0 z-20 border-b border-outline bg-surface backdrop-blur-xl px-4 py-3 shadow-soft backdrop-blur-xl transition-all duration-300 sm:px-6 lg:px-8;
   }
 
   .app-nav.compact {
@@ -61,7 +113,7 @@ textarea {
 
   .panel {
     animation: rise-in 420ms ease both;
-    backdrop-filter: blur(22px);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     transition:
       transform 180ms ease,
       border-color 180ms ease,
@@ -77,13 +129,13 @@ textarea {
   }
 
   .panel:hover {
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: rgba(0,0,0,0.1);
     background-color: rgba(23, 29, 38, 0.9);
     box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
   }
 
   .icon-button {
-    @apply inline-grid h-10 w-10 place-items-center rounded border border-white/10 bg-white/5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:-translate-y-0.5 hover:border-moss hover:bg-moss/10 hover:text-moss focus:outline-none focus:ring-2 focus:ring-moss/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0;
+    @apply inline-grid h-10 w-10 place-items-center rounded border border-outline bg-surfaceVariant backdrop-blur-md text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:-translate-y-0.5 hover:border-moss hover:bg-mossLight hover:text-moss focus:outline-none focus:ring-2 focus:ring-moss disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0;
   }
 
   .icon-button.compact {
@@ -91,39 +143,39 @@ textarea {
   }
 
   .icon-button.danger {
-    @apply hover:border-coral hover:text-coral focus:ring-coral/30;
+    @apply hover:border-coral hover:text-coral focus:ring-coral;
   }
 
   .primary-button {
-    @apply inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-moss px-4 text-sm font-semibold text-[#08110f] transition hover:-translate-y-0.5 hover:bg-moss/90 focus:outline-none focus:ring-2 focus:ring-moss/40;
+    @apply inline-flex h-11 w-full items-center justify-center gap-2 rounded bg-moss px-4 text-sm font-semibold text-[#08110f] transition hover:-translate-y-0.5 hover:bg-moss focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .primary-button:disabled {
-    @apply cursor-not-allowed bg-white/10 text-white/45 hover:translate-y-0 hover:bg-white/10;
+    @apply cursor-not-allowed bg-white/10 text-ink hover:translate-y-0 hover:bg-white/10;
   }
 
   .secondary-button {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded border border-white/10 bg-white/5 px-3 text-sm font-medium text-white/85 transition hover:-translate-y-0.5 hover:border-moss hover:bg-moss/10 hover:text-moss focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded border border-outline bg-surfaceVariant backdrop-blur-md px-3 text-sm font-medium text-ink transition hover:-translate-y-0.5 hover:border-moss hover:bg-mossLight hover:text-moss focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .secondary-button.danger {
-    @apply hover:border-coral hover:bg-coral/10 hover:text-coral focus:ring-coral/30;
+    @apply hover:border-coral hover:bg-coralLight hover:text-coral focus:ring-coral;
   }
 
   .secondary-button.active-demo {
-    @apply border-marigold/70 bg-marigold/20 text-white shadow-[0_0_0_1px_rgba(215,199,131,0.16),0_14px_38px_rgba(215,199,131,0.13)] hover:border-marigold hover:bg-marigold/25 hover:text-white focus:ring-marigold/35;
+    @apply border-marigold bg-marigold text-ink shadow-[0_0_0_1px_rgba(215,199,131,0.16),0_14px_38px_rgba(215,199,131,0.13)] hover:border-marigold hover:bg-marigold hover:text-ink focus:ring-marigold;
   }
 
   .text-button {
-    @apply inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-moss transition hover:bg-moss/10 focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-moss transition hover:bg-mossLight focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .tab-button {
-    @apply inline-flex h-11 w-12 shrink-0 items-center justify-center gap-2 overflow-hidden rounded border border-[#263242] bg-[#131b28] px-0 text-xs font-semibold text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-moss hover:bg-[#182737] hover:text-white focus:outline-none focus:ring-2 focus:ring-moss/30 sm:text-sm;
+    @apply inline-flex h-11 w-12 shrink-0 items-center justify-center gap-2 overflow-hidden rounded border border-outline bg-surfaceVariant backdrop-blur-md px-0 text-xs font-semibold text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-moss hover:bg-outline hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss sm:text-sm;
   }
 
   .tab-button.active {
-    @apply w-36 border-moss bg-[#203a39] px-3 text-white shadow-[0_12px_34px_rgba(143,185,173,0.14)];
+    @apply w-36 border-moss bg-mossLight px-3 text-ink shadow-[0_12px_34px_rgba(143,185,173,0.14)];
   }
 
   .tab-button:not(.active) .tab-label {
@@ -131,29 +183,29 @@ textarea {
   }
 
   .info-box {
-    @apply rounded border border-white/10 bg-white/[0.08] p-3 text-sm leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
+    @apply rounded border border-outline bg-surfaceVariant backdrop-blur-md p-3 text-sm leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
   }
 
   .info-box strong,
   .info-box span,
   .info-box p {
-    color: #ffffff;
+    color: var(--color-ink);
   }
 
   .info-box.warning {
-    @apply border-marigold/40 bg-marigold/10;
+    @apply border-marigold bg-marigoldLight;
   }
 
   .input {
-    @apply mt-1 w-full rounded border border-white/15 bg-[rgba(15,22,34,0.9)] px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/45 focus:border-moss focus:ring-2 focus:ring-moss/20 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-white/45;
+    @apply mt-1 w-full rounded border border-outline bg-[rgba(15,22,34,0.9)] px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink focus:border-moss focus:ring-2 focus:ring-moss disabled:cursor-not-allowed disabled:bg-surfaceVariant backdrop-blur-md disabled:text-ink;
   }
 
   .field-label {
-    @apply text-sm font-medium text-white/85;
+    @apply text-sm font-medium text-ink;
   }
 
   .toggle-row {
-    @apply flex min-h-11 items-center justify-between gap-3 rounded border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white;
+    @apply flex min-h-11 items-center justify-between gap-3 rounded border border-outline bg-surfaceVariant backdrop-blur-md px-3 py-2 text-sm font-medium text-ink;
   }
 
   .toggle-row input {
@@ -161,15 +213,15 @@ textarea {
   }
 
   .calendar-day {
-    @apply relative flex aspect-square min-h-11 min-w-0 flex-col items-start justify-between overflow-hidden rounded border border-white/10 bg-white/5 p-1.5 text-left text-xs text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-moss hover:bg-moss/10 focus:outline-none focus:ring-2 focus:ring-moss/30 sm:min-h-16 sm:p-2 sm:text-sm;
+    @apply relative flex aspect-square min-h-11 min-w-0 flex-col items-start justify-between overflow-hidden rounded border border-outline bg-surfaceVariant backdrop-blur-md p-1.5 text-left text-xs text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-moss hover:bg-mossLight focus:outline-none focus:ring-2 focus:ring-moss sm:min-h-16 sm:p-2 sm:text-sm;
   }
 
   .calendar-day small {
-    @apply block max-w-full truncate text-[9px] leading-none text-white/65 sm:text-[11px];
+    @apply block max-w-full truncate text-[9px] leading-none text-ink sm:text-[11px];
   }
 
   .calendar-day.outside {
-    @apply bg-white/[0.02] text-white/40;
+    @apply bg-surfaceVariant backdrop-blur-md text-ink;
   }
 
   .calendar-day.today {
@@ -185,15 +237,15 @@ textarea {
   }
 
   .calendar-day.flow-light {
-    @apply bg-coral/10;
+    @apply bg-coralLight;
   }
 
   .calendar-day.flow-medium {
-    @apply bg-coral/20;
+    @apply bg-coralLight;
   }
 
   .calendar-day.flow-heavy {
-    @apply bg-coral/35;
+    @apply bg-coralLight;
   }
 
   .calendar-day.phase-follicular {
@@ -233,11 +285,11 @@ textarea {
   }
 
   .primary-entry-card {
-    @apply border-moss/35 bg-moss/[0.08];
+    @apply border-moss bg-mossLight;
   }
 
   .period-card.attention {
-    @apply border-marigold/35 bg-marigold/[0.08];
+    @apply border-marigold bg-marigoldLight;
   }
 
   .eyebrow {
@@ -245,11 +297,11 @@ textarea {
   }
 
   .saved-pill {
-    @apply shrink-0 rounded-full border border-moss/30 bg-moss/15 px-2.5 py-1 text-xs font-semibold text-white;
+    @apply shrink-0 rounded-full border border-moss bg-mossLight px-2.5 py-1 text-xs font-semibold text-ink;
   }
 
   .saved-pill.warm {
-    @apply border-marigold/35 bg-marigold/15;
+    @apply border-marigold bg-marigold;
   }
 
   .temperature-picker {
@@ -257,19 +309,19 @@ textarea {
   }
 
   .temp-stepper {
-    @apply grid h-12 w-12 place-items-center rounded-full border border-white/10 bg-white/10 text-white transition hover:-translate-y-0.5 hover:border-moss hover:bg-moss/15 focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply grid h-12 w-12 place-items-center rounded-full border border-outline bg-white/10 text-ink transition hover:-translate-y-0.5 hover:border-moss hover:bg-mossLight focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .temperature-display {
-    @apply flex min-w-0 items-center justify-center gap-1 rounded border border-white/10 bg-[#101722] px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+    @apply flex min-w-0 items-center justify-center gap-1 rounded border border-outline bg-surface backdrop-blur-xl px-3 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
   }
 
   .temperature-display input {
-    @apply w-[5.4ch] bg-transparent text-center text-5xl font-semibold leading-none text-white outline-none placeholder:text-white/25 sm:text-6xl;
+    @apply w-[5.4ch] bg-transparent text-center text-5xl font-semibold leading-none text-ink outline-none placeholder:text-ink sm:text-6xl;
   }
 
   .temperature-display span {
-    @apply translate-y-1 text-lg font-semibold text-white/75;
+    @apply translate-y-1 text-lg font-semibold text-ink;
   }
 
   .temperature-options {
@@ -277,23 +329,23 @@ textarea {
   }
 
   .temperature-saved-row {
-    @apply rounded border border-white/10 bg-white/5 text-sm text-white transition hover:border-moss/40 hover:bg-white/[0.07];
+    @apply rounded border border-outline bg-surfaceVariant backdrop-blur-md text-sm text-ink transition hover:border-moss hover:bg-surfaceVariant backdrop-blur-md;
   }
 
   .temperature-saved-row summary {
-    @apply grid cursor-pointer list-none grid-cols-[0.9fr_0.8fr_0.7fr_0.7fr] items-center gap-2 px-3 py-2 text-white/75;
+    @apply grid cursor-pointer list-none grid-cols-[0.9fr_0.8fr_0.7fr_0.7fr] items-center gap-2 px-3 py-2 text-ink;
   }
 
   .temperature-saved-row summary strong {
-    @apply text-base text-white;
+    @apply text-base text-ink;
   }
 
   .temperature-edit-row {
-    @apply grid grid-cols-2 items-center gap-2 border-t border-white/10 p-2 sm:grid-cols-[0.8fr_1fr_0.8fr_auto_auto];
+    @apply grid grid-cols-2 items-center gap-2 border-t border-outline p-2 sm:grid-cols-[0.8fr_1fr_0.8fr_auto_auto];
   }
 
   .mini-check {
-    @apply flex h-10 items-center gap-2 rounded border border-white/10 px-2 text-xs font-medium text-white/85;
+    @apply flex h-10 items-center gap-2 rounded border border-outline px-2 text-xs font-medium text-ink;
   }
 
   .mini-check input {
@@ -301,32 +353,32 @@ textarea {
   }
 
   .advanced-panel {
-    @apply rounded border border-white/10 bg-white/[0.04] p-3;
+    @apply rounded border border-outline bg-surface backdrop-blur-xl p-3;
     animation: rise-in 220ms ease both;
   }
 
   .input-card {
-    @apply rounded border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)];
+    @apply rounded border border-outline bg-surface backdrop-blur-xl p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)];
   }
 
   .input-card h3 {
-    @apply text-base font-semibold text-white;
+    @apply text-base font-semibold text-ink;
   }
 
   .input-card p {
-    @apply mb-3 mt-1 text-sm leading-6 text-white/70;
+    @apply mb-3 mt-1 text-sm leading-6 text-ink;
   }
 
   .confirm-box {
-    @apply mb-4 space-y-3 rounded border border-coral/40 bg-coral/10 p-3 text-sm leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07)];
+    @apply mb-4 space-y-3 rounded border border-coral bg-coralLight p-3 text-sm leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.07)];
   }
 
   .confirm-box strong {
-    @apply block text-base text-white;
+    @apply block text-base text-ink;
   }
 
   .confirm-box span {
-    @apply block text-white/75;
+    @apply block text-ink;
   }
 
   .phase-strip {
@@ -338,7 +390,7 @@ textarea {
   }
 
   .phase-chip {
-    @apply grid aspect-square place-items-center rounded border text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply grid aspect-square place-items-center rounded border text-xs font-semibold text-ink transition hover:-translate-y-0.5 hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .phase-chip.active {
@@ -350,7 +402,7 @@ textarea {
   }
 
   .legend-row {
-    @apply flex items-center gap-2 rounded border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-sm text-white/80 transition hover:border-moss/40 hover:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply flex items-center gap-2 rounded border border-outline bg-surface backdrop-blur-xl px-3 py-2 text-left text-sm text-ink transition hover:border-moss hover:bg-surfaceVariant backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .phase-legend {
@@ -358,7 +410,7 @@ textarea {
   }
 
   .legend-row.active {
-    @apply border-moss/50 bg-moss/10 text-white;
+    @apply border-moss bg-mossLight text-ink;
   }
 
   .legend-row span {
@@ -366,7 +418,7 @@ textarea {
   }
 
   .phase-focus-card {
-    @apply rounded border bg-white/[0.04] p-4 text-sm leading-6 text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+    @apply rounded border bg-surface backdrop-blur-xl p-4 text-sm leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
   }
 
   .phase-focus-card strong {
@@ -374,12 +426,12 @@ textarea {
   }
 
   .phase-focus-card span {
-    @apply block text-white/70;
+    @apply block text-ink;
   }
 
   .phase-focus-card ul,
   .phase-tooltip-list {
-    @apply mt-2 list-disc space-y-1 pl-5 text-white/70;
+    @apply mt-2 list-disc space-y-1 pl-5 text-ink;
   }
 
   .phase-focus-card li,
@@ -388,7 +440,7 @@ textarea {
   }
 
   .phase-tooltip {
-    @apply max-w-xs space-y-3 text-sm leading-6 text-white;
+    @apply max-w-xs space-y-3 text-sm leading-6 text-ink;
   }
 
   .phase-tooltip-header {
@@ -396,11 +448,11 @@ textarea {
   }
 
   .phase-tooltip-header strong {
-    @apply block text-base font-semibold text-white;
+    @apply block text-base font-semibold text-ink;
   }
 
   .phase-tooltip-header span {
-    @apply block text-white/70;
+    @apply block text-ink;
   }
 
   .phase-tooltip-dot {
@@ -408,11 +460,11 @@ textarea {
   }
 
   .phase-tooltip-pill {
-    @apply inline-flex rounded-full border border-marigold/30 bg-marigold/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-white;
+    @apply inline-flex rounded-full border border-marigold bg-marigoldLight px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink;
   }
 
   .tippy-box[data-theme~="alba"] {
-    @apply rounded border border-white/10 bg-[#101722]/95 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl;
+    @apply rounded border border-outline bg-surface backdrop-blur-xl/95 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl;
   }
 
   .tippy-box[data-theme~="alba"] .tippy-content {
@@ -420,13 +472,13 @@ textarea {
   }
 
   .anniversary-story {
-    @apply fixed inset-0 z-50 overflow-y-auto bg-[#05080d] text-white;
+    @apply fixed inset-0 z-50 overflow-y-auto bg-[#05080d] text-ink;
     scroll-snap-type: y proximity;
     animation: fade-in 360ms ease both;
   }
 
   .anniversary-close {
-    @apply fixed right-4 top-4 z-20 rounded-full border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-moss hover:text-white focus:outline-none focus:ring-2 focus:ring-moss/30;
+    @apply fixed right-4 top-4 z-20 rounded-full border border-outline bg-surface backdrop-blur-xl px-4 py-2 text-sm font-semibold text-ink backdrop-blur-xl transition hover:border-moss hover:text-ink focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .story-cover,
@@ -449,12 +501,12 @@ textarea {
   }
 
   .story-cover h2 {
-    @apply mt-4 max-w-3xl text-5xl font-semibold leading-tight text-white sm:text-7xl;
+    @apply mt-4 max-w-3xl text-5xl font-semibold leading-tight text-ink sm:text-7xl;
     animation: intro-card 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .story-cover span {
-    @apply mt-8 text-sm text-white/60;
+    @apply mt-8 text-sm text-ink;
     animation: memory-float 2.6s ease-in-out infinite;
   }
 
@@ -500,20 +552,20 @@ textarea {
   }
 
   .story-final {
-    @apply min-h-screen bg-black py-24;
+    @apply min-h-screen bg-surface backdrop-blur-xl py-24;
   }
 
   .story-overlay-text {
-    @apply mx-auto mt-14 max-w-3xl rounded border border-white/10 bg-black/70 p-6 backdrop-blur-xl;
+    @apply mx-auto mt-14 max-w-3xl rounded border border-outline bg-surface backdrop-blur-xl p-6 backdrop-blur-xl;
   }
 
   .story-overlay-text h2 {
-    @apply mt-3 text-4xl font-semibold leading-tight text-white sm:text-6xl;
+    @apply mt-3 text-4xl font-semibold leading-tight text-ink sm:text-6xl;
   }
 }
 
 select.input option {
-  color: #f7f2e8;
+  color: var(--color-ink);
   background: #0f1622;
 }
 

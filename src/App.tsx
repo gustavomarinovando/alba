@@ -25,6 +25,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   CartesianGrid,
   Line,
@@ -124,11 +125,73 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isNavCompact, setIsNavCompact] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return "dark";
+  });
   const [showAnniversaryIntro, setShowAnniversaryIntro] = useState(() => {
     const today = isoDate(new Date());
     return today === "2026-05-06" && safeSessionGet("alba-anniversary-2026-05-06") !== "seen";
   });
   const importInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
+  const toggleTheme = (event: React.MouseEvent) => {
+    const isDark = theme === "dark";
+    const nextTheme = isDark ? "light" : "dark";
+
+    if (!document.startViewTransition) {
+      setTheme(nextTheme);
+      return;
+    }
+
+    const x = event.clientX;
+    const y = event.clientY;
+    const endRadius = Math.hypot(
+      Math.max(x, innerWidth - x),
+      Math.max(y, innerHeight - y)
+    );
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setTheme(nextTheme);
+      });
+      if (nextTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    });
+
+    transition.ready.then(() => {
+      const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`,
+      ];
+
+      document.documentElement.animate(
+        {
+          clipPath: isDark ? [...clipPath].reverse() : clipPath,
+        },
+        {
+          duration: 600,
+          easing: "ease-in-out",
+          pseudoElement: isDark ? "::view-transition-old(root)" : "::view-transition-new(root)",
+        }
+      );
+    });
+  };
+
+
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -504,7 +567,7 @@ export default function App() {
     try {
       const result = await requestCycleInsight({ entries, stats, selectedDate });
       setInsight(result);
-      setStatus("Lectura generada con Gemini.");
+      setStatus("Explicación generada.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo generar la lectura.");
     } finally {
@@ -518,24 +581,27 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-paper text-ink">
+    <main className="min-h-screen bg-surface text-ink">
       {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
-      <section className="border-b border-white/10 bg-paper/95">
+      <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <h1 className="app-title text-4xl font-semibold tracking-normal text-white sm:text-5xl">Alba</h1>
-            <p className="max-w-md text-sm leading-6 text-white/72">
-              Registro personal de ciclo, menstruacion y temperatura basal.
-            </p>
+            <div className="flex items-center justify-center gap-3 relative group">
+              <button onClick={toggleTheme} className="cursor-pointer transition-transform hover:scale-110 focus:outline-none" aria-label="Cambiar tema" title="Cambiar tema">
+                <Sparkles className="h-8 w-8 text-moss animate-pulse" />
+              </button>
+              <h1 className="app-title text-5xl font-bold tracking-tight text-ink sm:text-6xl" style={{ background: "linear-gradient(45deg, var(--color-moss), var(--color-primary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Alba</h1>
+            </div>
+
           </div>
           {status ? (
-            <div className="rounded border border-moss/25 bg-moss/10 px-3 py-2 text-sm text-white/82">
+            <div className="rounded border border-moss bg-mossLight px-3 py-2 text-sm text-ink/80">
               <Info className="mr-2 inline h-4 w-4 text-moss" aria-hidden="true" />
               {status}
             </div>
           ) : null}
           {isDemoMode ? (
-            <div className="rounded border border-marigold/35 bg-marigold/10 px-3 py-2 text-sm leading-6 text-white/82">
+            <div className="rounded border border-marigold bg-marigoldLight px-3 py-2 text-sm leading-6 text-ink/80">
               Estas explorando datos demo mapeados a los ultimos 90 dias. No se guardan en Supabase.
             </div>
           ) : null}
@@ -579,7 +645,7 @@ export default function App() {
             <button className="icon-button compact" title="Mes anterior" onClick={() => setVisibleMonth(subMonths(visibleMonth, 1))} type="button">
               <ChevronLeft aria-hidden="true" size={17} />
             </button>
-            <span className="min-w-36 text-center text-sm font-medium capitalize text-white">
+            <span className="min-w-36 text-center text-sm font-medium capitalize text-ink">
               {format(visibleMonth, "MMMM yyyy", { locale: es })}
             </span>
             <button className="icon-button compact" title="Mes siguiente" onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))} type="button">
@@ -587,7 +653,7 @@ export default function App() {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-white/65">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-ink/60">
           {weekdayLabels.map((label, index) => (
             <span key={`${label}-${index}`} className="py-1">
               {label}
@@ -635,8 +701,8 @@ export default function App() {
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Thermometer className="h-5 w-5 text-coral" aria-hidden="true" />
             <div>
-              <h2 className="text-lg font-semibold">Temperaturas bucales recientes</h2>
-              <p className="text-xs text-white/55">
+              <h2 className="text-lg font-semibold">Tus temperaturas recientes</h2>
+              <p className="text-xs text-ink/50">
                 {chartData.length ? `${displayDate(chartData[0].date, "d MMM")} - ${displayDate(chartData.at(-1)!.date, "d MMM")}` : "Sin datos"}
               </p>
             </div>
@@ -680,7 +746,7 @@ export default function App() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyState text="Registra temperaturas bucales para ver una curva comparable." />
+            <EmptyState text="Registra tus temperaturas para verlas en un gráfico." />
           )}
         </div>
       </Panel>
@@ -692,18 +758,18 @@ export default function App() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
         <Panel className={shouldPrioritizeEntry ? "order-2" : ""}>
           <div className="mb-4">
-            <p className="text-sm text-white/70">{displayDate(selectedDate, "EEEE")}</p>
+            <p className="text-sm text-ink/70">{displayDate(selectedDate, "EEEE")}</p>
             <h2 className="text-xl font-semibold capitalize">{displayDate(selectedDate)}</h2>
-            <p className="mt-1 text-xs text-white/55">
+            <p className="mt-1 text-xs text-ink/50">
               {saveState === "saving" ? "Guardando..." : saveState === "saved" ? "Guardado" : "Auto-guardado activo"}
             </p>
           </div>
           <div className="space-y-3">
             <div className="info-box">
-              Alba puede empezar simple: marca menstruacion, agrega temperatura si la tienes, y deja lo demas para cuando haga falta.
+              Alba puede empezar simple: anota tu periodo, tu temperatura si la tomas, y listo.
             </div>
-            <Stat label="Fase probable" value={selectedPhase?.label ?? "Sin datos"} />
-            <Stat label="Dia del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
+            <Stat label="Fase actual" value={selectedPhase?.label ?? "Sin datos"} />
+            <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
             <div className="info-box">{selectedPhase?.description ?? "Agrega datos para construir el mapa del ciclo."}</div>
           </div>
         </Panel>
@@ -718,7 +784,7 @@ export default function App() {
           {showDeleteDayConfirm ? (
             <div className="confirm-box">
               <strong>Eliminar registros del dia</strong>
-              <span>Esto borrara menstruacion, temperaturas, senales y notas de {displayDate(selectedDate)}.</span>
+              <span>Esto borrara el periodo, temperaturas, señales y notas de {displayDate(selectedDate)}.</span>
               <div className="flex gap-2">
                 <button className="secondary-button danger" type="button" onClick={() => { void removeSelected(); setShowDeleteDayConfirm(false); }}>
                   Eliminar dia
@@ -837,8 +903,8 @@ export default function App() {
             <div className={periodNeedsAttention ? "input-card period-card attention" : "input-card period-card"}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3>Menstruacion</h3>
-                  <p>{periodNeedsAttention ? "Como venias registrando menstruacion, confirma si hoy continua." : "Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado."}</p>
+                  <h3>Periodo</h3>
+                  <p>{periodNeedsAttention ? "Como venias registrando sangrado, confirma si hoy continua." : "Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado."}</p>
                 </div>
                 {periodNeedsAttention ? <span className="saved-pill warm">Revisar</span> : null}
               </div>
@@ -854,7 +920,7 @@ export default function App() {
                     }))
                   }
                 />
-                <span>{draft.isPeriod ? "Si, hubo menstruacion" : "No hubo menstruacion"}</span>
+                <span>{draft.isPeriod ? "Si, hubo sangrado" : "No hubo sangrado"}</span>
               </label>
 
               {draft.isPeriod ? (
@@ -875,7 +941,7 @@ export default function App() {
 
             <div className="input-card">
               <h3>Senales opcionales</h3>
-              <p>El moco cervical y el cuello ayudan a entender mejor el mapa, pero no hace falta llenarlos todos los dias.</p>
+              <p>El flujo cervical y el cuello uterino te dan más pistas de tus fases, pero no es necesario llenarlos siempre.</p>
             <label className="toggle-row">
               <input type="checkbox" checked={showAdvanced} onChange={(event) => setShowAdvanced(event.target.checked)} />
               <span>Anadir mas informacion</span>
@@ -908,7 +974,7 @@ export default function App() {
     return (
       <div className="advanced-panel space-y-4">
         <div className="info-box">
-          <strong>Como observar:</strong> el moco cervical puede revisarse al limpiar o por la sensacion durante el dia.
+          <strong>Como observar:</strong> el flujo cervical puede revisarse al ir al baño o por la sensación durante el día.
           El cuello uterino debe observarse con manos limpias, con suavidad y sin forzar.
         </div>
         <div>
@@ -938,7 +1004,7 @@ export default function App() {
         <Panel>
           <div className="mb-4 flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-moss" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Mapa del ciclo</h2>
+            <h2 className="text-lg font-semibold">Tu mapa</h2>
           </div>
           <div
             ref={mapRef}
@@ -1048,15 +1114,15 @@ export default function App() {
             <h2 className="text-lg font-semibold">Resumen detallado</h2>
           </div>
           <dl className="grid grid-cols-2 gap-3">
-            <Stat label="Fase probable" value={selectedPhase?.label ?? "Sin datos"} />
+            <Stat label="Fase actual" value={selectedPhase?.label ?? "Sin datos"} />
             <Stat label="Confianza" value={selectedPhase?.confidence ?? "Pendiente"} />
-            <Stat label="Dia del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
+            <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
             <Stat label="Promedio ciclo" value={stats.averageCycleLength ? `${stats.averageCycleLength} dias` : "Pendiente"} />
-            <Stat label="Moco cervical" value={optionLabel(mucusOptions, draft.cervicalMucus)} />
+            <Stat label="Flujo cervical" value={optionLabel(mucusOptions, draft.cervicalMucus)} />
             <Stat label="Cuello uterino" value={`${optionLabel(cervixHeightOptions, draft.cervixHeight)} / ${optionLabel(cervixFirmnessOptions, draft.cervixFirmness)}`} />
           </dl>
           <div className="info-box warning mt-3">
-            Proxima menstruacion estimada:{" "}
+            Proximo periodo estimado:{" "}
             <strong>{stats.predictedNextPeriod ? displayDate(stats.predictedNextPeriod) : "requiere mas ciclos"}</strong>. Es una prediccion simple, no una indicacion de fertilidad.
           </div>
           <div className="info-box mt-3">
@@ -1075,17 +1141,17 @@ export default function App() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-marigold" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Lectura con IA</h2>
+            <h2 className="text-lg font-semibold">Asistente Alba</h2>
           </div>
-          <button className="icon-button compact" title="Generar lectura" onClick={generateInsight} disabled={isInsightLoading || entries.length === 0} type="button">
+          <button className="icon-button compact" title="Consultar a Alba" onClick={generateInsight} disabled={isInsightLoading || entries.length === 0} type="button">
             {isInsightLoading ? <Loader2 className="animate-spin" aria-hidden="true" size={17} /> : <Sparkles aria-hidden="true" size={17} />}
           </button>
         </div>
         <div className="info-box warning">
-          La lectura envia tus registros recientes a Gemini solo cuando presionas el boton. Es orientativa y no diagnostica ni indica fertilidad segura.
+          Alba envía tus registros recientes a Gemini solo cuando presionas el boton. Es orientativa y no diagnostica ni indica fertilidad segura.
         </div>
-        <div className="mt-3 min-h-32 whitespace-pre-wrap rounded border border-white/10 bg-paper/70 p-3 text-sm leading-6 text-white/86">
-          {insight || (entries.length ? "Genera una lectura cuando quieras revisar patrones del ciclo." : "Agrega registros para generar una lectura.")}
+        <div className="mt-3 min-h-32 whitespace-pre-wrap rounded border border-outline bg-surface/70 p-3 text-sm leading-6 text-ink/86">
+          {insight || (entries.length ? "Consulta a Alba cuando quieras revisar patrones del ciclo." : "Agrega datos para consultar a Alba.")}
         </div>
       </Panel>
     );
@@ -1135,8 +1201,8 @@ export default function App() {
 
 function phaseExplanation(phase: string): string {
   if (phase === "period") return "Dias donde se registro sangrado.";
-  if (phase === "follicular") return "El cuerpo se prepara para ovular; suele venir despues de la menstruacion.";
-  if (phase === "fertile") return "Ventana estimada donde conviene observar moco cervical y temperatura con mas atencion.";
+  if (phase === "follicular") return "El cuerpo se prepara para ovular; suele venir despues del periodo.";
+  if (phase === "fertile") return "Ventana estimada donde conviene observar tu flujo y temperatura con mas atencion.";
   if (phase === "possible-ovulation") return "Dia probable, no seguro. Alba lo estima con calendario y subida termica cuando existe.";
   if (phase === "thermal-shift") return "La temperatura podria estar cambiando; se observa si se sostiene varios dias.";
   if (phase === "luteal") return "Fase posterior a ovulacion probable; la temperatura suele verse mas alta.";
@@ -1263,26 +1329,26 @@ function getPhaseSegmentInsights(segment: { phase: CyclePhase; start: string; en
     if (ovulationDays.length > 0) {
       insights.push(`Posible ovulacion alrededor de ${ovulationDays.map((day) => displayDate(day.date)).join(", ")}.`);
     }
-    insights.push(mucus.length ? `Moco observado: ${mucus.map((value) => optionLabel(mucusOptions, value)).join(", ")}.` : "Sin moco cervical registrado en este bloque.");
+    insights.push(mucus.length ? `Flujo observado: ${mucus.map((value) => optionLabel(mucusOptions, value)).join(", ")}.` : "Sin flujo cervical registrado en este bloque.");
     insights.push("Alba la trata como estimacion educativa, no confirmacion.");
   } else if (segment.phase === "possible-ovulation") {
     insights.push("Punto probable de ovulacion, no confirmacion.");
-    insights.push(mucus.includes("eggwhite") ? "Hay moco tipo clara de huevo registrado cerca." : "Sin clara de huevo registrada en este bloque.");
-    insights.push(temps.length ? `Temperatura bucal en bloque: ${formatTempRange(temps)}.` : "Faltan tomas bucales para apoyar la lectura.");
+    insights.push(mucus.includes("eggwhite") ? "Hay flujo tipo clara de huevo registrado cerca." : "Sin clara de huevo registrada en este bloque.");
+    insights.push(temps.length ? `Temperatura en este bloque: ${formatTempRange(temps)}.` : "Faltan tomas para apoyar la lectura.");
   } else if (segment.phase === "thermal-shift") {
     insights.push("Bloque donde Alba busca si la subida termica se sostiene.");
     insights.push(temps.length >= 2 ? `Temperaturas: ${formatTempRange(temps)}.` : "Faltan temperaturas para evaluar tendencia.");
     insights.push(temps.length >= 2 && temps.at(-1)! > temps[0] ? "Se ve una tendencia de subida dentro del bloque." : "Todavia no se ve una subida clara dentro del bloque.");
   } else if (segment.phase === "luteal") {
     insights.push(`Fase lutea estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"} en esta vista.`);
-    insights.push(temps.length ? `Temperatura bucal promedio: ${average(temps).toFixed(1)} C.` : "Sin suficientes tomas bucales en este bloque.");
+    insights.push(temps.length ? `Temperatura promedio: ${average(temps).toFixed(1)} C.` : "Sin suficientes tomas en este bloque.");
     insights.push("Si la temperatura se mantiene mas alta, refuerza la lectura lutea.");
   } else if (segment.phase === "expected-period") {
     insights.push("Inicio estimado por promedio de ciclos.");
     insights.push("No es una indicacion medica ni fertilidad segura.");
   } else {
     insights.push(`Fase folicular estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
-    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aun sin temperaturas bucales en este bloque.");
+    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aun sin temperaturas en este bloque.");
     insights.push("Suele ser el tramo de preparacion antes de la ventana fertil.");
   }
 
@@ -1335,17 +1401,17 @@ function AdvancedSelect({
 }
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`panel rounded border border-white/10 bg-[#171d26] p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
+  return <section className={`panel rounded border border-outline bg-surface p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div className="grid h-full place-items-center rounded border border-dashed border-white/15 text-center text-sm text-white/65">{text}</div>;
+  return <div className="grid h-full place-items-center rounded border border-dashed border-outline text-center text-sm text-ink/60">{text}</div>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded border border-white/10 bg-paper/70 p-3">
-      <dt className="text-xs font-medium uppercase tracking-[0.12em] text-white/58">{label}</dt>
+    <div className="rounded border border-outline bg-surface/70 p-3">
+      <dt className="text-xs font-medium uppercase tracking-[0.12em] text-ink/58">{label}</dt>
       <dd className="mt-1 text-lg font-semibold">{value}</dd>
     </div>
   );
