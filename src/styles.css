@@ -134,6 +134,22 @@ textarea {
     letter-spacing: 0;
   }
 
+  .brand-lockup {
+    @apply inline-flex items-center justify-center gap-3 rounded-full border border-outline bg-surfaceVariant px-4 py-2 shadow-soft backdrop-blur-xl;
+  }
+
+  .brand-mark {
+    @apply grid h-11 w-11 place-items-center rounded-full border border-outline bg-mossLight text-moss shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_34px_rgba(143,185,173,0.18)] transition hover:scale-105 hover:border-moss focus:outline-none focus:ring-2 focus:ring-moss;
+  }
+
+  .brand-word {
+    @apply text-5xl font-semibold text-ink sm:text-6xl;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: 0;
+    line-height: 0.95;
+    text-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+  }
+
   .panel:hover {
     border-color: rgba(0,0,0,0.1);
     background-color: var(--color-panel-hover);

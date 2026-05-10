@@ -9,6 +9,15 @@ interface SupabaseCycleRow {
   updated_at: string;
 }
 
+interface SupabasePushSubscriptionRow {
+  couple_id: number;
+  endpoint: string;
+  subscription: PushSubscriptionJSON;
+  enabled: boolean;
+  user_agent: string;
+  updated_at: string;
+}
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 }
@@ -20,6 +29,35 @@ export async function testSupabaseConnection(): Promise<void> {
 
   if (!response.ok) {
     throw new Error("Supabase respondio, pero no permitio leer cycle_entries.");
+  }
+}
+
+export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
+  const payload = subscription.toJSON();
+  const endpoint = payload.endpoint;
+  if (!endpoint) throw new Error("El navegador no entrego endpoint de push.");
+
+  const row: SupabasePushSubscriptionRow = {
+    couple_id: COUPLE_ID,
+    endpoint,
+    subscription: payload,
+    enabled: true,
+    user_agent: navigator.userAgent,
+    updated_at: new Date().toISOString(),
+  };
+
+  const response = await fetch(`${baseUrl()}/rest/v1/push_subscriptions?on_conflict=couple_id,endpoint`, {
+    method: "POST",
+    headers: {
+      ...headers(),
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates",
+    },
+    body: JSON.stringify(row),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo guardar este dispositivo para push (${response.status}).`);
   }
 }
 

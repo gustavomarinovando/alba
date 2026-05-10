@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/send-temperature-reminder",
+      "schedule": "30 10 * * *"
+    }
+  ]
+}

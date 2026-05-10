@@ -50,7 +50,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, savePushSubscription, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -135,7 +135,7 @@ export default function App() {
     if (typeof window !== "undefined") {
       const storedTheme = safeLocalGet(THEME_STORAGE_KEY);
       if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-      return document.documentElement.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      return "dark";
     }
     return "dark";
   });
@@ -536,7 +536,12 @@ export default function App() {
     }
 
     setTemperatureRemindersEnabled(true);
-    setStatus("Recordatorios activados en este dispositivo.");
+    try {
+      const pushReady = await registerDeviceForPush();
+      setStatus(pushReady ? "Recordatorios push activados en este dispositivo." : "Recordatorios locales activados. Falta configurar VAPID para push cerrado.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Recordatorios locales activos, pero no se pudo registrar push.");
+    }
   }
 
   function disableTemperatureReminders() {
@@ -576,6 +581,25 @@ export default function App() {
     if (markAsShown) {
       safeLocalSet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY, isoDate(new Date()));
     }
+  }
+
+  async function registerDeviceForPush(): Promise<boolean> {
+    const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !isSupabaseConfigured()) {
+      return false;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const existingSubscription = await registration.pushManager.getSubscription();
+    const subscription =
+      existingSubscription ??
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToArrayBuffer(publicKey),
+      }));
+
+    await savePushSubscription(subscription);
+    return true;
   }
 
   function addTemperature(value = pendingTemperature, site = pendingTemperatureSite) {
@@ -688,11 +712,11 @@ export default function App() {
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <div className="flex items-center justify-center gap-3 relative group">
-              <button onClick={toggleTheme} className="cursor-pointer transition-transform hover:scale-110 focus:outline-none" aria-label="Cambiar tema" title="Cambiar tema">
-                <Sparkles className="h-8 w-8 text-moss animate-pulse" />
+            <div className="brand-lockup">
+              <button onClick={toggleTheme} className="brand-mark" aria-label="Cambiar tema" title="Cambiar tema">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
               </button>
-              <h1 className="app-title text-5xl font-bold tracking-tight text-ink sm:text-6xl" style={{ background: "linear-gradient(45deg, var(--color-moss), var(--color-primary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Alba</h1>
+              <h1 className="brand-word">Alba</h1>
             </div>
 
           </div>
@@ -1719,5 +1743,19 @@ function safeLocalSet(key: string, value: string): void {
   } catch {
     // Demo autoload is best-effort only.
   }
+}
+
+function urlBase64ToArrayBuffer(value: string): ArrayBuffer {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  const buffer = new ArrayBuffer(raw.length);
+  const output = new Uint8Array(buffer);
+
+  for (let index = 0; index < raw.length; index += 1) {
+    output[index] = raw.charCodeAt(index);
+  }
+
+  return buffer;
 }
 
