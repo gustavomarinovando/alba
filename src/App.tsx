@@ -975,10 +975,11 @@ export default function App() {
           <div className="day-summary-grid">
             <PhaseStat phase={selectedPhase} />
             <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
-            <Stat label="Próximo periodo" value={estimatedNextPeriod ? displayDate(estimatedNextPeriod, "d MMM") : "Pendiente"} />
+            <Stat label="Próximo periodo" value={estimatedNextPeriod ? displayDate(estimatedNextPeriod, "d 'de' MMMM") : "Pendiente"} />
+            <Stat label="Temperatura" value={getPrimaryTemperature(draft) ? `${getPrimaryTemperature(draft)!.value.toFixed(1)} C` : "Pendiente"} />
           </div>
           <div className="phase-human-note" style={selectedPhase ? { borderColor: phaseMeta[selectedPhase.phase].color } : undefined}>
-            {phaseHumanText(selectedPhase, estimatedNextPeriod)}
+            {phaseHumanText(selectedPhase)}
           </div>
         </Panel>
 
@@ -1677,18 +1678,16 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function phaseHumanText(phase?: PhaseDay, nextPeriod?: string): string {
+function phaseHumanText(phase?: PhaseDay): string {
   if (!phase) return "Añade la última menstruación para ubicar mejor el ciclo.";
-
-  const next = nextPeriod ? ` Próximo periodo estimado: ${displayDate(nextPeriod, "d MMM")}.` : "";
 
   if (phase.phase === "period") return "Día marcado con sangrado. Alba lo usa como punto de inicio del ciclo.";
   if (phase.phase === "follicular") return "Probable fase folicular: el cuerpo se prepara para ovular. Aún no hace falta sacar conclusiones fuertes.";
   if (phase.phase === "fertile") return "Ventana fértil estimada por calendario. El flujo cervical y la temperatura ayudan a afinarla.";
   if (phase.phase === "possible-ovulation") return "Posible ovulación estimada. No es confirmación; solo una pista para observar los próximos días.";
   if (phase.phase === "thermal-shift") return "Alba ve una posible transición térmica. Si se sostiene, puede reforzar la lectura de fase lútea.";
-  if (phase.phase === "luteal") return `Probable fase lútea por el día del ciclo. Las próximas temperaturas ayudarán a confirmarlo.${next}`;
-  return `Rango donde podría acercarse el siguiente periodo.${next}`;
+  if (phase.phase === "luteal") return "Probable fase lútea por el día del ciclo. Las próximas temperaturas ayudarán a confirmarlo.";
+  return "Rango donde podría acercarse el siguiente periodo.";
 }
 
 function SaveFeedback({ state }: { state: "saving" | "saved" }) {
