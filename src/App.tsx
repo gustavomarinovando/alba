@@ -585,7 +585,7 @@ export default function App() {
 
   async function registerDeviceForPush(): Promise<boolean> {
     const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-    if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !isSupabaseConfigured()) {
+    if (!import.meta.env.PROD || !publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !isSupabaseConfigured()) {
       return false;
     }
 
