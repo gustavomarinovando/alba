@@ -45,3 +45,37 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+self.addEventListener("push", (event) => {
+  const fallback = {
+    title: "Alba",
+    body: "Cuando puedas, registra tu temperatura de hoy.",
+  };
+
+  const payload = event.data ? event.data.json() : fallback;
+  event.waitUntil(
+    self.registration.showNotification(payload.title || fallback.title, {
+      body: payload.body || fallback.body,
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      tag: payload.tag || "alba-temperature-reminder",
+      data: { url: payload.url || "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => "focus" in client);
+      if (existing) {
+        existing.navigate(targetUrl);
+        return existing.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
+});

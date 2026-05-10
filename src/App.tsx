@@ -5,6 +5,7 @@ import "tippy.js/dist/tippy.css";
 import "tippy.js/animations/shift-away-subtle.css";
 import {
   CalendarDays,
+  Bell,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -84,6 +85,11 @@ const tabs = [
   { id: "settings", label: "Ajustes", icon: Database },
 ] as const;
 type AppTab = (typeof tabs)[number]["id"];
+type BrowserNotificationPermission = NotificationPermission | "unsupported";
+
+const THEME_STORAGE_KEY = "alba-theme";
+const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
+const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
 
 function emptyEntry(date: string): CycleEntry {
   const now = new Date().toISOString();
@@ -127,10 +133,17 @@ export default function App() {
   const [isNavCompact, setIsNavCompact] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
+      const storedTheme = safeLocalGet(THEME_STORAGE_KEY);
+      if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
       return document.documentElement.classList.contains("dark") || window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
     return "dark";
   });
+  const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationPermission>(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
+  const [temperatureRemindersEnabled, setTemperatureRemindersEnabled] = useState(() => safeLocalGet(TEMPERATURE_REMINDERS_KEY) === "true");
   const [showAnniversaryIntro, setShowAnniversaryIntro] = useState(() => {
     const today = isoDate(new Date());
     return today === "2026-05-06" && safeSessionGet("alba-anniversary-2026-05-06") !== "seen";
@@ -143,6 +156,7 @@ export default function App() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    safeLocalSet(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   const toggleTheme = (event: React.MouseEvent) => {
@@ -157,8 +171,8 @@ export default function App() {
     const x = event.clientX;
     const y = event.clientY;
     const endRadius = Math.hypot(
-      Math.max(x, innerWidth - x),
-      Math.max(y, innerHeight - y)
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
     );
 
     const transition = document.startViewTransition(() => {
@@ -267,6 +281,29 @@ export default function App() {
     const timeout = window.setTimeout(() => setStatus(""), 4200);
     return () => window.clearTimeout(timeout);
   }, [status]);
+
+  useEffect(() => {
+    safeLocalSet(TEMPERATURE_REMINDERS_KEY, String(temperatureRemindersEnabled));
+  }, [temperatureRemindersEnabled]);
+
+  useEffect(() => {
+    if (!temperatureRemindersEnabled || notificationPermission !== "granted" || isDemoMode) return;
+    if (selectedDate !== isoDate(new Date()) || hasTemperatureToday) return;
+
+    const now = new Date();
+    if (now.getHours() < 6 || now.getHours() > 11) return;
+    if (safeLocalGet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY) === isoDate(now)) return;
+
+    const timeout = window.setTimeout(() => {
+      void showTemperatureReminder({
+        title: "Buenos días bonita",
+        body: "Cuando puedas, anota tu temperatura de hoy en Alba.",
+        markAsShown: true,
+      });
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [temperatureRemindersEnabled, notificationPermission, hasTemperatureToday, selectedDate, isDemoMode]);
 
   useEffect(() => {
     setChartEndIndex(Math.max(0, recentEntries.length - 1));
@@ -473,6 +510,71 @@ export default function App() {
       setStatus(error instanceof Error ? error.message : "No se pudo probar Supabase.");
     } finally {
       setIsTestingCloud(false);
+    }
+  }
+
+  async function enableTemperatureReminders() {
+    if (!("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      setStatus("Este navegador no soporta notificaciones web.");
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      setNotificationPermission("denied");
+      setStatus("Las notificaciones estan bloqueadas. Puedes activarlas desde los permisos del sitio.");
+      return;
+    }
+
+    const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+    setNotificationPermission(permission);
+
+    if (permission !== "granted") {
+      setTemperatureRemindersEnabled(false);
+      setStatus("No se activaron los recordatorios.");
+      return;
+    }
+
+    setTemperatureRemindersEnabled(true);
+    setStatus("Recordatorios activados en este dispositivo.");
+  }
+
+  function disableTemperatureReminders() {
+    setTemperatureRemindersEnabled(false);
+    setStatus("Recordatorios desactivados en este dispositivo.");
+  }
+
+  async function showTemperatureReminder({
+    title,
+    body,
+    markAsShown = false,
+  }: {
+    title: string;
+    body: string;
+    markAsShown?: boolean;
+  }) {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      setNotificationPermission("Notification" in window ? Notification.permission : "unsupported");
+      setStatus("Primero activa permisos de notificacion.");
+      return;
+    }
+
+    const options: NotificationOptions = {
+      body,
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      tag: "alba-temperature-reminder",
+    };
+
+    if (import.meta.env.PROD && "serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, options);
+    } else {
+      new Notification(title, options);
+    }
+
+    if (markAsShown) {
+      safeLocalSet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY, isoDate(new Date()));
     }
   }
 
@@ -1189,6 +1291,47 @@ export default function App() {
             <Database aria-hidden="true" size={17} />
             {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : "Sincronizar nube"}
           </button>
+        </div>
+        <div className="input-card mt-4">
+          <div className="mb-3 flex items-start gap-3">
+            <Bell className="mt-0.5 h-5 w-5 text-marigold" aria-hidden="true" />
+            <div>
+              <h3>Recordatorios</h3>
+              <p>
+                Por ahora Alba puede recordar la temperatura cuando la app esta activa en la mañana. Para avisar aunque la app este cerrada, el siguiente paso es push con Supabase.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {temperatureRemindersEnabled && notificationPermission === "granted" ? (
+              <button className="secondary-button danger" type="button" onClick={disableTemperatureReminders}>
+                <Bell aria-hidden="true" size={17} />
+                Desactivar
+              </button>
+            ) : (
+              <button className="secondary-button" type="button" onClick={enableTemperatureReminders} disabled={notificationPermission === "unsupported"}>
+                <Bell aria-hidden="true" size={17} />
+                Activar recordatorios
+              </button>
+            )}
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() =>
+                showTemperatureReminder({
+                  title: "Buenos días bonita",
+                  body: "Una toma pequeñita para cuidar el mapa de hoy.",
+                })
+              }
+              disabled={notificationPermission !== "granted"}
+            >
+              <Sparkles aria-hidden="true" size={17} />
+              Probar mensaje
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-ink/60">
+            Estado: {notificationPermission === "unsupported" ? "no soportado" : notificationPermission === "granted" ? "permitidas" : notificationPermission === "denied" ? "bloqueadas" : "sin decidir"}.
+          </p>
         </div>
         <div className="info-box mt-3">
           Sync usa Supabase con <strong>couple_id = 1</strong>. Los datos demo son solo para explorar y nunca se suben.

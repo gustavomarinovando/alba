@@ -7,6 +7,9 @@
   --color-paper: #fdfdfc;
   --color-surface: rgba(255, 255, 255, 0.4);
   --color-surface-variant: rgba(255, 255, 255, 0.6);
+  --color-panel-hover: rgba(255, 255, 255, 0.66);
+  --color-input-bg: rgba(255, 255, 255, 0.78);
+  --color-input-option-bg: #f7f5ef;
   --color-outline: rgba(255, 255, 255, 0.5);
   --color-moss: #006d5b;
   --color-moss-light: rgba(0, 109, 91, 0.15);
@@ -25,6 +28,9 @@
   --color-paper: #0d1117;
   --color-surface: rgba(13, 17, 23, 0.4);
   --color-surface-variant: rgba(23, 29, 38, 0.6);
+  --color-panel-hover: rgba(23, 29, 38, 0.9);
+  --color-input-bg: rgba(15, 22, 34, 0.9);
+  --color-input-option-bg: #0f1622;
   --color-outline: rgba(255, 255, 255, 0.15);
   --color-moss: #8fb9ad;
   --color-moss-light: rgba(143, 185, 173, 0.15);
@@ -74,7 +80,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(143, 185, 173, 0.18), transparent 34rem),
     radial-gradient(circle at bottom right, rgba(216, 155, 139, 0.12), transparent 30rem),
-    linear-gradient(135deg, #0d1117 0%, #111824 46%, #0b0e13 100%);
+    linear-gradient(135deg, var(--color-paper) 0%, var(--color-paper) 100%);
   background-attachment: fixed;
 }
 
@@ -130,7 +136,7 @@ textarea {
 
   .panel:hover {
     border-color: rgba(0,0,0,0.1);
-    background-color: rgba(23, 29, 38, 0.9);
+    background-color: var(--color-panel-hover);
     box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
   }
 
@@ -197,7 +203,7 @@ textarea {
   }
 
   .input {
-    @apply mt-1 w-full rounded border border-outline bg-[rgba(15,22,34,0.9)] px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink focus:border-moss focus:ring-2 focus:ring-moss disabled:cursor-not-allowed disabled:bg-surfaceVariant backdrop-blur-md disabled:text-ink;
+    @apply mt-1 w-full rounded border border-outline bg-[var(--color-input-bg)] px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink focus:border-moss focus:ring-2 focus:ring-moss disabled:cursor-not-allowed disabled:bg-surfaceVariant backdrop-blur-md disabled:text-ink;
   }
 
   .field-label {
@@ -501,7 +507,7 @@ textarea {
   }
 
   .story-cover h2 {
-    @apply mt-4 max-w-3xl text-5xl font-semibold leading-tight text-ink sm:text-7xl;
+    @apply mt-4 max-w-3xl text-5xl font-semibold leading-tight text-white sm:text-7xl;
     animation: intro-card 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
@@ -566,7 +572,7 @@ textarea {
 
 select.input option {
   color: var(--color-ink);
-  background: #0f1622;
+  background: var(--color-input-option-bg);
 }
 
 @keyframes rise-in {
