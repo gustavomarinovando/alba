@@ -71,6 +71,11 @@ export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<Cycl
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function upsertSupabaseEntry(entry: CycleEntry): Promise<void> {
+  if (isDemoEntry(entry)) return;
+  await pushRemoteEntries([entry]);
+}
+
 export async function deleteSupabaseEntry(date: string): Promise<void> {
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&date=eq.${date}`, {
     method: "DELETE",
@@ -78,7 +83,7 @@ export async function deleteSupabaseEntry(date: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudo borrar ese dia en Supabase (${response.status}). Revisa la policy DELETE.`);
+    throw new Error(`No se pudo borrar ese día en Supabase (${response.status}).`);
   }
 }
 
@@ -89,7 +94,7 @@ export async function deleteAllSupabaseEntries(): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudieron borrar los datos en Supabase (${response.status}). Revisa la policy DELETE.`);
+    throw new Error(`No se pudieron borrar los datos en Supabase (${response.status}).`);
   }
 }
 

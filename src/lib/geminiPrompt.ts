@@ -28,7 +28,7 @@ export function buildGeminiPrompt(payload: GeminiInsightPayload): string {
 
   return [
     "Eres una asistente educativa para una app privada de registro menstrual y temperatura basal.",
-    "Responde en espanol claro, calido y breve. No diagnostiques, no des recomendaciones anticonceptivas, no afirmes ovulacion con certeza y no sustituyas atencion medica.",
+    "Responde en español claro, cálido y breve. No diagnostiques, no des recomendaciones anticonceptivas, no afirmes ovulación con certeza y no sustituyas atención médica.",
     "Interpreta los datos como patrones observacionales. Si faltan datos, dilo con suavidad.",
     "Incluye 3 secciones con titulos cortos: Lectura, Datos a cuidar, Siguiente registro.",
     "Maximo 170 palabras.",

@@ -51,7 +51,7 @@ export function buildExport(entries: CycleEntry[]): ExportPayload {
 export function parseImport(raw: string): CycleEntry[] {
   const payload = JSON.parse(raw) as Partial<ExportPayload>;
   if (payload.app !== "ciclo-local" || payload.version !== 1 || !Array.isArray(payload.entries)) {
-    throw new Error("El archivo no parece ser una exportacion valida de Ciclo Local.");
+    throw new Error("El archivo no parece ser una exportación válida de Alba.");
   }
 
   return payload.entries.map(normalizeEntry);

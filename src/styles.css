@@ -113,10 +113,6 @@ textarea {
     @apply h-10;
   }
 
-  .app-nav.compact .tab-label {
-    @apply sr-only;
-  }
-
   .panel {
     animation: rise-in 420ms ease both;
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -135,19 +131,61 @@ textarea {
   }
 
   .brand-lockup {
-    @apply inline-flex items-center justify-center gap-3 rounded-full border border-outline bg-surfaceVariant px-4 py-2 shadow-soft backdrop-blur-xl;
+    @apply inline-flex items-center justify-center gap-3;
   }
 
   .brand-mark {
-    @apply grid h-11 w-11 place-items-center rounded-full border border-outline bg-mossLight text-moss shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_34px_rgba(143,185,173,0.18)] transition hover:scale-105 hover:border-moss focus:outline-none focus:ring-2 focus:ring-moss;
+    @apply grid h-11 w-11 place-items-center rounded-full border border-outline bg-surfaceVariant text-moss shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_34px_rgba(143,185,173,0.12)] backdrop-blur-xl transition hover:scale-105 hover:border-moss hover:bg-mossLight focus:outline-none focus:ring-2 focus:ring-moss;
   }
 
   .brand-word {
-    @apply text-5xl font-semibold text-ink sm:text-6xl;
-    font-family: Georgia, "Times New Roman", serif;
+    @apply text-5xl font-semibold sm:text-6xl;
+    background: linear-gradient(45deg, var(--color-moss), var(--color-primary));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
     letter-spacing: 0;
     line-height: 0.95;
     text-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+  }
+
+  .brand-font-serif {
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    font-weight: 600;
+  }
+
+  .brand-font-sans {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 700;
+  }
+
+  .brand-font-script {
+    font-family: "Segoe Script", "Brush Script MT", Georgia, serif;
+    font-weight: 600;
+  }
+
+  .brand-font-display {
+    font-family: "Bodoni 72", Didot, Georgia, "Times New Roman", serif;
+    font-weight: 700;
+  }
+
+  .brand-test-card {
+    @apply rounded border border-outline bg-surface p-5 shadow-soft backdrop-blur-xl;
+  }
+
+  .brand-test-card h2 {
+    @apply mt-5 text-base font-semibold text-ink;
+  }
+
+  .brand-test-card p {
+    @apply mt-1 text-sm leading-6;
+    color: color-mix(in srgb, var(--color-ink) 60%, transparent);
+  }
+
+  .brand-lockup-preview {
+    @apply justify-start;
   }
 
   .panel:hover {
@@ -310,6 +348,40 @@ textarea {
     @apply border-moss bg-mossLight;
   }
 
+  .day-summary-head {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .day-summary-side {
+    @apply flex max-w-[12rem] flex-col items-end gap-2 text-right text-xs leading-5;
+    color: color-mix(in srgb, var(--color-ink) 60%, transparent);
+  }
+
+  .day-summary-grid {
+    @apply grid grid-cols-2 gap-2 sm:grid-cols-3;
+  }
+
+  .phase-stat {
+    @apply rounded border border-outline bg-surface p-3;
+  }
+
+  .phase-stat dt {
+    @apply text-xs font-medium uppercase tracking-[0.12em];
+    color: color-mix(in srgb, var(--color-ink) 58%, transparent);
+  }
+
+  .phase-stat dd {
+    @apply mt-1 flex items-center gap-2 text-lg font-semibold;
+  }
+
+  .phase-stat dd span {
+    @apply h-2.5 w-2.5 rounded-full;
+  }
+
+  .phase-human-note {
+    @apply mt-3 rounded border border-outline bg-surfaceVariant p-3 text-sm leading-6 text-ink;
+  }
+
   .period-card.attention {
     @apply border-marigold bg-marigoldLight;
   }
@@ -324,6 +396,33 @@ textarea {
 
   .saved-pill.warm {
     @apply border-marigold bg-marigold;
+  }
+
+  .save-feedback {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-outline bg-surfaceVariant px-2.5 py-1 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
+    color: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  }
+
+  .save-feedback span {
+    @apply h-1.5 w-1.5 rounded-full bg-marigold;
+    animation: pulse-dot 900ms ease-in-out infinite;
+  }
+
+  .save-feedback.saved {
+    @apply border-moss bg-mossLight text-ink;
+  }
+
+  .save-feedback.saved span {
+    @apply bg-moss;
+    animation: saved-pop 520ms ease both;
+  }
+
+  .saved-glow {
+    animation: saved-card 680ms ease both;
+  }
+
+  .save-strip {
+    @apply flex justify-center;
   }
 
   .temperature-picker {
@@ -348,6 +447,24 @@ textarea {
 
   .temperature-options {
     @apply mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2;
+  }
+
+  .temperature-saved-anchor {
+    @apply h-3;
+  }
+
+  .temperature-flyer {
+    @apply pointer-events-none fixed z-[70] rounded border border-moss bg-surfaceVariant px-3 py-2 text-center text-ink shadow-[0_18px_50px_rgba(143,185,173,0.24)] backdrop-blur-xl;
+    transform: translate(-50%, -50%);
+    animation: temp-fly-to-row 780ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .temperature-flyer strong {
+    @apply block text-4xl font-semibold leading-none;
+  }
+
+  .temperature-flyer span {
+    @apply mt-1 block text-xs font-semibold uppercase tracking-[0.14em] text-moss;
   }
 
   .temperature-saved-row {
@@ -610,6 +727,69 @@ select.input option {
 
   to {
     opacity: 1;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes saved-pop {
+  0% {
+    transform: scale(0.72);
+  }
+
+  70% {
+    transform: scale(1.28);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes saved-card {
+  0% {
+    box-shadow: 0 0 0 rgba(143, 185, 173, 0);
+  }
+
+  45% {
+    box-shadow: 0 0 0 4px rgba(143, 185, 173, 0.2), 0 22px 70px rgba(143, 185, 173, 0.14);
+  }
+
+  100% {
+    box-shadow: 0 0 0 rgba(143, 185, 173, 0);
+  }
+}
+
+@keyframes temp-fly-to-row {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--fly-x)), calc(-50% + var(--fly-y) - 8px)) scale(0.48);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--fly-x)), calc(-50% + var(--fly-y))) scale(0.34);
   }
 }
 

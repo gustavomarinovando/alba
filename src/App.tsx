@@ -17,9 +17,10 @@ import {
   Info,
   Loader2,
   Minus,
+  Moon,
   Plus,
-  Save,
   Sparkles,
+  Sun,
   Thermometer,
   Trash2,
   ZoomIn,
@@ -50,7 +51,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, savePushSubscription, syncWithSupabase, testSupabaseConnection } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, savePushSubscription, syncWithSupabase, testSupabaseConnection, upsertSupabaseEntry } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -86,6 +87,15 @@ const tabs = [
 ] as const;
 type AppTab = (typeof tabs)[number]["id"];
 type BrowserNotificationPermission = NotificationPermission | "unsupported";
+type TemperatureFlyer = {
+  id: number;
+  value: number;
+  site: string;
+  fromX: number;
+  fromY: number;
+  deltaX: number;
+  deltaY: number;
+};
 
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
@@ -112,6 +122,7 @@ export default function App() {
   const [draft, setDraft] = useState<CycleEntry>(() => emptyEntry(selectedDate));
   const [status, setStatus] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveFeedback, setSaveFeedback] = useState<"idle" | "saving" | "saved">("idle");
   const [insight, setInsight] = useState("");
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -144,11 +155,15 @@ export default function App() {
     return Notification.permission;
   });
   const [temperatureRemindersEnabled, setTemperatureRemindersEnabled] = useState(() => safeLocalGet(TEMPERATURE_REMINDERS_KEY) === "true");
+  const [temperatureFlyer, setTemperatureFlyer] = useState<TemperatureFlyer | null>(null);
+  const showBrandLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("brand-lab");
   const [showAnniversaryIntro, setShowAnniversaryIntro] = useState(() => {
     const today = isoDate(new Date());
     return today === "2026-05-06" && safeSessionGet("alba-anniversary-2026-05-06") !== "seen";
   });
   const importInput = useRef<HTMLInputElement>(null);
+  const temperatureDisplayRef = useRef<HTMLLabelElement>(null);
+  const savedTemperaturesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -261,6 +276,11 @@ export default function App() {
   const recentEntries = useMemo(() => getRecentEntries(entries, 92), [entries]);
   const phaseByDate = useMemo(() => buildPhaseMap(entries), [entries]);
   const selectedPhase = phaseByDate.get(selectedDate);
+  const estimatedNextPeriod = useMemo(() => {
+    if (stats.predictedNextPeriod) return stats.predictedNextPeriod;
+    if (!stats.lastPeriodStart) return undefined;
+    return isoDate(addDays(parseISO(stats.lastPeriodStart), Math.round(stats.averageCycleLength ?? 30)));
+  }, [stats.averageCycleLength, stats.lastPeriodStart, stats.predictedNextPeriod]);
   const visiblePhaseDays = useMemo(() => getRecentEntries(entries, 60).map((entry) => phaseByDate.get(entry.date)).filter(Boolean), [entries, phaseByDate]);
   const phaseSegments = useMemo(() => buildPhaseSegments(visiblePhaseDays, entries), [visiblePhaseDays, entries]);
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
@@ -281,6 +301,19 @@ export default function App() {
     const timeout = window.setTimeout(() => setStatus(""), 4200);
     return () => window.clearTimeout(timeout);
   }, [status]);
+
+  useEffect(() => {
+    if (saveState === "saving") {
+      setSaveFeedback("saving");
+      return;
+    }
+
+    if (saveState === "saved") {
+      setSaveFeedback("saved");
+      const timeout = window.setTimeout(() => setSaveFeedback("idle"), 1600);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [saveState]);
 
   useEffect(() => {
     safeLocalSet(TEMPERATURE_REMINDERS_KEY, String(temperatureRemindersEnabled));
@@ -398,7 +431,7 @@ export default function App() {
     setSaveState("saved");
     if (!options?.quiet) setStatus(`Registro de ${displayDate(normalized.date)} guardado.`);
     if (isSupabaseConfigured()) {
-      void syncCloudData({ quiet: true, entriesOverride: storedEntries });
+      void upsertSupabaseEntry(normalized);
     }
   }
 
@@ -433,7 +466,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Esto borrara todos los registros de este dispositivo y de la nube compartida.")) return;
+    if (!window.confirm("Esto borrará todos los registros de este dispositivo y de la nube compartida.")) return;
     try {
       if (isSupabaseConfigured()) {
         await deleteAllSupabaseEntries();
@@ -455,7 +488,7 @@ export default function App() {
       setPrioritizedEntryDate(shouldPrioritizeDate(imported.at(-1)?.date ?? isoDate(new Date()), imported) ? (imported.at(-1)?.date ?? isoDate(new Date())) : null);
       setSelectedDate(imported.at(-1)?.date ?? isoDate(new Date()));
       setVisibleMonth(new Date());
-      setStatus("Modo demo activo con los ultimos 90 dias. No se sincroniza con la nube.");
+      setStatus("Modo demo activo con los últimos 90 días.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudieron cargar los datos de prueba.");
     }
@@ -505,7 +538,7 @@ export default function App() {
     setIsTestingCloud(true);
     try {
       await testSupabaseConnection();
-      setStatus("Conexion con Supabase correcta. Tabla y permisos responden bien.");
+      setStatus("Conexión con la nube lista.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo probar Supabase.");
     } finally {
@@ -516,13 +549,13 @@ export default function App() {
   async function enableTemperatureReminders() {
     if (!("Notification" in window)) {
       setNotificationPermission("unsupported");
-      setStatus("Este navegador no soporta notificaciones web.");
+      setStatus("Este navegador no permite notificaciones.");
       return;
     }
 
     if (Notification.permission === "denied") {
       setNotificationPermission("denied");
-      setStatus("Las notificaciones estan bloqueadas. Puedes activarlas desde los permisos del sitio.");
+      setStatus("Las notificaciones están bloqueadas en este navegador.");
       return;
     }
 
@@ -538,9 +571,9 @@ export default function App() {
     setTemperatureRemindersEnabled(true);
     try {
       const pushReady = await registerDeviceForPush();
-      setStatus(pushReady ? "Recordatorios push activados en este dispositivo." : "Recordatorios locales activados. Falta configurar VAPID para push cerrado.");
+      setStatus(pushReady ? "Recordatorios activados." : "Recordatorios activados para esta sesión.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Recordatorios locales activos, pero no se pudo registrar push.");
+      setStatus(error instanceof Error ? error.message : "Recordatorios activos en este navegador.");
     }
   }
 
@@ -560,7 +593,7 @@ export default function App() {
   }) {
     if (!("Notification" in window) || Notification.permission !== "granted") {
       setNotificationPermission("Notification" in window ? Notification.permission : "unsupported");
-      setStatus("Primero activa permisos de notificacion.");
+      setStatus("Primero activa las notificaciones.");
       return;
     }
 
@@ -614,11 +647,37 @@ export default function App() {
 
   function saveQuickTemperature() {
     if (registerTemperatureBlocked) {
-      setStatus(parsedPendingTemperature === undefined ? "Introduce una temperatura valida." : "Pausa unos segundos antes de registrar otra toma similar.");
+      setStatus(parsedPendingTemperature === undefined ? "Introduce una temperatura válida." : "Pausa unos segundos antes de registrar otra toma similar.");
       return;
     }
     addTemperature(parsedPendingTemperature, pendingTemperatureSite);
+    animateTemperatureToSavedRow(parsedPendingTemperature, pendingTemperatureSite);
     setLastTemperatureActionAt(Date.now());
+  }
+
+  function animateTemperatureToSavedRow(value: number, site: TemperatureSite) {
+    const source = temperatureDisplayRef.current?.getBoundingClientRect();
+    const target = savedTemperaturesRef.current?.getBoundingClientRect();
+    if (!source || !target) return;
+
+    const fromX = source.left + source.width / 2;
+    const fromY = source.top + source.height / 2;
+    const toX = target.left + target.width / 2;
+    const toY = target.top + Math.max(14, target.height / 2);
+    const id = Date.now();
+
+    setTemperatureFlyer({
+      id,
+      value,
+      site: temperatureSiteLabel(site),
+      fromX,
+      fromY,
+      deltaX: toX - fromX,
+      deltaY: toY - fromY,
+    });
+    window.setTimeout(() => {
+      setTemperatureFlyer((current) => (current?.id === id ? null : current));
+    }, 820);
   }
 
   function setPendingTemperatureValue(value: number) {
@@ -667,7 +726,7 @@ export default function App() {
     anchor.download = `alba-${isoDate(new Date())}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    setStatus("Exportacion JSON generada.");
+    setStatus("Exportación lista.");
   }
 
   async function importData(file?: File) {
@@ -706,15 +765,35 @@ export default function App() {
     setShowAnniversaryIntro(false);
   }
 
+  if (showBrandLab) {
+    return <BrandLab theme={theme} onToggleTheme={toggleTheme} />;
+  }
+
   return (
     <main className="min-h-screen bg-surface text-ink">
       {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
+      {temperatureFlyer ? (
+        <div
+          className="temperature-flyer"
+          style={
+            {
+              left: `${temperatureFlyer.fromX}px`,
+              top: `${temperatureFlyer.fromY}px`,
+              "--fly-x": `${temperatureFlyer.deltaX}px`,
+              "--fly-y": `${temperatureFlyer.deltaY}px`,
+            } as React.CSSProperties
+          }
+        >
+          <strong>{temperatureFlyer.value.toFixed(1)} C</strong>
+          <span>{temperatureFlyer.site}</span>
+        </div>
+      ) : null}
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <div className="brand-lockup">
+            <div className="brand-lockup" aria-label="Alba">
               <button onClick={toggleTheme} className="brand-mark" aria-label="Cambiar tema" title="Cambiar tema">
-                <Sparkles className="h-5 w-5" aria-hidden="true" />
+                {theme === "dark" ? <Moon className="h-5 w-5" aria-hidden="true" /> : <Sun className="h-5 w-5" aria-hidden="true" />}
               </button>
               <h1 className="brand-word">Alba</h1>
             </div>
@@ -728,7 +807,7 @@ export default function App() {
           ) : null}
           {isDemoMode ? (
             <div className="rounded border border-marigold bg-marigoldLight px-3 py-2 text-sm leading-6 text-ink/80">
-              Estas explorando datos demo mapeados a los ultimos 90 dias. No se guardan en Supabase.
+              Estás explorando datos demo. No se suben a la nube.
             </div>
           ) : null}
         </div>
@@ -834,7 +913,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="icon-button compact" title="Ver dias anteriores" type="button" disabled={!canMoveChartLeft} onClick={() => setChartEndIndex((current) => Math.max(chartWindow - 1, current - chartWindow))}>
+            <button className="icon-button compact" title="Ver días anteriores" type="button" disabled={!canMoveChartLeft} onClick={() => setChartEndIndex((current) => Math.max(chartWindow - 1, current - chartWindow))}>
               <ChevronLeft aria-hidden="true" size={17} />
             </button>
             <button className="icon-button compact" title="Alejar" type="button" disabled={chartWindow >= 60} onClick={() => setChartWindow((current) => Math.min(60, current + 7))}>
@@ -843,7 +922,7 @@ export default function App() {
             <button className="icon-button compact" title="Acercar" type="button" disabled={chartWindow <= 7} onClick={() => setChartWindow((current) => Math.max(7, current - 7))}>
               <ZoomIn aria-hidden="true" size={17} />
             </button>
-            <button className="icon-button compact" title="Ver dias siguientes" type="button" disabled={!canMoveChartRight} onClick={() => setChartEndIndex((current) => Math.min(allChartData.length - 1, current + chartWindow))}>
+            <button className="icon-button compact" title="Ver días siguientes" type="button" disabled={!canMoveChartRight} onClick={() => setChartEndIndex((current) => Math.min(allChartData.length - 1, current + chartWindow))}>
               <ChevronRight aria-hidden="true" size={17} />
             </button>
           </div>
@@ -883,37 +962,40 @@ export default function App() {
     return (
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
         <Panel className={shouldPrioritizeEntry ? "order-2" : ""}>
-          <div className="mb-4">
-            <p className="text-sm text-ink/70">{displayDate(selectedDate, "EEEE")}</p>
-            <h2 className="text-xl font-semibold capitalize">{displayDate(selectedDate)}</h2>
-            <p className="mt-1 text-xs text-ink/50">
-              {saveState === "saving" ? "Guardando..." : saveState === "saved" ? "Guardado" : "Auto-guardado activo"}
-            </p>
-          </div>
-          <div className="space-y-3">
-            <div className="info-box">
-              Alba puede empezar simple: anota tu periodo, tu temperatura si la tomas, y listo.
+          <div className="day-summary-head">
+            <div>
+              <p className="text-sm text-ink/70">{displayDate(selectedDate, "EEEE")}</p>
+              <h2 className="text-xl font-semibold capitalize">{displayDate(selectedDate)}</h2>
             </div>
-            <Stat label="Fase actual" value={selectedPhase?.label ?? "Sin datos"} />
+            <div className="day-summary-side">
+              <span>Temperatura y periodo si aplica.</span>
+              {saveFeedback !== "idle" ? <SaveFeedback state={saveFeedback} /> : null}
+            </div>
+          </div>
+          <div className="day-summary-grid">
+            <PhaseStat phase={selectedPhase} />
             <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
-            <div className="info-box">{selectedPhase?.description ?? "Agrega datos para construir el mapa del ciclo."}</div>
+            <Stat label="Próximo periodo" value={estimatedNextPeriod ? displayDate(estimatedNextPeriod, "d MMM") : "Pendiente"} />
+          </div>
+          <div className="phase-human-note" style={selectedPhase ? { borderColor: phaseMeta[selectedPhase.phase].color } : undefined}>
+            {phaseHumanText(selectedPhase, estimatedNextPeriod)}
           </div>
         </Panel>
 
         <Panel className={shouldPrioritizeEntry ? "order-1" : ""}>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Registro del dia</h2>
-            <button className="icon-button danger" title="Eliminar todos los registros de este dia" onClick={() => setShowDeleteDayConfirm(true)} type="button">
+            <h2 className="text-lg font-semibold">Registro del día</h2>
+            <button className="icon-button danger" title="Eliminar todos los registros de este día" onClick={() => setShowDeleteDayConfirm(true)} type="button">
               <Trash2 aria-hidden="true" size={18} />
             </button>
           </div>
           {showDeleteDayConfirm ? (
             <div className="confirm-box">
-              <strong>Eliminar registros del dia</strong>
-              <span>Esto borrara el periodo, temperaturas, señales y notas de {displayDate(selectedDate)}.</span>
+              <strong>Eliminar registros del día</strong>
+              <span>Esto borrará el periodo, temperaturas, señales y notas de {displayDate(selectedDate)}.</span>
               <div className="flex gap-2">
                 <button className="secondary-button danger" type="button" onClick={() => { void removeSelected(); setShowDeleteDayConfirm(false); }}>
-                  Eliminar dia
+                  Eliminar día
                 </button>
                 <button className="secondary-button" type="button" onClick={() => setShowDeleteDayConfirm(false)}>
                   Cancelar
@@ -922,21 +1004,20 @@ export default function App() {
             </div>
           ) : null}
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-            <div className="input-card primary-entry-card">
+            <div className={saveFeedback === "saved" ? "input-card primary-entry-card saved-glow" : "input-card primary-entry-card"}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="eyebrow">Principal</span>
                   <h3>Temperatura de hoy</h3>
                   <p>Escribe la temperatura. La hora se guarda sola al registrar la toma.</p>
                 </div>
-                {hasTemperatureToday ? <span className="saved-pill">Lista</span> : null}
               </div>
 
               <div className="temperature-picker" aria-label="Temperatura">
                 <button className="temp-stepper" type="button" aria-label="Bajar temperatura" onClick={() => adjustPendingTemperature(-0.1)}>
                   <Minus aria-hidden="true" size={20} />
                 </button>
-                <label className="temperature-display">
+                <label className="temperature-display" ref={temperatureDisplayRef}>
                   <input
                     aria-label="Temperatura"
                     type="text"
@@ -980,6 +1061,7 @@ export default function App() {
                 {registerTemperatureBlocked ? "Temperatura ya tomada" : "Registrar temperatura"}
               </button>
 
+              <div ref={savedTemperaturesRef} className="temperature-saved-anchor" aria-hidden="true" />
               {draft.temperatureReadings.length > 0 ? (
                 <div className="space-y-2">
                   <label className="field-label">Tomas guardadas hoy</label>
@@ -1030,7 +1112,7 @@ export default function App() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3>Periodo</h3>
-                  <p>{periodNeedsAttention ? "Como venias registrando sangrado, confirma si hoy continua." : "Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado."}</p>
+                  <p>{periodNeedsAttention ? "Como venías registrando sangrado, confirma si hoy continúa." : "Marca solo si hoy hubo sangrado. Si no, puedes dejarlo apagado."}</p>
                 </div>
                 {periodNeedsAttention ? <span className="saved-pill warm">Revisar</span> : null}
               </div>
@@ -1046,7 +1128,7 @@ export default function App() {
                     }))
                   }
                 />
-                <span>{draft.isPeriod ? "Si, hubo sangrado" : "No hubo sangrado"}</span>
+                <span>{draft.isPeriod ? "Sí, hubo sangrado" : "No hubo sangrado"}</span>
               </label>
 
               {draft.isPeriod ? (
@@ -1066,12 +1148,12 @@ export default function App() {
             </div>
 
             <div className="input-card">
-              <h3>Senales opcionales</h3>
+              <h3>Señales opcionales</h3>
               <p>El flujo cervical y el cuello uterino te dan más pistas de tus fases, pero no es necesario llenarlos siempre.</p>
-            <label className="toggle-row">
-              <input type="checkbox" checked={showAdvanced} onChange={(event) => setShowAdvanced(event.target.checked)} />
-              <span>Anadir mas informacion</span>
-            </label>
+              <label className="toggle-row">
+                <input type="checkbox" checked={showAdvanced} onChange={(event) => setShowAdvanced(event.target.checked)} />
+                <span>Añadir más información</span>
+              </label>
 
             {showAdvanced ? renderAdvancedFields() : null}
             </div>
@@ -1082,14 +1164,11 @@ export default function App() {
               <label className="field-label" htmlFor="note">
                 Nota
               </label>
-              <textarea id="note" className="input min-h-28 resize-y" placeholder="Ej: dormi poco, fiebre, dolor, viaje..." value={draft.note} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} />
+              <textarea id="note" className="input min-h-28 resize-y" placeholder="Ej: dormí poco, fiebre, dolor, viaje..." value={draft.note} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} />
             </div>
             </div>
 
-            <button className="primary-button" type="button" onClick={() => persistDraft()}>
-              <Save aria-hidden="true" size={18} />
-              Guardar ahora
-            </button>
+            {saveFeedback !== "idle" ? <div className="save-strip"><SaveFeedback state={saveFeedback} /></div> : null}
           </form>
         </Panel>
       </div>
@@ -1225,9 +1304,9 @@ export default function App() {
           </div>
           <div className="phase-focus-card mt-4" style={{ borderColor: activeMapMeta.color }}>
             <strong style={{ color: activeMapMeta.color }}>{activeMapMeta.label}</strong>
-            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} · ${activeMapSegment.days.length} dia${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
+            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} · ${activeMapSegment.days.length} día${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
             <ul>
-              {(activeMapSegment?.insights ?? ["Aun faltan datos para interpretar este bloque."]).map((insight) => (
+              {(activeMapSegment?.insights ?? ["Aún faltan datos para interpretar este bloque."]).map((insight) => (
                 <li key={insight}>{insight}</li>
               ))}
             </ul>
@@ -1243,18 +1322,18 @@ export default function App() {
             <Stat label="Fase actual" value={selectedPhase?.label ?? "Sin datos"} />
             <Stat label="Confianza" value={selectedPhase?.confidence ?? "Pendiente"} />
             <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
-            <Stat label="Promedio ciclo" value={stats.averageCycleLength ? `${stats.averageCycleLength} dias` : "Pendiente"} />
+            <Stat label="Promedio ciclo" value={stats.averageCycleLength ? `${stats.averageCycleLength} días` : "Pendiente"} />
             <Stat label="Flujo cervical" value={optionLabel(mucusOptions, draft.cervicalMucus)} />
             <Stat label="Cuello uterino" value={`${optionLabel(cervixHeightOptions, draft.cervixHeight)} / ${optionLabel(cervixFirmnessOptions, draft.cervixFirmness)}`} />
           </dl>
           <div className="info-box warning mt-3">
-            Proximo periodo estimado:{" "}
-            <strong>{stats.predictedNextPeriod ? displayDate(stats.predictedNextPeriod) : "requiere mas ciclos"}</strong>. Es una prediccion simple, no una indicacion de fertilidad.
+            Próximo periodo estimado:{" "}
+            <strong>{stats.predictedNextPeriod ? displayDate(stats.predictedNextPeriod) : "requiere más ciclos"}</strong>. Es una predicción simple.
           </div>
           <div className="info-box mt-3">
             {entries.filter((entry) => entry.temperatureReadings.length > 0).length >= 20
-              ? "Ya hay suficientes tomas para empezar a mirar tendencia termica, aunque Alba todavia evita conclusiones fuertes."
-              : "Con mas temperaturas diarias, Alba podra explicar mejor patrones y cambios de fase."}
+              ? "Ya hay suficientes tomas para empezar a mirar tendencia térmica."
+              : "Con más temperaturas diarias, Alba podrá explicar mejor los cambios de fase."}
           </div>
         </Panel>
       </div>
@@ -1274,7 +1353,7 @@ export default function App() {
           </button>
         </div>
         <div className="info-box warning">
-          Alba envía tus registros recientes a Gemini solo cuando presionas el boton. Es orientativa y no diagnostica ni indica fertilidad segura.
+          Alba revisa tus registros solo cuando presionas este botón. Es orientativa y no diagnostica.
         </div>
         <div className="mt-3 min-h-32 whitespace-pre-wrap rounded border border-outline bg-surface/70 p-3 text-sm leading-6 text-ink/86">
           {insight || (entries.length ? "Consulta a Alba cuando quieras revisar patrones del ciclo." : "Agrega datos para consultar a Alba.")}
@@ -1322,7 +1401,7 @@ export default function App() {
             <div>
               <h3>Recordatorios</h3>
               <p>
-                Por ahora Alba puede recordar la temperatura cuando la app esta activa en la mañana. Para avisar aunque la app este cerrada, el siguiente paso es push con Supabase.
+                Alba puede recordarte la temperatura por la mañana. En producción también podrá avisar aunque no tengas la app abierta.
               </p>
             </div>
           </div>
@@ -1367,13 +1446,13 @@ export default function App() {
 }
 
 function phaseExplanation(phase: string): string {
-  if (phase === "period") return "Dias donde se registro sangrado.";
-  if (phase === "follicular") return "El cuerpo se prepara para ovular; suele venir despues del periodo.";
-  if (phase === "fertile") return "Ventana estimada donde conviene observar tu flujo y temperatura con mas atencion.";
-  if (phase === "possible-ovulation") return "Dia probable, no seguro. Alba lo estima con calendario y subida termica cuando existe.";
-  if (phase === "thermal-shift") return "La temperatura podria estar cambiando; se observa si se sostiene varios dias.";
-  if (phase === "luteal") return "Fase posterior a ovulacion probable; la temperatura suele verse mas alta.";
-  return "Rango estimado donde podria iniciar el siguiente periodo.";
+  if (phase === "period") return "Días donde se registró sangrado.";
+  if (phase === "follicular") return "El cuerpo se prepara para ovular; suele venir después del periodo.";
+  if (phase === "fertile") return "Ventana estimada donde conviene observar flujo y temperatura.";
+  if (phase === "possible-ovulation") return "Día probable, no seguro. Alba lo estima con calendario y subida térmica.";
+  if (phase === "thermal-shift") return "La temperatura podría estar cambiando; se observa si se sostiene.";
+  if (phase === "luteal") return "Fase posterior a ovulación probable; la temperatura suele verse más alta.";
+  return "Rango estimado donde podría iniciar el siguiente periodo.";
 }
 
 function clampTemperature(value: number): number {
@@ -1487,35 +1566,35 @@ function getPhaseSegmentInsights(segment: { phase: CyclePhase; start: string; en
   if (segment.phase === "period") {
     const flows = segmentEntries.map((entry) => entry.flow).filter((flow) => flow && flow !== "none");
     const dominantFlow = mostCommon(flows);
-    insights.push(`Duracion registrada: ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
+    insights.push(`Duración registrada: ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
     insights.push(dominantFlow ? `Flujo predominante: ${optionLabel(flowOptions, dominantFlow).toLowerCase()}.` : "Falta registrar intensidad de flujo.");
     insights.push(segment.days.length >= 2 && segment.days.length <= 7 ? "Duracion dentro de un rango menstrual comun." : "Duracion fuera de lo comun; conviene observar si se repite.");
   } else if (segment.phase === "fertile") {
     const ovulationDays = segment.days.filter((day) => day.phase === "possible-ovulation");
-    insights.push(`Ventana estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
+    insights.push(`Ventana estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
     if (ovulationDays.length > 0) {
-      insights.push(`Posible ovulacion alrededor de ${ovulationDays.map((day) => displayDate(day.date)).join(", ")}.`);
+      insights.push(`Posible ovulación alrededor de ${ovulationDays.map((day) => displayDate(day.date)).join(", ")}.`);
     }
     insights.push(mucus.length ? `Flujo observado: ${mucus.map((value) => optionLabel(mucusOptions, value)).join(", ")}.` : "Sin flujo cervical registrado en este bloque.");
     insights.push("Alba la trata como estimacion educativa, no confirmacion.");
   } else if (segment.phase === "possible-ovulation") {
-    insights.push("Punto probable de ovulacion, no confirmacion.");
+    insights.push("Punto probable de ovulación, no confirmación.");
     insights.push(mucus.includes("eggwhite") ? "Hay flujo tipo clara de huevo registrado cerca." : "Sin clara de huevo registrada en este bloque.");
     insights.push(temps.length ? `Temperatura en este bloque: ${formatTempRange(temps)}.` : "Faltan tomas para apoyar la lectura.");
   } else if (segment.phase === "thermal-shift") {
-    insights.push("Bloque donde Alba busca si la subida termica se sostiene.");
+    insights.push("Bloque donde Alba busca si la subida térmica se sostiene.");
     insights.push(temps.length >= 2 ? `Temperaturas: ${formatTempRange(temps)}.` : "Faltan temperaturas para evaluar tendencia.");
     insights.push(temps.length >= 2 && temps.at(-1)! > temps[0] ? "Se ve una tendencia de subida dentro del bloque." : "Todavia no se ve una subida clara dentro del bloque.");
   } else if (segment.phase === "luteal") {
-    insights.push(`Fase lutea estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"} en esta vista.`);
+    insights.push(`Fase lútea estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"} en esta vista.`);
     insights.push(temps.length ? `Temperatura promedio: ${average(temps).toFixed(1)} C.` : "Sin suficientes tomas en este bloque.");
-    insights.push("Si la temperatura se mantiene mas alta, refuerza la lectura lutea.");
+    insights.push("Si la temperatura se mantiene más alta, refuerza la lectura lútea.");
   } else if (segment.phase === "expected-period") {
     insights.push("Inicio estimado por promedio de ciclos.");
-    insights.push("No es una indicacion medica ni fertilidad segura.");
+    insights.push("No es una indicación médica ni fertilidad segura.");
   } else {
-    insights.push(`Fase folicular estimada de ${segment.days.length} dia${segment.days.length === 1 ? "" : "s"}.`);
-    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aun sin temperaturas en este bloque.");
+    insights.push(`Fase folicular estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
+    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aún sin temperaturas en este bloque.");
     insights.push("Suele ser el tramo de preparacion antes de la ventana fertil.");
   }
 
@@ -1575,12 +1654,49 @@ function EmptyState({ text }: { text: string }) {
   return <div className="grid h-full place-items-center rounded border border-dashed border-outline text-center text-sm text-ink/60">{text}</div>;
 }
 
+function PhaseStat({ phase }: { phase?: PhaseDay }) {
+  const meta = phase ? phaseMeta[phase.phase] : undefined;
+
+  return (
+    <div className="phase-stat" style={meta ? { borderColor: meta.color, background: meta.soft } : undefined}>
+      <dt>Fase actual</dt>
+      <dd>
+        {meta ? <span style={{ background: meta.color }} /> : null}
+        {phase?.label ?? "Sin datos"}
+      </dd>
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-outline bg-surface/70 p-3">
       <dt className="text-xs font-medium uppercase tracking-[0.12em] text-ink/58">{label}</dt>
       <dd className="mt-1 text-lg font-semibold">{value}</dd>
     </div>
+  );
+}
+
+function phaseHumanText(phase?: PhaseDay, nextPeriod?: string): string {
+  if (!phase) return "Añade la última menstruación para ubicar mejor el ciclo.";
+
+  const next = nextPeriod ? ` Próximo periodo estimado: ${displayDate(nextPeriod, "d MMM")}.` : "";
+
+  if (phase.phase === "period") return "Día marcado con sangrado. Alba lo usa como punto de inicio del ciclo.";
+  if (phase.phase === "follicular") return "Probable fase folicular: el cuerpo se prepara para ovular. Aún no hace falta sacar conclusiones fuertes.";
+  if (phase.phase === "fertile") return "Ventana fértil estimada por calendario. El flujo cervical y la temperatura ayudan a afinarla.";
+  if (phase.phase === "possible-ovulation") return "Posible ovulación estimada. No es confirmación; solo una pista para observar los próximos días.";
+  if (phase.phase === "thermal-shift") return "Alba ve una posible transición térmica. Si se sostiene, puede reforzar la lectura de fase lútea.";
+  if (phase.phase === "luteal") return `Probable fase lútea por el día del ciclo. Las próximas temperaturas ayudarán a confirmarlo.${next}`;
+  return `Rango donde podría acercarse el siguiente periodo.${next}`;
+}
+
+function SaveFeedback({ state }: { state: "saving" | "saved" }) {
+  return (
+    <span className={state === "saved" ? "save-feedback saved" : "save-feedback"}>
+      <span aria-hidden="true" />
+      {state === "saved" ? "Listo" : "Guardando"}
+    </span>
   );
 }
 
@@ -1596,11 +1712,11 @@ function PhaseSegmentTooltip({ segment }: { segment: PhaseSegment }) {
         <div>
           <strong>{meta.label}</strong>
           <span>
-            {displayDate(segment.start)} - {displayDate(segment.end)} · {segment.days.length} dia{segment.days.length === 1 ? "" : "s"}
+            {displayDate(segment.start)} - {displayDate(segment.end)} · {segment.days.length} día{segment.days.length === 1 ? "" : "s"}
           </span>
         </div>
       </div>
-      {ovulationDay ? <div className="phase-tooltip-pill">Posible ovulacion · {displayDate(ovulationDay.date)}</div> : null}
+      {ovulationDay ? <div className="phase-tooltip-pill">Posible ovulación · {displayDate(ovulationDay.date)}</div> : null}
       <ul className="phase-tooltip-list">
         {insights.map((insight) => (
           <li key={insight}>{insight}</li>
@@ -1743,6 +1859,79 @@ function safeLocalSet(key: string, value: string): void {
   } catch {
     // Demo autoload is best-effort only.
   }
+}
+
+function BrandLab({
+  theme,
+  onToggleTheme,
+}: {
+  theme: "light" | "dark";
+  onToggleTheme: (event: React.MouseEvent) => void;
+}) {
+  const alternatives = [
+    {
+      name: "Serif suave",
+      className: "brand-word brand-font-serif",
+      Icon: Sparkles,
+      note: "Más romántica, cálida y editorial.",
+    },
+    {
+      name: "Sans elegante",
+      className: "brand-word brand-font-sans",
+      Icon: Moon,
+      note: "Más app moderna, limpia y confiable.",
+    },
+    {
+      name: "Script discreta",
+      className: "brand-word brand-font-script",
+      Icon: Sun,
+      note: "Más personal, como una nota escrita.",
+    },
+    {
+      name: "Contraste alto",
+      className: "brand-word brand-font-display",
+      Icon: Sparkles,
+      note: "Más memorable y de marca.",
+    },
+  ];
+
+  return (
+    <main className="min-h-screen bg-surface px-4 py-6 text-ink sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">Brand lab</p>
+            <h1 className="text-2xl font-semibold">Alba logo tests</h1>
+          </div>
+          <button className="secondary-button" type="button" onClick={onToggleTheme}>
+            {theme === "dark" ? <Moon aria-hidden="true" size={17} /> : <Sun aria-hidden="true" size={17} />}
+            Cambiar tema
+          </button>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {alternatives.map(({ name, className, Icon, note }) => (
+            <section className="brand-test-card" key={name}>
+              <div className="brand-lockup brand-lockup-preview">
+                <button className="brand-mark" type="button" onClick={onToggleTheme} aria-label="Cambiar tema">
+                  <Icon aria-hidden="true" size={20} />
+                </button>
+                <span className={className}>Alba</span>
+              </div>
+              <div>
+                <h2>{name}</h2>
+                <p>{note}</p>
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded border border-outline bg-surfaceVariant p-4 text-sm leading-6 text-ink/70">
+          Para volver a la app usa <strong>/</strong>. Esta pantalla es solo para comparar dirección visual.
+        </div>
+      </div>
+    </main>
+  );
 }
 
 function urlBase64ToArrayBuffer(value: string): ArrayBuffer {

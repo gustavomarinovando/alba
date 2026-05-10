@@ -128,9 +128,9 @@ function describePhase(phase: CyclePhase, confidence: PhaseConfidence): string {
   const suffix = `Confianza ${confidence}.`;
   if (phase === "period") return `Día marcado con periodo. ${suffix}`;
   if (phase === "fertile") return `Ventana fértil estimada por calendario y observaciones disponibles. ${suffix}`;
-  if (phase === "possible-ovulation") return `Día donde podría concentrarse la ovulación, segun calendario y/o cambio térmico. No es confirmación. ${suffix}`;
+  if (phase === "possible-ovulation") return `Día donde podría concentrarse la ovulación, según calendario y/o cambio térmico. No es confirmación. ${suffix}`;
   if (phase === "thermal-shift") return `Posible transición térmica; conviene observar si la temperatura se sostiene. ${suffix}`;
-  if (phase === "luteal") return `Temperaturas o dia del ciclo sugieren fase lútea. ${suffix}`;
+  if (phase === "luteal") return `Temperaturas o día del ciclo sugieren fase lútea. ${suffix}`;
   if (phase === "expected-period") return `Rango donde podría iniciar el siguiente periodo. ${suffix}`;
   return `Días previos a la ventana fértil estimada. ${suffix}`;
 }
