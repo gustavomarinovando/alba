@@ -349,6 +349,16 @@ export default function App() {
   }, [entryByDate, selectedDate]);
 
   useEffect(() => {
+    if (draft.temperatureReadings.length > 0) return;
+    const latest = getLatestTemperatureBefore(entries, selectedDate);
+    const nextValue = latest?.value ?? 36.9;
+    const nextSite = latest?.site ?? "oral";
+    setPendingTemperature(nextValue);
+    setPendingTemperatureInput(formatPendingTemperature(nextValue));
+    setPendingTemperatureSite(nextSite);
+  }, [draft.date, draft.temperatureReadings.length, entries, selectedDate]);
+
+  useEffect(() => {
     setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, entries) ? selectedDate : null);
   }, [selectedDate]);
 
@@ -640,9 +650,9 @@ export default function App() {
       ...current,
       temperatureReadings: [...current.temperatureReadings, createTemperatureReading(value, site)],
     }));
-    setPendingTemperature(36.9);
-    setPendingTemperatureInput("36.9");
-    setPendingTemperatureSite("oral");
+    setPendingTemperature(value);
+    setPendingTemperatureInput(formatPendingTemperature(value));
+    setPendingTemperatureSite(site);
   }
 
   function saveQuickTemperature() {
@@ -657,13 +667,13 @@ export default function App() {
 
   function animateTemperatureToSavedRow(value: number, site: TemperatureSite) {
     const source = temperatureDisplayRef.current?.getBoundingClientRect();
-    const target = savedTemperaturesRef.current?.getBoundingClientRect();
-    if (!source || !target) return;
+    if (!source) return;
 
     const fromX = source.left + source.width / 2;
     const fromY = source.top + source.height / 2;
-    const toX = target.left + target.width / 2;
-    const toY = target.top + Math.max(14, target.height / 2);
+    const target = savedTemperaturesRef.current?.getBoundingClientRect();
+    const toX = target ? target.left + target.width / 2 : source.left + source.width / 2;
+    const toY = target ? target.top + 24 : source.bottom + 142 + Math.min(draft.temperatureReadings.length, 2) * 42;
     const id = Date.now();
 
     setTemperatureFlyer({
@@ -968,7 +978,6 @@ export default function App() {
               <h2 className="text-xl font-semibold capitalize">{displayDate(selectedDate)}</h2>
             </div>
             <div className="day-summary-side">
-              <span>Temperatura y periodo si aplica.</span>
               {saveFeedback !== "idle" ? <SaveFeedback state={saveFeedback} /> : null}
             </div>
           </div>
@@ -1057,15 +1066,13 @@ export default function App() {
                 </label>
               </div>
 
-              <button className="primary-button" type="button" onClick={saveQuickTemperature} disabled={registerTemperatureBlocked}>
+              <button className="temperature-submit" type="button" onClick={saveQuickTemperature} disabled={registerTemperatureBlocked}>
                 <Plus aria-hidden="true" size={17} />
                 {registerTemperatureBlocked ? "Temperatura ya tomada" : "Registrar temperatura"}
               </button>
 
-              <div ref={savedTemperaturesRef} className="temperature-saved-anchor" aria-hidden="true" />
               {draft.temperatureReadings.length > 0 ? (
-                <div className="space-y-2">
-                  <label className="field-label">Tomas guardadas hoy</label>
+                <div className="temperature-saved-list" ref={savedTemperaturesRef}>
                   {draft.temperatureReadings
                     .map((reading) => (
                       <details className="temperature-saved-row" key={reading.id}>
@@ -1506,6 +1513,14 @@ function shouldPrioritizeDate(date: string, entries: CycleEntry[]): boolean {
 function hasSameMinuteTemperature(entry: CycleEntry, value: number, site: TemperatureSite): boolean {
   const currentTime = new Date().toTimeString().slice(0, 5);
   return entry.temperatureReadings.some((reading) => reading.time === currentTime && reading.site === site && Math.abs(reading.value - value) < 0.05);
+}
+
+function getLatestTemperatureBefore(entries: CycleEntry[], selectedDate: string): TemperatureReading | undefined {
+  return [...entries]
+    .filter((entry) => entry.date < selectedDate && entry.temperatureReadings.length > 0)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((entry) => getPrimaryTemperature(entry))
+    .find((reading): reading is TemperatureReading => Boolean(reading));
 }
 
 function temperatureSiteLabel(site: TemperatureSite): string {

@@ -449,8 +449,33 @@ textarea {
     @apply mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2;
   }
 
-  .temperature-saved-anchor {
-    @apply h-3;
+  .temperature-submit {
+    @apply relative mx-auto inline-flex h-11 min-w-52 items-center justify-center gap-2 overflow-hidden rounded border border-moss bg-moss px-5 text-sm font-semibold text-[#08110f] shadow-[0_12px_30px_rgba(143,185,173,0.16)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(143,185,173,0.22)] focus:outline-none focus:ring-2 focus:ring-moss disabled:cursor-not-allowed disabled:border-outline disabled:bg-surfaceVariant disabled:text-ink disabled:shadow-none disabled:hover:translate-y-0;
+  }
+
+  .temperature-submit::before {
+    content: "";
+    @apply absolute inset-y-0 left-0 w-1/3 opacity-35;
+    background: linear-gradient(90deg, rgba(255,255,255,0.42), transparent);
+    transform: translateX(-120%) skewX(-18deg);
+    transition: transform 420ms ease;
+  }
+
+  .temperature-submit:hover::before {
+    transform: translateX(320%) skewX(-18deg);
+  }
+
+  .temperature-submit:disabled::before {
+    display: none;
+  }
+
+  .temperature-submit svg,
+  .temperature-submit span {
+    @apply relative z-10;
+  }
+
+  .temperature-saved-list {
+    @apply mt-4 space-y-2;
   }
 
   .temperature-flyer {
