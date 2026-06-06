@@ -11,6 +11,7 @@
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
     "@tippyjs/react": "^4.2.6",
     "@vitejs/plugin-react": "^5.0.0",
     "date-fns": "^4.1.0",

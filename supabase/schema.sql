@@ -6,6 +6,17 @@ create table if not exists public.cycle_entries (
   primary key (couple_id, date)
 );
 
+-- Required so Realtime DELETE events include the composite primary key.
+alter table public.cycle_entries replica identity full;
+
+-- Realtime must also be enabled for this table in the Supabase publication.
+do $$
+begin
+  alter publication supabase_realtime add table public.cycle_entries;
+exception
+  when duplicate_object then null;
+end $$;
+
 alter table public.cycle_entries enable row level security;
 
 -- MVP policy for a private shared app using the anon key.

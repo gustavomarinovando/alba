@@ -1,4 +1,4 @@
-const CACHE_NAME = "alba-v2";
+const CACHE_NAME = "alba-v3";
 const STATIC_ASSETS = ["/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

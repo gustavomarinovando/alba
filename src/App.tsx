@@ -50,8 +50,8 @@ import {
   optionLabel,
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
-import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, savePushSubscription, syncWithSupabase, testSupabaseConnection, upsertSupabaseEntry, type SupabaseSyncPreview } from "./lib/supabaseSync";
+import { applyRemoteDelete, applyRemoteEntry, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
+import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -159,6 +159,7 @@ export default function App() {
   const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
   const [pendingTemperatureInput, setPendingTemperatureInput] = useState("36.9");
@@ -201,6 +202,7 @@ export default function App() {
   const temperatureDisplayRef = useRef<HTMLLabelElement>(null);
   const savedTemperaturesRef = useRef<HTMLDivElement>(null);
   const lastCloudSyncAt = useRef(0);
+  const cloudSyncRun = useRef<Promise<void> | null>(null);
   const anniversaryLongPressTimer = useRef<number | null>(null);
   const lastSparkleAt = useRef(0);
 
@@ -315,20 +317,55 @@ export default function App() {
 
     const syncIfActive = () => {
       if (document.visibilityState === "hidden" || isSyncing) return;
-      if (Date.now() - lastCloudSyncAt.current < 30000) return;
-      void syncCloudData({ quiet: true });
+      if (Date.now() - lastCloudSyncAt.current < 12000) return;
+      void refreshCloudData();
     };
 
+    const interval = window.setInterval(syncIfActive, 15000);
     window.addEventListener("focus", syncIfActive);
     window.addEventListener("online", syncIfActive);
     document.addEventListener("visibilitychange", syncIfActive);
 
     return () => {
+      window.clearInterval(interval);
       window.removeEventListener("focus", syncIfActive);
       window.removeEventListener("online", syncIfActive);
       document.removeEventListener("visibilitychange", syncIfActive);
     };
   }, [isDemoMode, isSyncing]);
+
+  useEffect(() => {
+    if (isDemoMode || !isSupabaseConfigured()) {
+      setLiveSyncState("off");
+      return;
+    }
+
+    setLiveSyncState("connecting");
+    const unsubscribe = subscribeToCycleEntryChanges(
+      (change) => {
+        void (async () => {
+          let changed = false;
+          if ((change.eventType === "INSERT" || change.eventType === "UPDATE") && change.entry) {
+            changed = await applyRemoteEntry(change.entry);
+          } else if (change.eventType === "DELETE" && change.date) {
+            changed = await applyRemoteDelete(change.date);
+          }
+
+          if (!changed) return;
+          const storedEntries = await getAllEntries();
+          setEntries(storedEntries);
+          setStatus("Se recibió un cambio desde el otro dispositivo.");
+        })().catch(() => setLiveSyncState("error"));
+      },
+      (nextStatus) => {
+        if (nextStatus === "SUBSCRIBED") setLiveSyncState("live");
+        else if (nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") setLiveSyncState("error");
+        else if (nextStatus === "CLOSED") setLiveSyncState("connecting");
+      },
+    );
+
+    return unsubscribe;
+  }, [isDemoMode]);
 
   const entryByDate = useMemo(() => new Map(entries.map((entry) => [entry.date, entry])), [entries]);
   const stats = useMemo(() => calculateStats(entries), [entries]);
@@ -498,15 +535,17 @@ export default function App() {
       return;
     }
 
-    await saveEntry(normalized);
+    await saveEntryForSync(normalized);
     const storedEntries = await getAllEntries();
     setEntries(storedEntries);
     setSaveState("saved");
     if (!options?.quiet) setStatus(`Registro de ${displayDate(normalized.date)} guardado.`);
     if (isSupabaseConfigured()) {
-      void upsertSupabaseEntry(normalized).catch(() => {
+      try {
+        await flushPendingSupabaseMutations();
+      } catch {
         setStatus("Guardado en este dispositivo; no se pudo sincronizar con la nube.");
-      });
+      }
     }
   }
 
@@ -523,9 +562,13 @@ export default function App() {
     }
 
     setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
-    await deleteEntry(selectedDate);
+    await deleteEntryForSync(selectedDate);
     if (isSupabaseConfigured()) {
-      await deleteSupabaseEntry(selectedDate);
+      try {
+        await flushPendingSupabaseMutations();
+      } catch {
+        setStatus("Eliminado en este dispositivo; la nube se actualizará al recuperar conexión.");
+      }
     }
     const storedEntries = await getAllEntries();
     setEntries(storedEntries);
@@ -603,6 +646,29 @@ export default function App() {
   }
 
   async function syncCloudData(options?: { quiet?: boolean; entriesOverride?: CycleEntry[] }) {
+    if (cloudSyncRun.current) return cloudSyncRun.current;
+
+    const run = performCloudSync(options, true);
+    cloudSyncRun.current = run;
+    try {
+      await run;
+    } finally {
+      if (cloudSyncRun.current === run) cloudSyncRun.current = null;
+    }
+  }
+
+  async function refreshCloudData() {
+    if (cloudSyncRun.current) return cloudSyncRun.current;
+    const run = performCloudSync({ quiet: true }, false);
+    cloudSyncRun.current = run;
+    try {
+      await run;
+    } finally {
+      if (cloudSyncRun.current === run) cloudSyncRun.current = null;
+    }
+  }
+
+  async function performCloudSync(options: { quiet?: boolean; entriesOverride?: CycleEntry[] } | undefined, shouldPushMergedEntries: boolean) {
     if (isDemoMode) {
       if (!options?.quiet) setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
       return;
@@ -616,8 +682,11 @@ export default function App() {
     setIsSyncing(true);
     lastCloudSyncAt.current = Date.now();
     try {
+      await flushPendingSupabaseMutations();
       const sourceEntries = (options?.entriesOverride ?? (await getAllEntries())).filter((entry) => !isDemoEntry(entry));
-      const mergedEntries = await syncWithSupabase(sourceEntries);
+      const mergedEntries = shouldPushMergedEntries
+        ? await syncWithSupabase(sourceEntries)
+        : await pullFromSupabase(sourceEntries);
       await replaceEntries(mergedEntries);
       setEntries(await getAllEntries());
       setSyncPreview(null);
@@ -1645,7 +1714,9 @@ export default function App() {
           <small>El 6 vuelve Mandarino.</small>
         </div>
         <div className="info-box mt-3">
-          Sync usa Supabase con <strong>couple_id = 1</strong>. Los datos demo son solo para explorar y nunca se suben.
+          Sync usa Supabase con <strong>couple_id = 1</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
+          <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.
+          Los datos demo son solo para explorar y nunca se suben.
         </div>
         <input ref={importInput} className="hidden" type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} />
       </Panel>

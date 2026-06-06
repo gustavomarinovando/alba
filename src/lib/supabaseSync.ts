@@ -1,4 +1,6 @@
+import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import type { CycleEntry } from "../types";
+import { completePendingSyncMutation, getPendingSyncMutations } from "./storage";
 
 const COUPLE_ID = 1;
 
@@ -26,6 +28,12 @@ export interface SupabaseSyncPreview {
   localNewer: string[];
   remoteNewer: string[];
   unchanged: string[];
+}
+
+export interface RealtimeCycleChange {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  date?: string;
+  entry?: CycleEntry;
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -81,6 +89,14 @@ export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<Cycl
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function pullFromSupabase(localEntries: CycleEntry[]): Promise<CycleEntry[]> {
+  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+  return mergeEntries(
+    localEntries.filter((entry) => !isDemoEntry(entry)),
+    remoteEntries,
+  ).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function previewSyncWithSupabase(localEntries: CycleEntry[]): Promise<SupabaseSyncPreview> {
   const safeLocalEntries = localEntries.filter((entry) => !isDemoEntry(entry));
   const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
@@ -90,6 +106,57 @@ export async function previewSyncWithSupabase(localEntries: CycleEntry[]): Promi
 export async function upsertSupabaseEntry(entry: CycleEntry): Promise<void> {
   if (isDemoEntry(entry)) return;
   await pushRemoteEntries([entry]);
+}
+
+export async function flushPendingSupabaseMutations(): Promise<number> {
+  const pending = await getPendingSyncMutations();
+  let completed = 0;
+
+  for (const mutation of pending) {
+    if (mutation.type === "upsert" && mutation.entry) {
+      await upsertSupabaseEntry(mutation.entry);
+    } else {
+      await deleteSupabaseEntry(mutation.date);
+    }
+    await completePendingSyncMutation(mutation.date, mutation.revision);
+    completed += 1;
+  }
+
+  return completed;
+}
+
+export function subscribeToCycleEntryChanges(
+  onChange: (change: RealtimeCycleChange) => void,
+  onStatus?: (status: string) => void,
+): () => void {
+  const client = supabaseClient();
+  let channel: RealtimeChannel | null = client
+    .channel(`alba-cycle-entries-${crypto.randomUUID()}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "cycle_entries",
+        filter: `couple_id=eq.${COUPLE_ID}`,
+      },
+      (payload) => {
+        const newRow = payload.new as Partial<SupabaseCycleRow>;
+        const oldRow = payload.old as Partial<SupabaseCycleRow>;
+        onChange({
+          eventType: payload.eventType,
+          date: newRow.date ?? oldRow.date,
+          entry: newRow.entry,
+        });
+      },
+    )
+    .subscribe((status) => onStatus?.(status));
+
+  return () => {
+    if (!channel) return;
+    void client.removeChannel(channel);
+    channel = null;
+  };
 }
 
 export async function deleteSupabaseEntry(date: string): Promise<void> {
@@ -226,4 +293,18 @@ function headers(): HeadersInit {
     apikey: key,
     Authorization: `Bearer ${key}`,
   };
+}
+
+let sharedClient: ReturnType<typeof createClient> | null = null;
+
+function supabaseClient(): ReturnType<typeof createClient> {
+  if (sharedClient) return sharedClient;
+  sharedClient = createClient(baseUrl(), String(import.meta.env.VITE_SUPABASE_ANON_KEY), {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+  return sharedClient;
 }
