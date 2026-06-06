@@ -838,51 +838,81 @@ textarea {
     @apply relative z-10 mt-1 h-28;
   }
 
-  .cat-playground-button {
+  .cat-playground-cat {
     @apply absolute bottom-0 grid h-24 w-24 place-items-center border-0 bg-transparent p-0 outline-none transition focus-visible:ring-2 focus-visible:ring-[#ffd166];
     -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
   }
 
-  .cat-playground-button .anniversary-cat {
-    @apply w-full;
-    transition: filter 180ms ease, transform 180ms ease;
-  }
-
-  .cat-playground-button:hover .anniversary-cat {
+  .cat-playground-cat:hover {
     filter: drop-shadow(0 0 10px rgba(255, 209, 102, 0.5));
   }
 
-  .cat-playground-button.playground-black {
+  .cat-playground-cat.playground-black {
     left: 2%;
     animation: playground-black-walk 12s ease-in-out infinite;
   }
 
-  .cat-playground-button.playground-lynx {
+  .cat-playground-cat.playground-lynx {
     left: 24%;
     animation: playground-lynx-chase 12s ease-in-out infinite;
   }
 
-  .cat-playground-button.playground-orange {
+  .cat-playground-cat.playground-orange {
     right: 21%;
     animation: playground-orange-arrive 9s ease-in-out infinite;
   }
 
-  .cat-playground-button.playground-tuxedo {
+  .cat-playground-cat.playground-tuxedo {
     right: 1%;
     animation: playground-tuxedo-arrive 9s ease-in-out infinite;
   }
 
-  .cat-playground-button.petted .anniversary-cat {
+  .playground-love {
+    @apply pointer-events-none absolute right-[13%] top-0 z-20 text-xl;
+    animation: playground-love-float 2.2s ease-in-out infinite;
+  }
+
+  .anniversary-cat.meow,
+  .anniversary-cat.purr {
     animation: cat-petted 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .pet-heart {
-    @apply pointer-events-none absolute left-1/2 top-1/2 text-xl text-[#ff7b9c] opacity-0;
-    transform: translate(-50%, -50%);
+  .anniversary-cat.purr {
+    animation: cat-purr 180ms ease-in-out 7;
   }
 
-  .cat-playground-button.petted .pet-heart {
-    animation: pet-heart 900ms ease-out both;
+  .cat-tap-paw {
+    pointer-events: none;
+    font-size: 25px;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .anniversary-cat.meow .cat-tap-paw,
+  .anniversary-cat.purr .cat-tap-paw {
+    animation: cat-paw-pop 1.8s ease-out both;
+  }
+
+  .cat-tap-paw.black {
+    fill: #242426;
+    stroke: #ffd89b;
+    stroke-width: 1px;
+  }
+
+  .cat-tap-paw.orange {
+    fill: #f29a2e;
+  }
+
+  .cat-tap-paw.siamese {
+    fill: #9b7357;
+  }
+
+  .cat-tap-paw.tuxedo {
+    fill: #f4f1e9;
+    stroke: #17191c;
+    stroke-width: 1px;
   }
 
   .anniversary-brand-mark {
@@ -916,7 +946,7 @@ textarea {
   }
 
   .alba-cat-peeker {
-    @apply absolute z-20 w-24 opacity-90;
+    @apply pointer-events-auto absolute z-20 w-24 opacity-90;
     filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
   }
 
@@ -943,9 +973,9 @@ textarea {
   }
 
   .peeker-calendar {
-    right: 8%;
-    top: 17%;
-    animation: cat-peek-top 9s ease-in-out infinite;
+    bottom: 0.4rem;
+    right: 9%;
+    animation: cat-calendar-bottom 5.5s ease-in-out infinite;
   }
 
   .peeker-map {
@@ -1008,7 +1038,7 @@ textarea {
   }
 
   .mandarino-teleport-guide {
-    @apply pointer-events-none absolute bottom-2 left-1/2 z-10 w-24;
+    @apply pointer-events-auto absolute bottom-2 left-1/2 z-10 w-24;
     animation: mandarino-teleport 4.6s steps(1, end) infinite;
     transform: translateX(-50%);
   }
@@ -1059,6 +1089,13 @@ textarea {
   .anniversary-cat {
     @apply block h-auto w-36 overflow-visible;
     filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.24));
+    cursor: pointer;
+    outline: none;
+    touch-action: manipulation;
+  }
+
+  .anniversary-cat:focus-visible {
+    filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.8));
   }
 
   .anniversary-cat.black {
@@ -1201,7 +1238,7 @@ textarea {
   }
 
   .recipe-cat {
-    @apply pointer-events-none absolute -top-12 right-3 w-24;
+    @apply pointer-events-auto absolute -top-12 right-3 w-24;
     animation: recipe-cat-peek 3.8s ease-in-out infinite;
   }
 
@@ -1689,6 +1726,21 @@ select.input option {
   }
 }
 
+@keyframes cat-calendar-bottom {
+  0%,
+  100% {
+    transform: translateY(12%) rotate(-2deg);
+  }
+
+  45% {
+    transform: translateY(2%) rotate(2deg);
+  }
+
+  55% {
+    transform: translateY(2%) rotate(-1deg) scale(1.03);
+  }
+}
+
 @keyframes cat-peek-top {
   0%,
   18%,
@@ -1822,45 +1874,118 @@ select.input option {
 
 @keyframes playground-orange-arrive {
   0%,
-  16%,
-  80%,
   100% {
-    opacity: 0;
-    transform: translateX(-30px) scale(0.6);
-    filter: blur(5px);
+    transform: translateX(0) rotate(-2deg);
   }
 
-  28%,
-  68% {
-    opacity: 1;
-    transform: translateX(8px) scale(1);
-    filter: blur(0);
+  38% {
+    transform: translateX(8px) rotate(2deg);
   }
 
-  48% {
-    transform: translateX(18px) rotate(3deg) scale(1.03);
+  56% {
+    transform: translateX(17px) rotate(4deg) scale(1.04);
   }
 }
 
 @keyframes playground-tuxedo-arrive {
   0%,
-  20%,
-  76%,
   100% {
-    opacity: 0;
-    transform: translateX(32px) scale(0.6);
-    filter: blur(5px);
+    transform: translateX(0) rotate(2deg);
   }
 
-  32%,
-  68% {
+  38% {
+    transform: translateX(-8px) rotate(-2deg);
+  }
+
+  56% {
+    transform: translateX(-17px) rotate(-4deg) scale(1.04);
+  }
+}
+
+@keyframes playground-love-float {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: translateY(4px) scale(0.9) rotate(-4deg);
+  }
+
+  50% {
     opacity: 1;
-    transform: translateX(-8px) scale(1);
-    filter: blur(0);
+    transform: translateY(-5px) scale(1.08) rotate(4deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .cat-playground-cat {
+    width: 23%;
   }
 
-  48% {
-    transform: translateX(-18px) rotate(-3deg) scale(1.03);
+  .cat-playground-cat.playground-black {
+    left: 0;
+    animation-name: playground-black-mobile;
+  }
+
+  .cat-playground-cat.playground-lynx {
+    left: 22%;
+    animation-name: playground-lynx-mobile;
+  }
+
+  .cat-playground-cat.playground-orange {
+    right: 21%;
+    animation-name: playground-orange-mobile;
+  }
+
+  .cat-playground-cat.playground-tuxedo {
+    right: 0;
+    animation-name: playground-tuxedo-mobile;
+  }
+
+  .playground-love {
+    right: 9%;
+  }
+}
+
+@keyframes playground-black-mobile {
+  0%,
+  100% {
+    transform: translateX(-2px) rotate(-3deg);
+  }
+
+  43% {
+    transform: translateX(6px) rotate(4deg);
+  }
+}
+
+@keyframes playground-lynx-mobile {
+  0%,
+  100% {
+    transform: translateX(3px) rotate(3deg);
+  }
+
+  43% {
+    transform: translateX(-4px) translateY(-6px) rotate(-5deg);
+  }
+}
+
+@keyframes playground-orange-mobile {
+  0%,
+  100% {
+    transform: translateX(-1px) rotate(-2deg);
+  }
+
+  56% {
+    transform: translateX(5px) rotate(3deg) scale(1.03);
+  }
+}
+
+@keyframes playground-tuxedo-mobile {
+  0%,
+  100% {
+    transform: translateX(1px) rotate(2deg);
+  }
+
+  56% {
+    transform: translateX(-5px) rotate(-3deg) scale(1.03);
   }
 }
 
@@ -1892,6 +2017,35 @@ select.input option {
   100% {
     opacity: 0;
     transform: translate(-50%, -170%) scale(1.4) rotate(12deg);
+  }
+}
+
+@keyframes cat-purr {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(1.5px);
+  }
+}
+
+@keyframes cat-paw-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.45) rotate(-12deg);
+  }
+
+  18%,
+  68% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.05) rotate(5deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(1.25) rotate(12deg);
   }
 }
 
@@ -1933,7 +2087,7 @@ select.input option {
   .mandarino-teleport-guide,
   .future-cat-couple .anniversary-cat,
   .future-cat-couple > span,
-  .cat-playground-button {
+  .cat-playground-cat {
     animation: none;
   }
 

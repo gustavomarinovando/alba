@@ -2019,7 +2019,7 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
           <span>Seguir a Mandarino</span>
           <strong aria-hidden="true">↓</strong>
         </a>
-        <div className="mandarino-teleport-guide" aria-hidden="true">
+        <div className="mandarino-teleport-guide">
           <AnniversaryCat kind="orange" label="Mandarino viajando al futuro" />
         </div>
       </section>
@@ -2079,8 +2079,8 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
           <AnniversaryCat kind="tuxedo" label="Yo como gatito esmoquin" />
         </div>
         <p>En esta vida y en todas las que vengan</p>
-        <h2>Te voy a amar en todas nuestras vidas y siempre voy a encontrarte, vida mía 🤗💓</h2>
-        <span className="future-note">Aunque tenga que buscar a una gatita naranja llamada Mandarino.</span>
+        <h2>Te voy a amar y siempre voy a encontrarte, vida mia 🤗💓</h2>
+        <span className="future-note">Aunque tenga que buscar a una gatita naranja llamada Mandarino por el resto de mis siete vidas</span>
         <button className="primary-button max-w-sm" type="button" onClick={onClose}>
           Entrar a Alba
         </button>
@@ -2089,9 +2089,46 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
   );
 }
 
-function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese" | "tuxedo"; label: string }) {
+type AnniversaryCatKind = "orange" | "black" | "siamese" | "tuxedo";
+
+function AnniversaryCat({ kind, label, className = "" }: { kind: AnniversaryCatKind; label: string; className?: string }) {
+  const [reaction, setReaction] = useState<"meow" | "purr" | null>(null);
+  const tapTimer = useRef<number | null>(null);
+
+  function reactToTap(event: React.MouseEvent<SVGSVGElement>) {
+    if (event.detail > 1) {
+      if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      triggerCatReaction("purr");
+      return;
+    }
+
+    tapTimer.current = window.setTimeout(() => {
+      triggerCatReaction("meow");
+      tapTimer.current = null;
+    }, 240);
+  }
+
+  function triggerCatReaction(nextReaction: "meow" | "purr") {
+    setReaction(nextReaction);
+    playCatAudio(kind, nextReaction);
+    window.setTimeout(() => setReaction((current) => (current === nextReaction ? null : current)), nextReaction === "purr" ? 1300 : 900);
+  }
+
   return (
-    <svg className={`anniversary-cat ${kind}`} viewBox="0 0 180 180" role="img" aria-label={label}>
+    <svg
+      className={`anniversary-cat ${kind} ${className}${reaction ? ` ${reaction}` : ""}`}
+      viewBox="0 0 180 180"
+      role="button"
+      tabIndex={0}
+      aria-label={`${label}. Un toque para maullar, dos para ronronear.`}
+      onClick={reactToTap}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        triggerCatReaction("meow");
+      }}
+    >
       <path className="cat-tail" d="M137 122c34 2 37-34 13-38-18-3-19 17-7 22" fill="none" strokeWidth="13" strokeLinecap="round" />
       <ellipse className="cat-body" cx="92" cy="120" rx="50" ry="43" />
       {kind === "siamese" ? <ellipse className="cat-chest" cx="91" cy="128" rx="25" ry="30" /> : null}
@@ -2140,24 +2177,18 @@ function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese" 
         <path d="m110 108 34-7" />
         <path d="m110 115 35 2" />
       </g>
+      <text className={`cat-tap-paw ${kind}`} x="92" y="43" textAnchor="middle" aria-hidden="true">🐾</text>
     </svg>
   );
 }
 
 function CatPlayground() {
-  const [pettedCat, setPettedCat] = useState<string | null>(null);
   const cats = [
     { kind: "black" as const, label: "Gatito negro", className: "playground-black" },
     { kind: "siamese" as const, label: "Gatita lynx point", className: "playground-lynx" },
     { kind: "orange" as const, label: "Mandarino", className: "playground-orange" },
     { kind: "tuxedo" as const, label: "Gatito esmoquin", className: "playground-tuxedo" },
   ];
-
-  function petCat(kind: string) {
-    setPettedCat(kind);
-    playCatMeow(kind);
-    window.setTimeout(() => setPettedCat((current) => (current === kind ? null : current)), 900);
-  }
 
   return (
     <section className="cat-playground lg:col-span-2" aria-label="Los cuatro gatitos de Alba">
@@ -2167,45 +2198,26 @@ function CatPlayground() {
       </div>
       <div className="cat-playground-track">
         {cats.map((cat) => (
-          <button
-            className={`cat-playground-button ${cat.className}${pettedCat === cat.kind ? " petted" : ""}`}
+          <AnniversaryCat
             key={cat.kind}
-            type="button"
-            onClick={() => petCat(cat.kind)}
-            aria-label={`Acariciar a ${cat.label}`}
-            title={`Acariciar a ${cat.label}`}
-          >
-            <AnniversaryCat kind={cat.kind} label={cat.label} />
-            <span className="pet-heart" aria-hidden="true">♥</span>
-          </button>
+            kind={cat.kind}
+            label={cat.label}
+            className={`cat-playground-cat ${cat.className}`}
+          />
         ))}
+        <span className="playground-love" aria-hidden="true">💕</span>
       </div>
     </section>
   );
 }
 
-function playCatMeow(kind: string) {
-  const AudioContextClass = window.AudioContext;
-  if (!AudioContextClass) return;
-
-  const context = new AudioContextClass();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  const start = context.currentTime;
-  const baseFrequency = kind === "tuxedo" ? 390 : kind === "black" ? 430 : kind === "siamese" ? 520 : 470;
-
-  oscillator.type = "triangle";
-  oscillator.frequency.setValueAtTime(baseFrequency, start);
-  oscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 1.55, start + 0.12);
-  oscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 0.82, start + 0.38);
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.08, start + 0.035);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start(start);
-  oscillator.stop(start + 0.43);
-  oscillator.addEventListener("ended", () => void context.close());
+function playCatAudio(kind: AnniversaryCatKind, reaction: "meow" | "purr") {
+  const source = reaction === "purr" ? "/audio/purr-normalized.m4a" : `/audio/meow-${kind}.m4a`;
+  const audio = new Audio(source);
+  audio.volume = reaction === "purr" ? 0.55 : 0.72;
+  void audio.play().catch(() => {
+    // Some browsers still block audio despite the tap; the visual reaction remains.
+  });
 }
 
 function AnniversaryNote({ onClose }: { onClose: () => void }) {
@@ -2248,7 +2260,7 @@ function AnniversaryDayDecor({ activeTab }: { activeTab: AppTab }) {
   const cat = tabCats[activeTab];
 
   return (
-    <div className="anniversary-day-decor" aria-hidden="true">
+    <div className="anniversary-day-decor">
       {Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties}>✦</i>)}
       {cat ? (
         <div className={`alba-cat-peeker ${cat.position}`}>
