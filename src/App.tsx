@@ -2006,65 +2006,68 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
       </button>
       <AnniversaryConfetti />
       <section className="mandarin-hero">
-        <div className="cat-family" aria-label="Mandarino y sus amigos">
+        <div className="cat-family playful-scuffle" aria-label="Mandarino y sus amigos jugando">
           <AnniversaryCat kind="black" label="Gatito negro" />
           <AnniversaryCat kind="orange" label="Mandarino" />
-          <AnniversaryCat kind="siamese" label="Gatito siamés" />
+          <AnniversaryCat kind="siamese" label="Gatita lynx point" />
         </div>
         <p>14 meses</p>
-        <h2>Hoy Mandarino tiene una misión para nosotros</h2>
+        <h2>Mandarino nos dejó una misión para hoy</h2>
         <span>Preparar algo frío, dulce y nuestro.</span>
       </section>
 
-      <section className="recipe-mission">
+      <section className="recipe-mission" id="anniversary-recipe">
         <div className="recipe-heading">
-          <p>Nuestra receta</p>
-          <h2>Postre helado de mandarina y coco</h2>
-          <span>Brillante, cremoso, refrescante y con chocolate oscuro.</span>
+          <p>Para hacer juntos</p>
+          <h2>Nuestro postre helado de mandarina y coco</h2>
+          <span>Mandarina bien fresca, coco cremoso y un poquito de chocolate oscuro para cerrar la noche.</span>
         </div>
 
         <div className="recipe-columns">
           <article>
+            <div className="recipe-cat"><AnniversaryCat kind="black" label="Gatito negro vigilando las mandarinas" /></div>
             <span className="recipe-step-number">Antes</span>
-            <h3>Tu parte secreta</h3>
+            <h3>Yo dejo esto listo por nosotros</h3>
             <ul>
-              <li>Pelar 8–12 mandarinas y retirar toda la parte blanca.</li>
-              <li>Separar los gajos; quitar membranas si hay paciencia.</li>
-              <li>Congelarlos separados sobre una bandeja durante la noche.</li>
-              <li>Licuar carne de coco con poca agua de coco y congelar aparte.</li>
+              <li>Voy a pelar entre 8 y 12 mandarinas y quitarles toda la parte blanca.</li>
+              <li>Dejo los gajos separados; si me alcanza la paciencia, también retiro las membranas.</li>
+              <li>Los congelo extendidos en una bandeja para que no terminen hechos una sola piedra.</li>
+              <li>También dejo listo el coco licuado con un chorrito de agua de coco.</li>
             </ul>
           </article>
 
           <article>
-            <span className="recipe-step-number">Juntos</span>
-            <h3>La parte bonita</h3>
+            <div className="recipe-cat"><AnniversaryCat kind="orange" label="Mandarino ayudando a cocinar" /></div>
+            <span className="recipe-step-number">Cuando estemos juntos</span>
+            <h3>Lo terminamos entre los dos</h3>
             <ul>
-              <li>Licuar mandarina y coco congelados.</li>
-              <li>Añadir 1–2 cucharadas de miel, sal y ralladura de lima.</li>
-              <li>Agregar 2–4 cucharadas de crema de coco para textura de gelato.</li>
-              <li>Probar, ajustar y congelar 1 hora suave o 2–3 horas firme.</li>
+              <li>Ponemos en la licuadora la mandarina y el coco congelados.</li>
+              <li>Sumamos miel, una pizquita de sal y ralladura de lima o limón.</li>
+              <li>Le damos cremosidad con unas cucharadas de crema de coco.</li>
+              <li>Probamos juntos y decidimos si lo queremos suave o más firme.</li>
             </ul>
           </article>
 
           <article>
-            <span className="recipe-step-number">Final</span>
-            <h3>Hacerlo de aniversario</h3>
+            <div className="recipe-cat"><AnniversaryCat kind="siamese" label="Gatita lynx point esperando el postre" /></div>
+            <span className="recipe-step-number">Cuando lo sirvamos</span>
+            <h3>Nuestro toque de mesario</h3>
             <ul>
-              <li>Servir en bowls fríos con gajos frescos.</li>
-              <li>Rallar chocolate oscuro justo antes de servir.</li>
-              <li>Sumar coco tostado, pistachos o almendras.</li>
-              <li>Opcional: gajos de mandarina bañados a medias en chocolate.</li>
+              <li>Lo servimos en bowls fríos con algunos gajos frescos encima.</li>
+              <li>Rallamos chocolate oscuro justo al final para que conserve el aroma.</li>
+              <li>Si nos provoca, añadimos coco tostado, pistachos o almendras.</li>
+              <li>Y si queremos lucirnos: bañamos media mandarina en chocolate.</li>
             </ul>
           </article>
         </div>
 
         <div className="recipe-buy">
-          <strong>La compra que más cambia el resultado</strong>
-          <span>Crema de coco, no leche de coco.</span>
+          <strong>Si todavía nos falta comprar una sola cosa</strong>
+          <span>Que sea crema de coco: hace que quede mucho más suave.</span>
         </div>
       </section>
 
-      <section className="mandarin-final">
+      <section className="mandarin-final" id="anniversary-note">
         <AnniversaryCat kind="orange" label="Mandarino celebrando" />
         <p>Una mandarina congelada a la vez</p>
         <h2>Gracias por un mes más vida mía 🤗💓</h2>
@@ -2081,8 +2084,25 @@ function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese";
     <svg className={`anniversary-cat ${kind}`} viewBox="0 0 180 180" role="img" aria-label={label}>
       <path className="cat-tail" d="M137 122c34 2 37-34 13-38-18-3-19 17-7 22" fill="none" strokeWidth="13" strokeLinecap="round" />
       <ellipse className="cat-body" cx="92" cy="120" rx="50" ry="43" />
+      {kind === "siamese" ? <ellipse className="cat-chest" cx="91" cy="128" rx="25" ry="30" /> : null}
       <path className="cat-head" d="M48 71 42 29l30 19a58 58 0 0 1 39 0l29-19-6 43c5 10 7 20 5 31-4 25-25 40-50 39-25 0-45-16-48-40-2-11 1-22 7-31Z" />
-      {kind === "siamese" ? <path className="cat-mask" d="M68 67c13-13 39-13 51 0 10 11 10 34-1 48-12 15-37 15-49 0-11-14-11-37-1-48Z" /> : null}
+      {kind === "siamese" ? (
+        <>
+          <path className="cat-ear-patches" d="M49 65 45 36l23 15Zm83 0 4-29-23 15Z" />
+          <path className="cat-mask" d="M62 67c15-17 46-17 61 0 9 11 10 32 2 45-11 18-51 18-64 0-9-13-8-34 1-45Z" />
+          <g className="lynx-stripes" fill="none" strokeWidth="4" strokeLinecap="round">
+            <path d="m74 55 6 13" />
+            <path d="m92 51 1 16" />
+            <path d="m110 55-6 13" />
+            <path d="m59 78 16 5" />
+            <path d="m125 78-16 5" />
+            <path d="m56 94 17 2" />
+            <path d="m128 94-17 2" />
+            <path d="m64 132-12 8" />
+            <path d="m119 132 13 8" />
+          </g>
+        </>
+      ) : null}
       {kind === "orange" ? (
         <g className="cat-stripes" fill="none" strokeWidth="6" strokeLinecap="round">
           <path d="m72 48 5 15" />
@@ -2095,6 +2115,7 @@ function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese";
       <ellipse className="cat-eye" cx="74" cy="89" rx="6" ry="8" />
       <ellipse className="cat-eye" cx="109" cy="89" rx="6" ry="8" />
       <path className="cat-nose" d="m87 105 5 4 5-4-5-4Z" />
+      <path className="cat-paw" d="M48 123c-17-1-25 9-21 18 4 8 17 7 26-1" fill="none" strokeWidth="12" strokeLinecap="round" />
       <path className="cat-smile" d="M92 109c-1 8-9 9-13 5m13-5c1 8 9 9 13 5" fill="none" strokeWidth="3" strokeLinecap="round" />
       <g className="cat-whiskers" fill="none" strokeWidth="2" strokeLinecap="round">
         <path d="M73 108 40 101" />
@@ -2114,7 +2135,7 @@ function AnniversaryNote({ onClose }: { onClose: () => void }) {
         <div className="note-cat-row">
           <AnniversaryCat kind="black" label="Gatito negro" />
           <AnniversaryCat kind="orange" label="Mandarino" />
-          <AnniversaryCat kind="siamese" label="Gatito siamés" />
+          <AnniversaryCat kind="siamese" label="Gatita lynx point" />
         </div>
         <p>14 meses</p>
         <h2>Gracias por un mes más vida mía 🤗💓</h2>
@@ -2138,6 +2159,9 @@ function AnniversaryDayDecor() {
   return (
     <div className="anniversary-day-decor" aria-hidden="true">
       {Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties}>✦</i>)}
+      <div className="alba-cat-peeker peeker-left"><AnniversaryCat kind="black" label="Gatito negro escondido" /></div>
+      <div className="alba-cat-peeker peeker-right"><AnniversaryCat kind="siamese" label="Gatita lynx point escondida" /></div>
+      <div className="alba-cat-peeker peeker-bottom"><AnniversaryCat kind="orange" label="Mandarino escondido" /></div>
     </div>
   );
 }

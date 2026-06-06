@@ -842,6 +842,33 @@ textarea {
     animation-delay: calc(var(--i) * -180ms);
   }
 
+  .alba-cat-peeker {
+    @apply absolute z-20 w-24 opacity-90;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
+  }
+
+  .alba-cat-peeker .anniversary-cat {
+    @apply w-full;
+  }
+
+  .peeker-left {
+    left: 0;
+    top: 29%;
+    animation: cat-peek-left 9s ease-in-out infinite;
+  }
+
+  .peeker-right {
+    right: 0;
+    top: 57%;
+    animation: cat-peek-right 11s ease-in-out 1.8s infinite;
+  }
+
+  .peeker-bottom {
+    bottom: -1.4rem;
+    left: 58%;
+    animation: cat-peek-bottom 8s ease-in-out 3.2s infinite;
+  }
+
   .mandarin-story {
     left: 0;
     right: auto;
@@ -891,12 +918,30 @@ textarea {
     @apply z-10 w-28 sm:w-48;
   }
 
-  .cat-family .anniversary-cat:first-child {
+  .cat-family:not(.playful-scuffle) .anniversary-cat:first-child {
     transform: rotate(-7deg) translateX(10px);
   }
 
-  .cat-family .anniversary-cat:last-child {
+  .cat-family:not(.playful-scuffle) .anniversary-cat:last-child {
     transform: rotate(7deg) translateX(-10px);
+  }
+
+  .playful-scuffle .anniversary-cat.black {
+    animation: black-cat-swat 7s ease-in-out infinite;
+  }
+
+  .playful-scuffle .anniversary-cat.orange {
+    animation: mandarino-referee 7s ease-in-out infinite;
+  }
+
+  .playful-scuffle .anniversary-cat.siamese {
+    animation: lynx-cat-dodge 7s ease-in-out infinite;
+  }
+
+  .playful-scuffle .anniversary-cat.black .cat-paw {
+    transform-box: fill-box;
+    transform-origin: right center;
+    animation: paw-swat 7s ease-in-out infinite;
   }
 
   .anniversary-cat {
@@ -921,28 +966,43 @@ textarea {
   .anniversary-cat.siamese .cat-body,
   .anniversary-cat.siamese .cat-head,
   .anniversary-cat.siamese .cat-tail {
-    fill: #ead8bd;
-    stroke: #ead8bd;
+    fill: #c9c4bc;
+    stroke: #9f9991;
   }
 
   .anniversary-cat .cat-mask {
-    fill: #8b654e;
+    fill: #9f9991;
+  }
+
+  .anniversary-cat .cat-chest {
+    fill: #f3efe8;
+  }
+
+  .anniversary-cat .cat-ear-patches {
+    fill: #7f7974;
+  }
+
+  .anniversary-cat .lynx-stripes {
+    stroke: #716d69;
   }
 
   .anniversary-cat .cat-stripes,
   .anniversary-cat .cat-smile,
-  .anniversary-cat .cat-whiskers {
+  .anniversary-cat .cat-whiskers,
+  .anniversary-cat .cat-paw {
     stroke: #9f5418;
   }
 
   .anniversary-cat.black .cat-smile,
-  .anniversary-cat.black .cat-whiskers {
+  .anniversary-cat.black .cat-whiskers,
+  .anniversary-cat.black .cat-paw {
     stroke: #d9d2c8;
   }
 
   .anniversary-cat.siamese .cat-smile,
-  .anniversary-cat.siamese .cat-whiskers {
-    stroke: #6d4938;
+  .anniversary-cat.siamese .cat-whiskers,
+  .anniversary-cat.siamese .cat-paw {
+    stroke: #716d69;
   }
 
   .anniversary-cat .cat-eye {
@@ -985,11 +1045,28 @@ textarea {
   }
 
   .recipe-columns {
-    @apply mt-10 grid gap-3 lg:grid-cols-3;
+    @apply mt-14 grid gap-10 lg:grid-cols-3 lg:gap-3;
   }
 
   .recipe-columns article {
-    @apply border-t-2 border-[#ff9f1c] bg-[#21170f] p-5;
+    @apply relative border-t-2 border-[#ff9f1c] bg-[#21170f] p-5 pt-10;
+  }
+
+  .recipe-cat {
+    @apply pointer-events-none absolute -top-12 right-3 w-24;
+    animation: recipe-cat-peek 3.8s ease-in-out infinite;
+  }
+
+  .recipe-cat .anniversary-cat {
+    @apply w-full;
+  }
+
+  .recipe-columns article:nth-child(2) .recipe-cat {
+    animation-delay: -1.2s;
+  }
+
+  .recipe-columns article:nth-child(3) .recipe-cat {
+    animation-delay: -2.4s;
   }
 
   .recipe-columns h3 {
@@ -1320,6 +1397,127 @@ select.input option {
   }
 }
 
+@keyframes black-cat-swat {
+  0%,
+  24%,
+  62%,
+  100% {
+    transform: rotate(-7deg) translateX(10px);
+  }
+
+  31% {
+    transform: rotate(-3deg) translateX(25px) translateY(-2px);
+  }
+
+  38% {
+    transform: rotate(-9deg) translateX(9px);
+  }
+}
+
+@keyframes paw-swat {
+  0%,
+  25%,
+  42%,
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+
+  31% {
+    transform: rotate(-24deg) translateX(-13px);
+  }
+
+  35% {
+    transform: rotate(12deg) translateX(8px);
+  }
+}
+
+@keyframes lynx-cat-dodge {
+  0%,
+  27%,
+  55%,
+  100% {
+    transform: rotate(7deg) translateX(-10px);
+  }
+
+  33% {
+    transform: rotate(13deg) translateX(12px) translateY(-12px);
+  }
+
+  43% {
+    transform: rotate(5deg) translateX(-14px);
+  }
+}
+
+@keyframes mandarino-referee {
+  0%,
+  22%,
+  55%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  29% {
+    transform: translateY(-5px) rotate(-4deg);
+  }
+
+  37% {
+    transform: translateY(-5px) rotate(4deg);
+  }
+}
+
+@keyframes recipe-cat-peek {
+  0%,
+  100% {
+    transform: translateY(13px) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(0) rotate(2deg);
+  }
+}
+
+@keyframes cat-peek-left {
+  0%,
+  16%,
+  72%,
+  100% {
+    transform: translateX(-72%) rotate(7deg);
+  }
+
+  28%,
+  58% {
+    transform: translateX(-28%) rotate(3deg);
+  }
+}
+
+@keyframes cat-peek-right {
+  0%,
+  18%,
+  76%,
+  100% {
+    transform: translateX(74%) rotate(-7deg);
+  }
+
+  31%,
+  61% {
+    transform: translateX(31%) rotate(-3deg);
+  }
+}
+
+@keyframes cat-peek-bottom {
+  0%,
+  20%,
+  74%,
+  100% {
+    transform: translateY(73%) rotate(-2deg);
+  }
+
+  34%,
+  58% {
+    transform: translateY(26%) rotate(2deg);
+  }
+}
+
 @keyframes cat-blink {
   0%,
   43%,
@@ -1349,7 +1547,11 @@ select.input option {
   .anniversary-day-decor i,
   .anniversary-confetti i,
   .anniversary-cat .cat-tail,
-  .anniversary-cat .cat-eye {
+  .anniversary-cat .cat-eye,
+  .playful-scuffle .anniversary-cat,
+  .playful-scuffle .cat-paw,
+  .recipe-cat,
+  .alba-cat-peeker {
     animation: none;
   }
 
