@@ -2033,7 +2033,7 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
 
         <div className="recipe-columns">
           <article>
-            <div className="recipe-cat"><AnniversaryCat kind="black" label="Gatito negro vigilando las mandarinas" /></div>
+            <div className="recipe-cat"><AnniversaryCat kind="tuxedo" label="Gatito esmoquin vigilando las mandarinas" /></div>
             <span className="recipe-step-number">Hoy bien tempranito</span>
             <h3>Yo preparo algunos ingredientes</h3>
             <ul>
@@ -2055,7 +2055,10 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
           </article>
 
           <article>
-            <div className="recipe-cat"><AnniversaryCat kind="siamese" label="Gatita lynx point esperando el postre" /></div>
+            <div className="recipe-cat recipe-cat-pair">
+              <AnniversaryCat kind="black" label="Gatito negro esperando el postre" />
+              <AnniversaryCat kind="siamese" label="Gatita lynx point esperando el postre" />
+            </div>
             <span className="recipe-step-number">Cuando sirvamos</span>
             <h3>El toque de mesario perfecto</h3>
             <ul>
@@ -2091,7 +2094,17 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
 
 type AnniversaryCatKind = "orange" | "black" | "siamese" | "tuxedo";
 
-function AnniversaryCat({ kind, label, className = "" }: { kind: AnniversaryCatKind; label: string; className?: string }) {
+function AnniversaryCat({
+  kind,
+  label,
+  className = "",
+  onReaction,
+}: {
+  kind: AnniversaryCatKind;
+  label: string;
+  className?: string;
+  onReaction?: (reaction: "meow" | "purr") => void;
+}) {
   const [reaction, setReaction] = useState<"meow" | "purr" | null>(null);
   const tapTimer = useRef<number | null>(null);
 
@@ -2112,6 +2125,7 @@ function AnniversaryCat({ kind, label, className = "" }: { kind: AnniversaryCatK
   function triggerCatReaction(nextReaction: "meow" | "purr") {
     setReaction(nextReaction);
     playCatAudio(kind, nextReaction);
+    onReaction?.(nextReaction);
     window.setTimeout(() => setReaction((current) => (current === nextReaction ? null : current)), nextReaction === "purr" ? 1300 : 900);
   }
 
@@ -2183,6 +2197,7 @@ function AnniversaryCat({ kind, label, className = "" }: { kind: AnniversaryCatK
 }
 
 function CatPlayground() {
+  const [soundHint, setSoundHint] = useState<"single" | "double">("single");
   const cats = [
     { kind: "black" as const, label: "Gatito negro", className: "playground-black" },
     { kind: "siamese" as const, label: "Gatita lynx point", className: "playground-lynx" },
@@ -2194,7 +2209,11 @@ function CatPlayground() {
     <section className="cat-playground lg:col-span-2" aria-label="Los cuatro gatitos de Alba">
       <div className="cat-playground-copy">
         <span>Patrulla de hoy</span>
-        <strong>Toca a un gatito para saludarlo</strong>
+        <strong>
+          {soundHint === "single"
+            ? "Toca un gatito para saludarlo"
+            : "Toca un gatito 2 veces y sube el volumen"}
+        </strong>
       </div>
       <div className="cat-playground-track">
         {cats.map((cat) => (
@@ -2203,6 +2222,7 @@ function CatPlayground() {
             kind={cat.kind}
             label={cat.label}
             className={`cat-playground-cat ${cat.className}`}
+            onReaction={(reaction) => setSoundHint(reaction === "meow" ? "double" : "single")}
           />
         ))}
         <span className="playground-love" aria-hidden="true">💕</span>
