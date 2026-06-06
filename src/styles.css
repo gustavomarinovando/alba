@@ -1250,6 +1250,13 @@ textarea {
     @apply w-full;
   }
 
+  .recipe-cat-highlight .anniversary-cat.tuxedo {
+    filter:
+      drop-shadow(0 0 2px rgba(255, 244, 218, 0.98))
+      drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 18px 22px rgba(0, 0, 0, 0.34));
+  }
+
   .recipe-cat-pair {
     @apply flex w-36 items-end;
   }

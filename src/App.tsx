@@ -2033,7 +2033,7 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
 
         <div className="recipe-columns">
           <article>
-            <div className="recipe-cat"><AnniversaryCat kind="tuxedo" label="Gatito esmoquin vigilando las mandarinas" /></div>
+            <div className="recipe-cat recipe-cat-highlight"><AnniversaryCat kind="tuxedo" label="Gatito esmoquin vigilando las mandarinas" /></div>
             <span className="recipe-step-number">Hoy bien tempranito</span>
             <h3>Yo preparo algunos ingredientes</h3>
             <ul>
