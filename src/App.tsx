@@ -2212,7 +2212,7 @@ function CatPlayground() {
         <strong>
           {soundHint === "single"
             ? "Toca un gatito para saludarlo"
-            : "Toca un gatito 2 veces y sube el volumen"}
+            : "Toca 2 veces para un ronroneo"}
         </strong>
       </div>
       <div className="cat-playground-track">
