@@ -3,6 +3,14 @@
     {
       "path": "/api/send-temperature-reminder",
       "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/send-temperature-reminder",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/send-temperature-reminder",
+      "schedule": "30 20 * * *"
     }
   ]
 }

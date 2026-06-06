@@ -1,6 +1,26 @@
 import webpush from "web-push";
 
 const COUPLE_ID = 1;
+const MONTHLY_ANNIVERSARY_TITLE = "Buenos dias bonita, feliz mesario 🥰💕✨";
+const MORNING_GREETINGS = ["Buenos días", "Muyyy buenos días", "Muy buenos días", "Muy pero muy buenos días"];
+const MORNING_ENDEARMENTS = [
+  "mi amor",
+  "bonita",
+  "mi amorcito",
+  "mi amorcito de mi corazón",
+  "amor mío",
+  "mi niña preciosa",
+  "chiquita",
+  "mi cielito",
+  "mi cielito lindo",
+];
+const MORNING_FACE_EMOJIS = ["🥰", "😚", "🤗", "☺️"];
+const MORNING_HEART_EMOJIS = ["❤️", "💗", "💖", "💓", "💘", "💝", "💞", "💕", "❤️‍🔥", "❤️‍🩹"];
+const TEMPERATURE_REMINDER_BODIES = [
+  "Cuando puedas, anota tu temperatura amor mío.",
+  "Toma una muestra pequeñita y sigue cuidando tu mapa.",
+  "Si ya te levantaste estamos listos para tomar tu temperatura.",
+];
 
 export default async function handler(request, response) {
   if (!["GET", "POST"].includes(request.method)) {
@@ -133,15 +153,14 @@ function localIsoDate() {
 }
 
 function morningTitle() {
-  const titles = ["Buenos dias bonita", "Buen dia bonita", "Alba te manda un besito"];
-  return titles[Math.floor(Math.random() * titles.length)];
+  if (localIsoDate().endsWith("-06")) return MONTHLY_ANNIVERSARY_TITLE;
+  return `${pickRandom(MORNING_GREETINGS)} ${pickRandom(MORNING_ENDEARMENTS)} ${pickRandom(MORNING_FACE_EMOJIS)}${pickRandom(MORNING_HEART_EMOJIS)}`;
 }
 
 function morningBody() {
-  const bodies = [
-    "Cuando puedas, anota tu temperatura de hoy.",
-    "Una toma pequeñita y seguimos cuidando tu mapa.",
-    "Si ya despertaste tranquila, Alba esta lista para tu temperatura.",
-  ];
-  return bodies[Math.floor(Math.random() * bodies.length)];
+  return pickRandom(TEMPERATURE_REMINDER_BODIES);
+}
+
+function pickRandom(items) {
+  return items[Math.floor(Math.random() * items.length)];
 }

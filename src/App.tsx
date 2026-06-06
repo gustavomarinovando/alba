@@ -51,7 +51,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { buildExport, clearEntries, deleteEntry, getAllEntries, parseImport, replaceEntries, saveEntry } from "./lib/storage";
-import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, savePushSubscription, syncWithSupabase, testSupabaseConnection, upsertSupabaseEntry } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, deleteSupabaseEntry, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, savePushSubscription, syncWithSupabase, testSupabaseConnection, upsertSupabaseEntry, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -100,6 +100,31 @@ type TemperatureFlyer = {
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
+const MONTHLY_ANNIVERSARY_TITLE = "Buenos dias bonita, feliz mesario 🥰💕✨";
+const MORNING_GREETINGS = ["Buenos días", "Muyyy buenos días", "Muy buenos días", "Muy pero muy buenos días"] as const;
+const MORNING_ENDEARMENTS = [
+  "mi amor",
+  "bonita",
+  "mi amorcito",
+  "mi amorcito de mi corazón",
+  "amor mío",
+  "mi niña preciosa",
+  "chiquita",
+  "mi cielito",
+  "mi cielito lindo",
+] as const;
+const MORNING_FACE_EMOJIS = ["🥰", "😚", "🤗", "☺️"] as const;
+const MORNING_HEART_EMOJIS = ["❤️", "💗", "💖", "💓", "💘", "💝", "💞", "💕", "❤️‍🔥", "❤️‍🩹"] as const;
+const TEMPERATURE_REMINDER_BODIES = [
+  "Cuando puedas, anota tu temperatura amor mío.",
+  "Toma una muestra pequeñita y sigue cuidando tu mapa.",
+  "Si ya te levantaste estamos listos para tomar tu temperatura.",
+] as const;
+const TEMPERATURE_REMINDER_SLOTS = [
+  { id: "morning", startHour: 6, endHour: 11 },
+  { id: "midday", startHour: 12, endHour: 15 },
+  { id: "afternoon", startHour: 16, endHour: 20 },
+] as const;
 
 function emptyEntry(date: string): CycleEntry {
   const now = new Date().toISOString();
@@ -126,6 +151,8 @@ export default function App() {
   const [insight, setInsight] = useState("");
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
+  const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
@@ -164,6 +191,7 @@ export default function App() {
   const importInput = useRef<HTMLInputElement>(null);
   const temperatureDisplayRef = useRef<HTMLLabelElement>(null);
   const savedTemperaturesRef = useRef<HTMLDivElement>(null);
+  const lastCloudSyncAt = useRef(0);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -271,6 +299,26 @@ export default function App() {
     return () => mediaQuery.removeEventListener("change", update);
   }, []);
 
+  useEffect(() => {
+    if (isDemoMode || !isSupabaseConfigured()) return;
+
+    const syncIfActive = () => {
+      if (document.visibilityState === "hidden" || isSyncing) return;
+      if (Date.now() - lastCloudSyncAt.current < 30000) return;
+      void syncCloudData({ quiet: true });
+    };
+
+    window.addEventListener("focus", syncIfActive);
+    window.addEventListener("online", syncIfActive);
+    document.addEventListener("visibilitychange", syncIfActive);
+
+    return () => {
+      window.removeEventListener("focus", syncIfActive);
+      window.removeEventListener("online", syncIfActive);
+      document.removeEventListener("visibilitychange", syncIfActive);
+    };
+  }, [isDemoMode, isSyncing]);
+
   const entryByDate = useMemo(() => new Map(entries.map((entry) => [entry.date, entry])), [entries]);
   const stats = useMemo(() => calculateStats(entries), [entries]);
   const recentEntries = useMemo(() => getRecentEntries(entries, 92), [entries]);
@@ -324,14 +372,18 @@ export default function App() {
     if (selectedDate !== isoDate(new Date()) || hasTemperatureToday) return;
 
     const now = new Date();
-    if (now.getHours() < 6 || now.getHours() > 11) return;
-    if (safeLocalGet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY) === isoDate(now)) return;
+    const currentSlot = temperatureReminderSlot(now);
+    if (!currentSlot) return;
+    const reminderKey = `${isoDate(now)}:${currentSlot.id}`;
+    if (safeLocalGet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY) === reminderKey) return;
 
     const timeout = window.setTimeout(() => {
+      const copy = temperatureReminderCopy();
       void showTemperatureReminder({
-        title: "Buenos días bonita",
-        body: "Cuando puedas, anota tu temperatura de hoy en Alba.",
+        title: copy.title,
+        body: copy.body,
         markAsShown: true,
+        reminderKey,
       });
     }, 1200);
 
@@ -441,7 +493,9 @@ export default function App() {
     setSaveState("saved");
     if (!options?.quiet) setStatus(`Registro de ${displayDate(normalized.date)} guardado.`);
     if (isSupabaseConfigured()) {
-      void upsertSupabaseEntry(normalized);
+      void upsertSupabaseEntry(normalized).catch(() => {
+        setStatus("Guardado en este dispositivo; no se pudo sincronizar con la nube.");
+      });
     }
   }
 
@@ -514,6 +568,29 @@ export default function App() {
     setStatus("Modo demo desactivado. Volviste a tus datos reales.");
   }
 
+  async function prepareCloudSync() {
+    if (isDemoMode) {
+      setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
+      return;
+    }
+
+    if (!isSupabaseConfigured()) {
+      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
+      return;
+    }
+
+    setIsPreparingSyncPreview(true);
+    try {
+      const sourceEntries = (await getAllEntries()).filter((entry) => !isDemoEntry(entry));
+      const preview = await previewSyncWithSupabase(sourceEntries);
+      setSyncPreview(preview);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo preparar el resumen de sync.");
+    } finally {
+      setIsPreparingSyncPreview(false);
+    }
+  }
+
   async function syncCloudData(options?: { quiet?: boolean; entriesOverride?: CycleEntry[] }) {
     if (isDemoMode) {
       if (!options?.quiet) setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
@@ -526,11 +603,13 @@ export default function App() {
     }
 
     setIsSyncing(true);
+    lastCloudSyncAt.current = Date.now();
     try {
       const sourceEntries = (options?.entriesOverride ?? (await getAllEntries())).filter((entry) => !isDemoEntry(entry));
       const mergedEntries = await syncWithSupabase(sourceEntries);
       await replaceEntries(mergedEntries);
       setEntries(await getAllEntries());
+      setSyncPreview(null);
       if (!options?.quiet) setStatus("Datos sincronizados con la nube.");
     } catch (error) {
       if (!options?.quiet) setStatus(error instanceof Error ? error.message : "No se pudo sincronizar.");
@@ -596,10 +675,12 @@ export default function App() {
     title,
     body,
     markAsShown = false,
+    reminderKey,
   }: {
     title: string;
     body: string;
     markAsShown?: boolean;
+    reminderKey?: string;
   }) {
     if (!("Notification" in window) || Notification.permission !== "granted") {
       setNotificationPermission("Notification" in window ? Notification.permission : "unsupported");
@@ -622,7 +703,7 @@ export default function App() {
     }
 
     if (markAsShown) {
-      safeLocalSet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY, isoDate(new Date()));
+      safeLocalSet(TEMPERATURE_REMINDER_LAST_SHOWN_KEY, reminderKey ?? isoDate(new Date()));
     }
   }
 
@@ -798,6 +879,7 @@ export default function App() {
           <span>{temperatureFlyer.site}</span>
         </div>
       ) : null}
+      {syncPreview ? renderSyncPreviewModal() : null}
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -847,6 +929,53 @@ export default function App() {
       </div>
     </main>
   );
+
+  function renderSyncPreviewModal() {
+    if (!syncPreview) return null;
+
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="sync-preview-title">
+        <section className="modal-panel sync-preview-panel">
+          <div>
+            <p className="eyebrow">Sincronización</p>
+            <h2 id="sync-preview-title">Revisar antes de sincronizar</h2>
+            <p>
+              Alba va a mezclar los registros de este dispositivo con la nube. Esta sincronización normal no borra días; solo sube,
+              descarga o conserva la versión más reciente cuando hay la misma fecha.
+            </p>
+          </div>
+
+          <div className="sync-preview-grid">
+            <SyncPreviewStat label="En este dispositivo" value={syncPreview.totalLocal} />
+            <SyncPreviewStat label="En la nube" value={syncPreview.totalRemote} />
+            <SyncPreviewStat label="Subir a nube" value={syncPreview.uploadOnly.length + syncPreview.localNewer.length} />
+            <SyncPreviewStat label="Descargar aquí" value={syncPreview.downloadOnly.length + syncPreview.remoteNewer.length} />
+          </div>
+
+          <div className="sync-preview-list">
+            <SyncPreviewDates label="Solo aquí, se subirán" dates={syncPreview.uploadOnly} />
+            <SyncPreviewDates label="Solo en nube, se descargarán" dates={syncPreview.downloadOnly} />
+            <SyncPreviewDates label="Aquí es más reciente" dates={syncPreview.localNewer} />
+            <SyncPreviewDates label="Nube es más reciente" dates={syncPreview.remoteNewer} tone={syncPreview.remoteNewer.length > 0 ? "warm" : "default"} />
+          </div>
+
+          <div className="info-box">
+            No se eliminará nada con este botón. Los borrados siguen ocurriendo solo desde “Eliminar día” o “Borrar”.
+          </div>
+
+          <div className="modal-actions">
+            <button className="secondary-button" type="button" onClick={() => setSyncPreview(null)} disabled={isSyncing}>
+              Cancelar
+            </button>
+            <button className="primary-button" type="button" onClick={() => syncCloudData()} disabled={isSyncing}>
+              <Database aria-hidden="true" size={17} />
+              {isSyncing ? "Sincronizando..." : "Confirmar sync"}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   function renderCalendar() {
     return (
@@ -1398,9 +1527,9 @@ export default function App() {
             <Database aria-hidden="true" size={17} />
             {isTestingCloud ? "Probando..." : "Probar conexion Supabase"}
           </button>
-          <button className="secondary-button col-span-2" type="button" onClick={() => syncCloudData()} disabled={isSyncing || isDemoMode}>
+          <button className="secondary-button col-span-2" type="button" onClick={prepareCloudSync} disabled={isSyncing || isPreparingSyncPreview || isDemoMode}>
             <Database aria-hidden="true" size={17} />
-            {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : "Sincronizar nube"}
+            {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : isPreparingSyncPreview ? "Preparando..." : "Sincronizar nube"}
           </button>
         </div>
         <div className="input-card mt-4">
@@ -1430,8 +1559,7 @@ export default function App() {
               type="button"
               onClick={() =>
                 showTemperatureReminder({
-                  title: "Buenos días bonita",
-                  body: "Una toma pequeñita para cuidar el mapa de hoy.",
+                  ...temperatureReminderCopy(),
                 })
               }
               disabled={notificationPermission !== "granted"}
@@ -1461,6 +1589,26 @@ function phaseExplanation(phase: string): string {
   if (phase === "thermal-shift") return "La temperatura podría estar cambiando; se observa si se sostiene.";
   if (phase === "luteal") return "Fase posterior a ovulación probable; la temperatura suele verse más alta.";
   return "Rango estimado donde podría iniciar el siguiente periodo.";
+}
+
+function temperatureReminderCopy(): { title: string; body: string } {
+  const title =
+    new Date().getDate() === 6
+      ? MONTHLY_ANNIVERSARY_TITLE
+      : `${pickRandom(MORNING_GREETINGS)} ${pickRandom(MORNING_ENDEARMENTS)} ${pickRandom(MORNING_FACE_EMOJIS)}${pickRandom(MORNING_HEART_EMOJIS)}`;
+  return {
+    title,
+    body: pickRandom(TEMPERATURE_REMINDER_BODIES),
+  };
+}
+
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function temperatureReminderSlot(date: Date): (typeof TEMPERATURE_REMINDER_SLOTS)[number] | undefined {
+  const hour = date.getHours();
+  return TEMPERATURE_REMINDER_SLOTS.find((slot) => hour >= slot.startHour && hour <= slot.endHour);
 }
 
 function clampTemperature(value: number): number {
@@ -1689,6 +1837,37 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded border border-outline bg-surface/70 p-3">
       <dt className="text-xs font-medium uppercase tracking-[0.12em] text-ink/58">{label}</dt>
       <dd className="mt-1 text-lg font-semibold">{value}</dd>
+    </div>
+  );
+}
+
+function SyncPreviewStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="sync-preview-stat">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function SyncPreviewDates({ label, dates, tone = "default" }: { label: string; dates: string[]; tone?: "default" | "warm" }) {
+  const visibleDates = dates.slice(0, 5);
+  const remaining = Math.max(0, dates.length - visibleDates.length);
+
+  return (
+    <div className={tone === "warm" ? "sync-preview-dates warm" : "sync-preview-dates"}>
+      <div>
+        <strong>{label}</strong>
+        <span>{dates.length}</span>
+      </div>
+      {dates.length > 0 ? (
+        <p>
+          {visibleDates.map((date) => displayDate(date, "d MMM")).join(", ")}
+          {remaining > 0 ? `, +${remaining} más` : ""}
+        </p>
+      ) : (
+        <p>Sin cambios.</p>
+      )}
     </div>
   );
 }

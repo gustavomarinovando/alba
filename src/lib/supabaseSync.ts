@@ -18,6 +18,16 @@ interface SupabasePushSubscriptionRow {
   updated_at: string;
 }
 
+export interface SupabaseSyncPreview {
+  totalLocal: number;
+  totalRemote: number;
+  uploadOnly: string[];
+  downloadOnly: string[];
+  localNewer: string[];
+  remoteNewer: string[];
+  unchanged: string[];
+}
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 }
@@ -69,6 +79,12 @@ export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<Cycl
   );
   await pushRemoteEntries(merged);
   return merged.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function previewSyncWithSupabase(localEntries: CycleEntry[]): Promise<SupabaseSyncPreview> {
+  const safeLocalEntries = localEntries.filter((entry) => !isDemoEntry(entry));
+  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+  return compareEntriesForSync(safeLocalEntries, remoteEntries);
 }
 
 export async function upsertSupabaseEntry(entry: CycleEntry): Promise<void> {
@@ -150,6 +166,50 @@ function mergeEntries(localEntries: CycleEntry[], remoteEntries: CycleEntry[]): 
   }
 
   return Array.from(byDate.values());
+}
+
+function compareEntriesForSync(localEntries: CycleEntry[], remoteEntries: CycleEntry[]): SupabaseSyncPreview {
+  const localByDate = new Map(localEntries.map((entry) => [entry.date, entry]));
+  const remoteByDate = new Map(remoteEntries.map((entry) => [entry.date, entry]));
+  const dates = Array.from(new Set([...localByDate.keys(), ...remoteByDate.keys()])).sort();
+  const preview: SupabaseSyncPreview = {
+    totalLocal: localEntries.length,
+    totalRemote: remoteEntries.length,
+    uploadOnly: [],
+    downloadOnly: [],
+    localNewer: [],
+    remoteNewer: [],
+    unchanged: [],
+  };
+
+  for (const date of dates) {
+    const local = localByDate.get(date);
+    const remote = remoteByDate.get(date);
+
+    if (local && !remote) {
+      preview.uploadOnly.push(date);
+      continue;
+    }
+
+    if (!local && remote) {
+      preview.downloadOnly.push(date);
+      continue;
+    }
+
+    if (!local || !remote) continue;
+
+    const localUpdatedAt = new Date(local.updatedAt).getTime();
+    const remoteUpdatedAt = new Date(remote.updatedAt).getTime();
+    if (localUpdatedAt > remoteUpdatedAt) {
+      preview.localNewer.push(date);
+    } else if (remoteUpdatedAt > localUpdatedAt) {
+      preview.remoteNewer.push(date);
+    } else {
+      preview.unchanged.push(date);
+    }
+  }
+
+  return preview;
 }
 
 function baseUrl(): string {
