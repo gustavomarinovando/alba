@@ -812,6 +812,79 @@ textarea {
     box-shadow: 0 16px 50px rgba(255, 119, 0, 0.08);
   }
 
+  .cat-playground {
+    @apply relative min-h-40 overflow-hidden border-y border-[#ff9f1c]/45 bg-[#ff9f1c]/[0.06] px-3 py-3;
+  }
+
+  .cat-playground::after {
+    content: "";
+    @apply absolute bottom-5 left-3 right-3 border-b border-dashed border-[#ffd166]/30;
+  }
+
+  .cat-playground-copy {
+    @apply relative z-10 flex items-center justify-between gap-3;
+  }
+
+  .cat-playground-copy span {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-[#ff9f1c];
+  }
+
+  .cat-playground-copy strong {
+    @apply text-xs font-medium text-ink;
+    opacity: 0.7;
+  }
+
+  .cat-playground-track {
+    @apply relative z-10 mt-1 h-28;
+  }
+
+  .cat-playground-button {
+    @apply absolute bottom-0 grid h-24 w-24 place-items-center border-0 bg-transparent p-0 outline-none transition focus-visible:ring-2 focus-visible:ring-[#ffd166];
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cat-playground-button .anniversary-cat {
+    @apply w-full;
+    transition: filter 180ms ease, transform 180ms ease;
+  }
+
+  .cat-playground-button:hover .anniversary-cat {
+    filter: drop-shadow(0 0 10px rgba(255, 209, 102, 0.5));
+  }
+
+  .cat-playground-button.playground-black {
+    left: 2%;
+    animation: playground-black-walk 12s ease-in-out infinite;
+  }
+
+  .cat-playground-button.playground-lynx {
+    left: 24%;
+    animation: playground-lynx-chase 12s ease-in-out infinite;
+  }
+
+  .cat-playground-button.playground-orange {
+    right: 21%;
+    animation: playground-orange-arrive 9s ease-in-out infinite;
+  }
+
+  .cat-playground-button.playground-tuxedo {
+    right: 1%;
+    animation: playground-tuxedo-arrive 9s ease-in-out infinite;
+  }
+
+  .cat-playground-button.petted .anniversary-cat {
+    animation: cat-petted 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .pet-heart {
+    @apply pointer-events-none absolute left-1/2 top-1/2 text-xl text-[#ff7b9c] opacity-0;
+    transform: translate(-50%, -50%);
+  }
+
+  .cat-playground-button.petted .pet-heart {
+    animation: pet-heart 900ms ease-out both;
+  }
+
   .anniversary-brand-mark {
     animation: anniversary-heartbeat 1.3s ease-in-out 14;
     border-color: rgba(255, 174, 66, 0.8);
@@ -1709,6 +1782,119 @@ select.input option {
   }
 }
 
+@keyframes playground-black-walk {
+  0%,
+  100% {
+    transform: translateX(-18px) rotate(-4deg);
+  }
+
+  35% {
+    transform: translateX(18px) rotate(2deg);
+  }
+
+  43% {
+    transform: translateX(34px) rotate(-7deg);
+  }
+
+  55% {
+    transform: translateX(12px) rotate(2deg);
+  }
+}
+
+@keyframes playground-lynx-chase {
+  0%,
+  100% {
+    transform: translateX(22px) rotate(5deg);
+  }
+
+  35% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+
+  43% {
+    transform: translateX(13px) translateY(-10px) rotate(10deg);
+  }
+
+  55% {
+    transform: translateX(2px) rotate(-2deg);
+  }
+}
+
+@keyframes playground-orange-arrive {
+  0%,
+  16%,
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.6);
+    filter: blur(5px);
+  }
+
+  28%,
+  68% {
+    opacity: 1;
+    transform: translateX(8px) scale(1);
+    filter: blur(0);
+  }
+
+  48% {
+    transform: translateX(18px) rotate(3deg) scale(1.03);
+  }
+}
+
+@keyframes playground-tuxedo-arrive {
+  0%,
+  20%,
+  76%,
+  100% {
+    opacity: 0;
+    transform: translateX(32px) scale(0.6);
+    filter: blur(5px);
+  }
+
+  32%,
+  68% {
+    opacity: 1;
+    transform: translateX(-8px) scale(1);
+    filter: blur(0);
+  }
+
+  48% {
+    transform: translateX(-18px) rotate(-3deg) scale(1.03);
+  }
+}
+
+@keyframes cat-petted {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  35% {
+    transform: translateY(-8px) scale(1.08, 0.94);
+  }
+
+  62% {
+    transform: translateY(1px) scale(0.97, 1.04);
+  }
+}
+
+@keyframes pet-heart {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.5);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -170%) scale(1.4) rotate(12deg);
+  }
+}
+
 @keyframes cat-blink {
   0%,
   43%,
@@ -1746,7 +1932,8 @@ select.input option {
   .anniversary-scroll-cue strong,
   .mandarino-teleport-guide,
   .future-cat-couple .anniversary-cat,
-  .future-cat-couple > span {
+  .future-cat-couple > span,
+  .cat-playground-button {
     animation: none;
   }
 

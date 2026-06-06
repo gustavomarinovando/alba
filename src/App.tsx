@@ -1166,6 +1166,7 @@ export default function App() {
   function renderToday() {
     return (
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
+        {isMonthlyAnniversary ? <CatPlayground /> : null}
         <Panel className={shouldPrioritizeEntry ? "order-2" : ""}>
           <div className="day-summary-head">
             <div>
@@ -2143,6 +2144,70 @@ function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese" 
   );
 }
 
+function CatPlayground() {
+  const [pettedCat, setPettedCat] = useState<string | null>(null);
+  const cats = [
+    { kind: "black" as const, label: "Gatito negro", className: "playground-black" },
+    { kind: "siamese" as const, label: "Gatita lynx point", className: "playground-lynx" },
+    { kind: "orange" as const, label: "Mandarino", className: "playground-orange" },
+    { kind: "tuxedo" as const, label: "Gatito esmoquin", className: "playground-tuxedo" },
+  ];
+
+  function petCat(kind: string) {
+    setPettedCat(kind);
+    playCatMeow(kind);
+    window.setTimeout(() => setPettedCat((current) => (current === kind ? null : current)), 900);
+  }
+
+  return (
+    <section className="cat-playground lg:col-span-2" aria-label="Los cuatro gatitos de Alba">
+      <div className="cat-playground-copy">
+        <span>Patrulla de hoy</span>
+        <strong>Toca a un gatito para saludarlo</strong>
+      </div>
+      <div className="cat-playground-track">
+        {cats.map((cat) => (
+          <button
+            className={`cat-playground-button ${cat.className}${pettedCat === cat.kind ? " petted" : ""}`}
+            key={cat.kind}
+            type="button"
+            onClick={() => petCat(cat.kind)}
+            aria-label={`Acariciar a ${cat.label}`}
+            title={`Acariciar a ${cat.label}`}
+          >
+            <AnniversaryCat kind={cat.kind} label={cat.label} />
+            <span className="pet-heart" aria-hidden="true">♥</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function playCatMeow(kind: string) {
+  const AudioContextClass = window.AudioContext;
+  if (!AudioContextClass) return;
+
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const start = context.currentTime;
+  const baseFrequency = kind === "tuxedo" ? 390 : kind === "black" ? 430 : kind === "siamese" ? 520 : 470;
+
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(baseFrequency, start);
+  oscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 1.55, start + 0.12);
+  oscillator.frequency.exponentialRampToValueAtTime(baseFrequency * 0.82, start + 0.38);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(0.08, start + 0.035);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(start);
+  oscillator.stop(start + 0.43);
+  oscillator.addEventListener("ended", () => void context.close());
+}
+
 function AnniversaryNote({ onClose }: { onClose: () => void }) {
   return (
     <div className="anniversary-note-backdrop" role="dialog" aria-modal="true" aria-label="Nota de mesario">
@@ -2172,8 +2237,8 @@ function AnniversaryConfetti() {
 }
 
 function AnniversaryDayDecor({ activeTab }: { activeTab: AppTab }) {
-  const tabCats: Record<AppTab, { kind: "orange" | "black" | "siamese"; position: string }> = {
-    today: { kind: "black", position: "peeker-left" },
+  const tabCats: Record<AppTab, { kind: "orange" | "black" | "siamese"; position: string } | null> = {
+    today: null,
     calendar: { kind: "orange", position: "peeker-calendar" },
     chart: { kind: "siamese", position: "peeker-right" },
     map: { kind: "orange", position: "peeker-map" },
@@ -2185,9 +2250,11 @@ function AnniversaryDayDecor({ activeTab }: { activeTab: AppTab }) {
   return (
     <div className="anniversary-day-decor" aria-hidden="true">
       {Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties}>✦</i>)}
-      <div className={`alba-cat-peeker ${cat.position}`}>
-        <AnniversaryCat kind={cat.kind} label="Gatito escondido" />
-      </div>
+      {cat ? (
+        <div className={`alba-cat-peeker ${cat.position}`}>
+          <AnniversaryCat kind={cat.kind} label="Gatito escondido" />
+        </div>
+      ) : null}
     </div>
   );
 }
