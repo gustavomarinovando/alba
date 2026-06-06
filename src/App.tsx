@@ -912,7 +912,7 @@ export default function App() {
   return (
     <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen bg-surface text-ink" : "min-h-screen bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
       {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
-      {isMonthlyAnniversary ? <AnniversaryDayDecor /> : null}
+      {isMonthlyAnniversary ? <AnniversaryDayDecor activeTab={activeTab} /> : null}
       {anniversarySparkles.map((sparkle) => (
         <span className="pointer-sparkle" key={sparkle.id} style={{ left: sparkle.x, top: sparkle.y }} aria-hidden="true">
           ✦
@@ -2012,8 +2012,15 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
           <AnniversaryCat kind="siamese" label="Gatita lynx point" />
         </div>
         <p>14 meses</p>
-        <h2>Mandarino nos dejó una misión para hoy</h2>
-        <span>Preparar algo frío, dulce y nuestro.</span>
+        <h2>Mandarino vino del futuro con una misión para hoy</h2>
+        <span>Dice que en otra vida todavía te llamas bonita y seguimos preparando cosas juntos.</span>
+        <a className="anniversary-scroll-cue" href="#anniversary-recipe">
+          <span>Seguir a Mandarino</span>
+          <strong aria-hidden="true">↓</strong>
+        </a>
+        <div className="mandarino-teleport-guide" aria-hidden="true">
+          <AnniversaryCat kind="orange" label="Mandarino viajando al futuro" />
+        </div>
       </section>
 
       <section className="recipe-mission" id="anniversary-recipe">
@@ -2026,51 +2033,53 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
         <div className="recipe-columns">
           <article>
             <div className="recipe-cat"><AnniversaryCat kind="black" label="Gatito negro vigilando las mandarinas" /></div>
-            <span className="recipe-step-number">Antes</span>
-            <h3>Yo dejo esto listo por nosotros</h3>
+            <span className="recipe-step-number">Hoy bien tempranito</span>
+            <h3>Yo preparo algunos ingredientes</h3>
             <ul>
-              <li>Voy a pelar entre 8 y 12 mandarinas y quitarles toda la parte blanca.</li>
-              <li>Dejo los gajos separados; si me alcanza la paciencia, también retiro las membranas.</li>
-              <li>Los congelo extendidos en una bandeja para que no terminen hechos una sola piedra.</li>
-              <li>También dejo listo el coco licuado con un chorrito de agua de coco.</li>
+              <li>Voy a pelar entre 8 y 12 mandarinas como sabes que me gusta 🤭</li>
+              <li>Ya partí mi coquito ayer para la salida al cine y saqué toda la pulpa 🥥🤗</li>
+              <li>Voy a congelar todos los gajos junto con la pulpa del coco 😋🥶</li>
             </ul>
           </article>
 
           <article>
             <div className="recipe-cat"><AnniversaryCat kind="orange" label="Mandarino ayudando a cocinar" /></div>
-            <span className="recipe-step-number">Cuando estemos juntos</span>
-            <h3>Lo terminamos entre los dos</h3>
+            <span className="recipe-step-number">Cuando estemos juntitos</span>
+            <h3>Lo preparamos entre los dos</h3>
             <ul>
-              <li>Ponemos en la licuadora la mandarina y el coco congelados.</li>
-              <li>Sumamos miel, una pizquita de sal y ralladura de lima o limón.</li>
-              <li>Le damos cremosidad con unas cucharadas de crema de coco.</li>
-              <li>Probamos juntos y decidimos si lo queremos suave o más firme.</li>
+              <li>Ponemos en la licuadora la mandarina y el coco congelados 😊</li>
+              <li>Le aumentamos miel, una pizquita de sal y limoncito 🍯🧂🍋</li>
+              <li>Leche o crema de coco a gusto para espesar 😚</li>
             </ul>
           </article>
 
           <article>
             <div className="recipe-cat"><AnniversaryCat kind="siamese" label="Gatita lynx point esperando el postre" /></div>
-            <span className="recipe-step-number">Cuando lo sirvamos</span>
-            <h3>Nuestro toque de mesario</h3>
+            <span className="recipe-step-number">Cuando sirvamos</span>
+            <h3>El toque de mesario perfecto</h3>
             <ul>
-              <li>Lo servimos en bowls fríos con algunos gajos frescos encima.</li>
-              <li>Rallamos chocolate oscuro justo al final para que conserve el aroma.</li>
-              <li>Si nos provoca, añadimos coco tostado, pistachos o almendras.</li>
-              <li>Y si queremos lucirnos: bañamos media mandarina en chocolate.</li>
+              <li>Poner gajos de mandarina recién peladitos 😋🍊</li>
+              <li>Rallar chocolate encima para más placer 🍫</li>
+              <li>Coquito rallado si nos apetece 😊</li>
             </ul>
           </article>
         </div>
 
         <div className="recipe-buy">
-          <strong>Si todavía nos falta comprar una sola cosa</strong>
-          <span>Que sea crema de coco: hace que quede mucho más suave.</span>
+          <strong>Si te apetece ponerle algún ingrediente no dudes en decirme 🤗✨</strong>
+          <span>Podemos probar crema de coco, pistachitos, almendras, coco tostado o una hojita de menta.</span>
         </div>
       </section>
 
       <section className="mandarin-final" id="anniversary-note">
-        <AnniversaryCat kind="orange" label="Mandarino celebrando" />
-        <p>Una mandarina congelada a la vez</p>
-        <h2>Gracias por un mes más vida mía 🤗💓</h2>
+        <div className="future-cat-couple" aria-label="Mandarino y su gatito esmoquin">
+          <AnniversaryCat kind="orange" label="Mandarino en otra vida" />
+          <span aria-hidden="true">💕✨💕</span>
+          <AnniversaryCat kind="tuxedo" label="Yo como gatito esmoquin" />
+        </div>
+        <p>En esta vida y en todas las que vengan</p>
+        <h2>Te voy a amar en todas nuestras vidas y siempre voy a encontrarte, vida mía 🤗💓</h2>
+        <span className="future-note">Aunque tenga que buscar a una gatita naranja llamada Mandarino.</span>
         <button className="primary-button max-w-sm" type="button" onClick={onClose}>
           Entrar a Alba
         </button>
@@ -2079,13 +2088,20 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
   );
 }
 
-function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese"; label: string }) {
+function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese" | "tuxedo"; label: string }) {
   return (
     <svg className={`anniversary-cat ${kind}`} viewBox="0 0 180 180" role="img" aria-label={label}>
       <path className="cat-tail" d="M137 122c34 2 37-34 13-38-18-3-19 17-7 22" fill="none" strokeWidth="13" strokeLinecap="round" />
       <ellipse className="cat-body" cx="92" cy="120" rx="50" ry="43" />
       {kind === "siamese" ? <ellipse className="cat-chest" cx="91" cy="128" rx="25" ry="30" /> : null}
+      {kind === "tuxedo" ? <ellipse className="tuxedo-chest" cx="91" cy="128" rx="28" ry="32" /> : null}
       <path className="cat-head" d="M48 71 42 29l30 19a58 58 0 0 1 39 0l29-19-6 43c5 10 7 20 5 31-4 25-25 40-50 39-25 0-45-16-48-40-2-11 1-22 7-31Z" />
+      {kind === "tuxedo" ? (
+        <>
+          <path className="tuxedo-face" d="M85 47c-5 13-7 27-3 40l10 13 10-13c4-13 2-27-3-40l-7 14Z" />
+          <ellipse className="tuxedo-muzzle" cx="92" cy="108" rx="27" ry="20" />
+        </>
+      ) : null}
       {kind === "siamese" ? (
         <>
           <path className="cat-ear-patches" d="M49 65 45 36l23 15Zm83 0 4-29-23 15Z" />
@@ -2115,7 +2131,7 @@ function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese";
       <ellipse className="cat-eye" cx="74" cy="89" rx="6" ry="8" />
       <ellipse className="cat-eye" cx="109" cy="89" rx="6" ry="8" />
       <path className="cat-nose" d="m87 105 5 4 5-4-5-4Z" />
-      <path className="cat-paw" d="M48 123c-17-1-25 9-21 18 4 8 17 7 26-1" fill="none" strokeWidth="12" strokeLinecap="round" />
+      <path className="cat-paw" d="M51 124c-13-2-24 2-32 11" fill="none" strokeWidth="12" strokeLinecap="round" />
       <path className="cat-smile" d="M92 109c-1 8-9 9-13 5m13-5c1 8 9 9 13 5" fill="none" strokeWidth="3" strokeLinecap="round" />
       <g className="cat-whiskers" fill="none" strokeWidth="2" strokeLinecap="round">
         <path d="M73 108 40 101" />
@@ -2155,13 +2171,23 @@ function AnniversaryConfetti() {
   );
 }
 
-function AnniversaryDayDecor() {
+function AnniversaryDayDecor({ activeTab }: { activeTab: AppTab }) {
+  const tabCats: Record<AppTab, { kind: "orange" | "black" | "siamese"; position: string }> = {
+    today: { kind: "black", position: "peeker-left" },
+    calendar: { kind: "orange", position: "peeker-calendar" },
+    chart: { kind: "siamese", position: "peeker-right" },
+    map: { kind: "orange", position: "peeker-map" },
+    ai: { kind: "black", position: "peeker-ai" },
+    settings: { kind: "siamese", position: "peeker-bottom" },
+  };
+  const cat = tabCats[activeTab];
+
   return (
     <div className="anniversary-day-decor" aria-hidden="true">
       {Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties}>✦</i>)}
-      <div className="alba-cat-peeker peeker-left"><AnniversaryCat kind="black" label="Gatito negro escondido" /></div>
-      <div className="alba-cat-peeker peeker-right"><AnniversaryCat kind="siamese" label="Gatita lynx point escondida" /></div>
-      <div className="alba-cat-peeker peeker-bottom"><AnniversaryCat kind="orange" label="Mandarino escondido" /></div>
+      <div className={`alba-cat-peeker ${cat.position}`}>
+        <AnniversaryCat kind={cat.kind} label="Gatito escondido" />
+      </div>
     </div>
   );
 }

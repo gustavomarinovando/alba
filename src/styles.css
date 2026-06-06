@@ -859,14 +859,32 @@ textarea {
 
   .peeker-right {
     right: 0;
-    top: 57%;
+    top: 62%;
     animation: cat-peek-right 11s ease-in-out 1.8s infinite;
   }
 
   .peeker-bottom {
     bottom: -1.4rem;
-    left: 58%;
+    left: 72%;
     animation: cat-peek-bottom 8s ease-in-out 3.2s infinite;
+  }
+
+  .peeker-calendar {
+    right: 8%;
+    top: 17%;
+    animation: cat-peek-top 9s ease-in-out infinite;
+  }
+
+  .peeker-map {
+    bottom: 9%;
+    left: 4%;
+    animation: cat-wander 12s ease-in-out infinite;
+  }
+
+  .peeker-ai {
+    right: 4%;
+    top: 28%;
+    animation: cat-peek-right 10s ease-in-out infinite;
   }
 
   .mandarin-story {
@@ -902,7 +920,28 @@ textarea {
   }
 
   .mandarin-hero > span {
-    @apply mt-5 text-base text-[#ffe0b2];
+    @apply mt-5 block text-base leading-7 text-[#ffe0b2];
+    width: calc(100vw - 2.5rem);
+    max-width: 38rem;
+  }
+
+  .anniversary-scroll-cue {
+    @apply relative z-20 mt-10 inline-flex flex-col items-center gap-1 text-sm font-semibold text-[#ffd166] no-underline;
+  }
+
+  .anniversary-scroll-cue strong {
+    @apply text-3xl leading-none;
+    animation: scroll-cue-bounce 1.2s ease-in-out infinite;
+  }
+
+  .mandarino-teleport-guide {
+    @apply pointer-events-none absolute bottom-2 left-1/2 z-10 w-24;
+    animation: mandarino-teleport 4.6s steps(1, end) infinite;
+    transform: translateX(-50%);
+  }
+
+  .mandarino-teleport-guide .anniversary-cat {
+    @apply w-full;
   }
 
   .cat-family,
@@ -949,6 +988,13 @@ textarea {
     filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.24));
   }
 
+  .anniversary-cat.black {
+    filter:
+      drop-shadow(0 0 2px rgba(255, 244, 218, 0.95))
+      drop-shadow(0 0 9px rgba(255, 179, 71, 0.55))
+      drop-shadow(0 18px 22px rgba(0, 0, 0, 0.34));
+  }
+
   .anniversary-cat .cat-body,
   .anniversary-cat .cat-head,
   .anniversary-cat .cat-tail {
@@ -966,24 +1012,37 @@ textarea {
   .anniversary-cat.siamese .cat-body,
   .anniversary-cat.siamese .cat-head,
   .anniversary-cat.siamese .cat-tail {
-    fill: #c9c4bc;
-    stroke: #9f9991;
+    fill: #d7c0a4;
+    stroke: #9f795b;
+  }
+
+  .anniversary-cat.tuxedo .cat-body,
+  .anniversary-cat.tuxedo .cat-head,
+  .anniversary-cat.tuxedo .cat-tail {
+    fill: #17191c;
+    stroke: #17191c;
   }
 
   .anniversary-cat .cat-mask {
-    fill: #9f9991;
+    fill: #9b7357;
   }
 
   .anniversary-cat .cat-chest {
-    fill: #f3efe8;
+    fill: #f4eadc;
   }
 
   .anniversary-cat .cat-ear-patches {
-    fill: #7f7974;
+    fill: #684b3b;
   }
 
   .anniversary-cat .lynx-stripes {
-    stroke: #716d69;
+    stroke: #644635;
+  }
+
+  .anniversary-cat .tuxedo-chest,
+  .anniversary-cat .tuxedo-face,
+  .anniversary-cat .tuxedo-muzzle {
+    fill: #f4f1e9;
   }
 
   .anniversary-cat .cat-stripes,
@@ -994,15 +1053,27 @@ textarea {
   }
 
   .anniversary-cat.black .cat-smile,
-  .anniversary-cat.black .cat-whiskers,
-  .anniversary-cat.black .cat-paw {
+  .anniversary-cat.black .cat-whiskers {
     stroke: #d9d2c8;
+  }
+
+  .anniversary-cat.black .cat-paw {
+    stroke: #242426;
   }
 
   .anniversary-cat.siamese .cat-smile,
   .anniversary-cat.siamese .cat-whiskers,
   .anniversary-cat.siamese .cat-paw {
-    stroke: #716d69;
+    stroke: #644635;
+  }
+
+  .anniversary-cat.tuxedo .cat-smile,
+  .anniversary-cat.tuxedo .cat-whiskers {
+    stroke: #d9d2c8;
+  }
+
+  .anniversary-cat.tuxedo .cat-paw {
+    stroke: #17191c;
   }
 
   .anniversary-cat .cat-eye {
@@ -1014,6 +1085,10 @@ textarea {
 
   .anniversary-cat.siamese .cat-eye {
     fill: #60a9c2;
+  }
+
+  .anniversary-cat.tuxedo .cat-eye {
+    fill: #a8b46e;
   }
 
   .anniversary-cat .cat-nose {
@@ -1098,8 +1173,31 @@ textarea {
     @apply text-[#ffe0b2];
   }
 
-  .mandarin-final .anniversary-cat {
-    @apply mb-6 w-48;
+  .future-cat-couple {
+    @apply relative mb-7 flex items-end justify-center;
+  }
+
+  .future-cat-couple .anniversary-cat {
+    @apply w-40 sm:w-52;
+    animation: future-cats-close 3.6s ease-in-out infinite;
+  }
+
+  .future-cat-couple .anniversary-cat:first-child {
+    transform: translateX(15px) rotate(-3deg);
+  }
+
+  .future-cat-couple .anniversary-cat:last-child {
+    animation-delay: -1.8s;
+    transform: translateX(-15px) rotate(3deg);
+  }
+
+  .future-cat-couple > span {
+    @apply absolute left-1/2 top-[12%] z-10 -translate-x-1/2 text-xl;
+    animation: future-hearts 1.8s ease-in-out infinite;
+  }
+
+  .future-note {
+    @apply mt-5 max-w-xl text-base leading-7 text-[#ffe0b2];
   }
 
   .mandarin-final .primary-button {
@@ -1518,6 +1616,99 @@ select.input option {
   }
 }
 
+@keyframes cat-peek-top {
+  0%,
+  18%,
+  74%,
+  100% {
+    transform: translateY(-76%) rotate(4deg);
+  }
+
+  32%,
+  58% {
+    transform: translateY(-25%) rotate(-2deg);
+  }
+}
+
+@keyframes cat-wander {
+  0%,
+  100% {
+    transform: translateX(-130%) rotate(-5deg);
+  }
+
+  35% {
+    transform: translateX(20vw) rotate(2deg);
+  }
+
+  65% {
+    transform: translateX(55vw) rotate(-2deg);
+  }
+}
+
+@keyframes scroll-cue-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes mandarino-teleport {
+  0%,
+  15% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scale(0.3);
+    filter: blur(8px);
+  }
+
+  18%,
+  58% {
+    opacity: 0.88;
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  61%,
+  70% {
+    opacity: 0.15;
+    transform: translateX(-50%) translateY(2px) scale(0.85);
+  }
+
+  73%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(48px) scale(0.45);
+    filter: blur(7px);
+  }
+}
+
+@keyframes future-cats-close {
+  0%,
+  100% {
+    margin-inline: 0;
+  }
+
+  50% {
+    margin-inline: -12px;
+  }
+}
+
+@keyframes future-hearts {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateX(-50%) translateY(4px) scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-9px) scale(1.15);
+  }
+}
+
 @keyframes cat-blink {
   0%,
   43%,
@@ -1551,7 +1742,11 @@ select.input option {
   .playful-scuffle .anniversary-cat,
   .playful-scuffle .cat-paw,
   .recipe-cat,
-  .alba-cat-peeker {
+  .alba-cat-peeker,
+  .anniversary-scroll-cue strong,
+  .mandarino-teleport-guide,
+  .future-cat-couple .anniversary-cat,
+  .future-cat-couple > span {
     animation: none;
   }
 
