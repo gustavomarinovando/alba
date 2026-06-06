@@ -797,6 +797,307 @@ textarea {
   .story-overlay-text h2 {
     @apply mt-3 text-4xl font-semibold leading-tight text-ink sm:text-6xl;
   }
+
+  .anniversary-day {
+    --color-moss: #ff9f1c;
+    --color-moss-light: rgba(255, 159, 28, 0.2);
+    --color-marigold: #ffd166;
+    --color-marigold-light: rgba(255, 209, 102, 0.2);
+    background:
+      linear-gradient(rgba(13, 17, 23, 0.9), rgba(13, 17, 23, 0.94)),
+      repeating-linear-gradient(135deg, #ff9f1c 0 10px, #ffe0b2 10px 20px);
+  }
+
+  .anniversary-day .panel {
+    box-shadow: 0 16px 50px rgba(255, 119, 0, 0.08);
+  }
+
+  .anniversary-brand-mark {
+    animation: anniversary-heartbeat 1.3s ease-in-out 14;
+    border-color: rgba(255, 174, 66, 0.8);
+    box-shadow: 0 0 0 0 rgba(255, 159, 28, 0.3);
+  }
+
+  .calendar-day.anniversary-six {
+    border-color: #ff9f1c;
+    box-shadow: 0 0 0 2px rgba(255, 159, 28, 0.2), 0 0 24px rgba(255, 159, 28, 0.35);
+    animation: anniversary-date-glow 1.8s ease-in-out infinite;
+  }
+
+  .pointer-sparkle {
+    @apply pointer-events-none fixed z-[70] text-xl text-[#ffd166];
+    animation: pointer-sparkle 900ms ease-out both;
+    transform: translate(-50%, -50%);
+  }
+
+  .anniversary-day-decor {
+    @apply pointer-events-none fixed inset-0 z-10 overflow-hidden;
+  }
+
+  .anniversary-day-decor i {
+    @apply absolute text-[#ffd166];
+    left: calc(4% + (var(--i) * 7%));
+    top: calc(12% + ((var(--i) * 13) % 76) * 1%);
+    animation: anniversary-orbit 4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -180ms);
+  }
+
+  .mandarin-story {
+    left: 0;
+    right: auto;
+    width: 100vw;
+    max-width: 100vw;
+    background: #11100e;
+    color: #fff8ed;
+    animation: none;
+    opacity: 1;
+  }
+
+  .mandarin-hero,
+  .mandarin-final {
+    @apply relative z-10 flex min-h-screen w-full min-w-0 flex-col items-center justify-center overflow-hidden px-5 py-24 text-center;
+    scroll-snap-align: start;
+    background:
+      radial-gradient(circle at 50% 24%, rgba(255, 170, 58, 0.24), transparent 30rem),
+      linear-gradient(180deg, #18130e 0%, #2b190d 100%);
+  }
+
+  .mandarin-hero > p,
+  .mandarin-final > p,
+  .recipe-heading > p {
+    @apply text-sm font-semibold uppercase tracking-[0.26em] text-[#ffd166];
+  }
+
+  .mandarin-hero h2,
+  .mandarin-final h2 {
+    @apply mt-4 w-full text-[2rem] font-semibold leading-tight text-[#fff8ed] sm:text-6xl;
+    max-width: min(56rem, calc(100vw - 2.5rem));
+  }
+
+  .mandarin-hero > span {
+    @apply mt-5 text-base text-[#ffe0b2];
+  }
+
+  .cat-family,
+  .note-cat-row {
+    @apply mb-8 flex w-full min-w-0 items-end justify-center;
+  }
+
+  .cat-family .anniversary-cat {
+    @apply w-24 sm:w-36;
+  }
+
+  .cat-family .anniversary-cat.orange {
+    @apply z-10 w-28 sm:w-48;
+  }
+
+  .cat-family .anniversary-cat:first-child {
+    transform: rotate(-7deg) translateX(10px);
+  }
+
+  .cat-family .anniversary-cat:last-child {
+    transform: rotate(7deg) translateX(-10px);
+  }
+
+  .anniversary-cat {
+    @apply block h-auto w-36 overflow-visible;
+    filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.24));
+  }
+
+  .anniversary-cat .cat-body,
+  .anniversary-cat .cat-head,
+  .anniversary-cat .cat-tail {
+    fill: #f29a2e;
+    stroke: #f29a2e;
+  }
+
+  .anniversary-cat.black .cat-body,
+  .anniversary-cat.black .cat-head,
+  .anniversary-cat.black .cat-tail {
+    fill: #242426;
+    stroke: #242426;
+  }
+
+  .anniversary-cat.siamese .cat-body,
+  .anniversary-cat.siamese .cat-head,
+  .anniversary-cat.siamese .cat-tail {
+    fill: #ead8bd;
+    stroke: #ead8bd;
+  }
+
+  .anniversary-cat .cat-mask {
+    fill: #8b654e;
+  }
+
+  .anniversary-cat .cat-stripes,
+  .anniversary-cat .cat-smile,
+  .anniversary-cat .cat-whiskers {
+    stroke: #9f5418;
+  }
+
+  .anniversary-cat.black .cat-smile,
+  .anniversary-cat.black .cat-whiskers {
+    stroke: #d9d2c8;
+  }
+
+  .anniversary-cat.siamese .cat-smile,
+  .anniversary-cat.siamese .cat-whiskers {
+    stroke: #6d4938;
+  }
+
+  .anniversary-cat .cat-eye {
+    fill: #141414;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cat-blink 4.6s infinite;
+  }
+
+  .anniversary-cat.siamese .cat-eye {
+    fill: #60a9c2;
+  }
+
+  .anniversary-cat .cat-nose {
+    fill: #ef8f86;
+  }
+
+  .anniversary-cat .cat-tail {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: cat-tail 2.4s ease-in-out infinite;
+  }
+
+  .recipe-mission {
+    @apply relative z-10 mx-auto min-h-screen max-w-6xl px-4 py-24 sm:px-6;
+    width: 100vw;
+    scroll-snap-align: start;
+  }
+
+  .recipe-heading {
+    @apply mx-auto max-w-3xl text-center;
+  }
+
+  .recipe-heading h2 {
+    @apply mt-3 text-3xl font-semibold text-[#fff8ed] sm:text-5xl;
+  }
+
+  .recipe-heading > span {
+    @apply mt-4 block text-base leading-7 text-[#ffe0b2];
+  }
+
+  .recipe-columns {
+    @apply mt-10 grid gap-3 lg:grid-cols-3;
+  }
+
+  .recipe-columns article {
+    @apply border-t-2 border-[#ff9f1c] bg-[#21170f] p-5;
+  }
+
+  .recipe-columns h3 {
+    @apply mt-2 text-xl font-semibold text-[#fff8ed];
+  }
+
+  .recipe-columns ul {
+    @apply mt-4 space-y-3 text-sm leading-6 text-[#ead8bd];
+  }
+
+  .recipe-columns li {
+    @apply relative pl-5;
+  }
+
+  .recipe-columns li::before {
+    content: "✦";
+    @apply absolute left-0 text-[#ff9f1c];
+  }
+
+  .recipe-step-number {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-[#ffd166];
+  }
+
+  .recipe-buy {
+    @apply mt-3 flex flex-col justify-between gap-2 border border-[#ff9f1c]/60 bg-[#ff9f1c]/10 p-4 text-[#fff8ed] sm:flex-row;
+  }
+
+  .recipe-buy span {
+    @apply text-[#ffe0b2];
+  }
+
+  .mandarin-final .anniversary-cat {
+    @apply mb-6 w-48;
+  }
+
+  .mandarin-final .primary-button {
+    @apply mt-8 bg-[#ff9f1c] text-[#211208] hover:bg-[#ffb347] focus:ring-[#ffd166];
+  }
+
+  .anniversary-note-backdrop {
+    @apply fixed inset-0 z-[80] grid place-items-center overflow-hidden bg-black/70 px-4 py-8 backdrop-blur-md;
+  }
+
+  .anniversary-note {
+    @apply relative z-10 w-full max-w-xl border border-[#ff9f1c]/70 bg-[#21170f] p-6 text-center shadow-[0_28px_100px_rgba(0,0,0,0.55)] sm:p-8;
+  }
+
+  .note-cat-row {
+    @apply mb-3;
+  }
+
+  .note-cat-row .anniversary-cat {
+    @apply -mx-3 w-24;
+  }
+
+  .anniversary-note > p {
+    @apply text-xs font-semibold uppercase tracking-[0.24em] text-[#ffd166];
+  }
+
+  .anniversary-note h2 {
+    @apply my-5 text-3xl font-semibold leading-tight text-[#fff8ed] sm:text-4xl;
+  }
+
+  .anniversary-note .primary-button {
+    @apply bg-[#ff9f1c] text-[#211208] hover:bg-[#ffb347];
+  }
+
+  .anniversary-confetti {
+    @apply pointer-events-none fixed inset-0 z-[60] overflow-hidden;
+  }
+
+  .anniversary-confetti i {
+    @apply absolute top-[-10vh] text-[#ffd166];
+    left: calc((var(--i) * 37) % 100 * 1%);
+    color: hsl(calc(24 + (var(--i) * 4)), 90%, 62%);
+    animation: anniversary-confetti-fall calc(3s + (var(--i) % 5) * 0.5s) linear infinite;
+    animation-delay: calc(var(--i) * -170ms);
+  }
+
+  .anniversary-countdown {
+    @apply grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border border-[#ff9f1c]/55 bg-[#ff9f1c]/10 p-3;
+  }
+
+  .anniversary-countdown span {
+    @apply text-sm text-ink;
+  }
+
+  .anniversary-countdown strong {
+    @apply text-lg text-ink;
+  }
+
+  .anniversary-countdown small {
+    @apply col-span-2 text-xs text-ink;
+    opacity: 0.66;
+  }
+
+  @media (max-width: 520px) {
+    .mandarin-story .anniversary-close {
+      left: 1rem;
+      right: auto;
+    }
+
+    .mandarin-hero h2,
+    .mandarin-final h2 {
+      max-width: 300px;
+      font-size: 1.75rem;
+    }
+  }
 }
 
 select.input option {
@@ -944,5 +1245,115 @@ select.input option {
   to {
     opacity: 1;
     transform: translate(var(--x-offset), var(--settled-y)) scale(1) rotate(var(--tilt));
+  }
+}
+
+@keyframes anniversary-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 159, 28, 0);
+  }
+
+  18% {
+    transform: scale(1.14);
+    box-shadow: 0 0 0 7px rgba(255, 159, 28, 0.12);
+  }
+
+  32% {
+    transform: scale(1);
+  }
+
+  46% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes anniversary-date-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.28);
+  }
+}
+
+@keyframes pointer-sparkle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 32px)) scale(1.3) rotate(90deg);
+  }
+}
+
+@keyframes anniversary-orbit {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0) rotate(0deg) scale(0.8);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: translateY(-14px) rotate(180deg) scale(1.2);
+  }
+}
+
+@keyframes cat-tail {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes cat-blink {
+  0%,
+  43%,
+  47%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  45% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes anniversary-confetti-fall {
+  from {
+    transform: translateY(-12vh) rotate(0deg);
+  }
+
+  to {
+    transform: translateY(120vh) rotate(540deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anniversary-brand-mark,
+  .calendar-day.anniversary-six,
+  .anniversary-day-decor i,
+  .anniversary-confetti i,
+  .anniversary-cat .cat-tail,
+  .anniversary-cat .cat-eye {
+    animation: none;
+  }
+
+  .pointer-sparkle {
+    display: none;
   }
 }

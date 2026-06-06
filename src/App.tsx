@@ -96,6 +96,11 @@ type TemperatureFlyer = {
   deltaX: number;
   deltaY: number;
 };
+type AnniversarySparkle = {
+  id: number;
+  x: number;
+  y: number;
+};
 
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
@@ -184,14 +189,20 @@ export default function App() {
   const [temperatureRemindersEnabled, setTemperatureRemindersEnabled] = useState(() => safeLocalGet(TEMPERATURE_REMINDERS_KEY) === "true");
   const [temperatureFlyer, setTemperatureFlyer] = useState<TemperatureFlyer | null>(null);
   const showBrandLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("brand-lab");
+  const isMonthlyAnniversary = new Date().getDate() === 6;
   const [showAnniversaryIntro, setShowAnniversaryIntro] = useState(() => {
     const today = isoDate(new Date());
-    return today === "2026-05-06" && safeSessionGet("alba-anniversary-2026-05-06") !== "seen";
+    return today === "2026-06-06" && safeSessionGet(`alba-anniversary-${today}`) !== "seen";
   });
+  const [showAnniversaryNote, setShowAnniversaryNote] = useState(false);
+  const [anniversaryTapCount, setAnniversaryTapCount] = useState(0);
+  const [anniversarySparkles, setAnniversarySparkles] = useState<AnniversarySparkle[]>([]);
   const importInput = useRef<HTMLInputElement>(null);
   const temperatureDisplayRef = useRef<HTMLLabelElement>(null);
   const savedTemperaturesRef = useRef<HTMLDivElement>(null);
   const lastCloudSyncAt = useRef(0);
+  const anniversaryLongPressTimer = useRef<number | null>(null);
+  const lastSparkleAt = useRef(0);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -852,8 +863,46 @@ export default function App() {
   }
 
   function closeAnniversaryIntro() {
-    safeSessionSet("alba-anniversary-2026-05-06", "seen");
+    safeSessionSet(`alba-anniversary-${isoDate(new Date())}`, "seen");
     setShowAnniversaryIntro(false);
+  }
+
+  function handleAnniversaryBrandTap(event: React.MouseEvent) {
+    if (!isMonthlyAnniversary) {
+      toggleTheme(event);
+      return;
+    }
+
+    setAnniversaryTapCount((current) => {
+      const next = current + 1;
+      if (next >= 14) {
+        setShowAnniversaryNote(true);
+        return 0;
+      }
+      return next;
+    });
+  }
+
+  function startAnniversaryLongPress() {
+    if (!isMonthlyAnniversary) return;
+    anniversaryLongPressTimer.current = window.setTimeout(() => setShowAnniversaryNote(true), 700);
+  }
+
+  function cancelAnniversaryLongPress() {
+    if (anniversaryLongPressTimer.current !== null) {
+      window.clearTimeout(anniversaryLongPressTimer.current);
+      anniversaryLongPressTimer.current = null;
+    }
+  }
+
+  function addAnniversarySparkle(event: React.PointerEvent<HTMLElement>) {
+    if (!isMonthlyAnniversary || Date.now() - lastSparkleAt.current < 90) return;
+    lastSparkleAt.current = Date.now();
+    const sparkle = { id: Date.now(), x: event.clientX, y: event.clientY };
+    setAnniversarySparkles((current) => [...current.slice(-10), sparkle]);
+    window.setTimeout(() => {
+      setAnniversarySparkles((current) => current.filter((item) => item.id !== sparkle.id));
+    }, 900);
   }
 
   if (showBrandLab) {
@@ -861,8 +910,15 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-ink">
+    <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen bg-surface text-ink" : "min-h-screen bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
       {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
+      {isMonthlyAnniversary ? <AnniversaryDayDecor /> : null}
+      {anniversarySparkles.map((sparkle) => (
+        <span className="pointer-sparkle" key={sparkle.id} style={{ left: sparkle.x, top: sparkle.y }} aria-hidden="true">
+          ✦
+        </span>
+      ))}
+      {showAnniversaryNote ? <AnniversaryNote onClose={() => setShowAnniversaryNote(false)} /> : null}
       {temperatureFlyer ? (
         <div
           className="temperature-flyer"
@@ -884,7 +940,16 @@ export default function App() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
             <div className="brand-lockup" aria-label="Alba">
-              <button onClick={toggleTheme} className="brand-mark" aria-label="Cambiar tema" title="Cambiar tema">
+              <button
+                onClick={handleAnniversaryBrandTap}
+                onPointerDown={startAnniversaryLongPress}
+                onPointerUp={cancelAnniversaryLongPress}
+                onPointerCancel={cancelAnniversaryLongPress}
+                onPointerLeave={cancelAnniversaryLongPress}
+                className={isMonthlyAnniversary ? "brand-mark anniversary-brand-mark" : "brand-mark"}
+                aria-label={isMonthlyAnniversary ? "Sorpresa de mesario" : "Cambiar tema"}
+                title={isMonthlyAnniversary ? `${anniversaryTapCount}/14` : "Cambiar tema"}
+              >
                 {theme === "dark" ? <Moon className="h-5 w-5" aria-hidden="true" /> : <Sun className="h-5 w-5" aria-hidden="true" />}
               </button>
               <h1 className="brand-word">Alba</h1>
@@ -1025,6 +1090,7 @@ export default function App() {
                   phase ? `phase-${phase.phase}` : "",
                   !isSameMonth(day, visibleMonth) ? "outside" : "",
                   isToday(day) ? "today" : "",
+                  isMonthlyAnniversary && format(day, "d") === "6" ? "anniversary-six" : "",
                 ].join(" ")}
                 title={phase ? `${displayDate(date)} - ${phase.label}` : displayDate(date)}
               >
@@ -1572,6 +1638,11 @@ export default function App() {
             Estado: {notificationPermission === "unsupported" ? "no soportado" : notificationPermission === "granted" ? "permitidas" : notificationPermission === "denied" ? "bloqueadas" : "sin decidir"}.
           </p>
         </div>
+        <div className="anniversary-countdown mt-3">
+          <span>Próximo mesario</span>
+          <strong>{daysUntilNextMonthiversary()} días</strong>
+          <small>El 6 vuelve Mandarino.</small>
+        </div>
         <div className="info-box mt-3">
           Sync usa Supabase con <strong>couple_id = 1</strong>. Los datos demo son solo para explorar y nunca se suben.
         </div>
@@ -1609,6 +1680,14 @@ function pickRandom<T>(items: readonly T[]): T {
 function temperatureReminderSlot(date: Date): (typeof TEMPERATURE_REMINDER_SLOTS)[number] | undefined {
   const hour = date.getHours();
   return TEMPERATURE_REMINDER_SLOTS.find((slot) => hour >= slot.startHour && hour <= slot.endHour);
+}
+
+function daysUntilNextMonthiversary(): number {
+  const today = new Date();
+  const next = today.getDate() < 6
+    ? new Date(today.getFullYear(), today.getMonth(), 6)
+    : new Date(today.getFullYear(), today.getMonth() + 1, 6);
+  return Math.max(1, differenceInCalendarDays(next, today));
 }
 
 function clampTemperature(value: number): number {
@@ -1920,32 +1999,76 @@ function PhaseSegmentTooltip({ segment }: { segment: PhaseSegment }) {
 }
 
 function AnniversaryIntro({ onClose }: { onClose: () => void }) {
-  const memories = Array.from({ length: 30 }, (_, index) => ({
-    src: `/memories/photo-${index + 1}.jpg`,
-    index: index + 1,
-  }));
-
   return (
-    <div className="anniversary-story" aria-label="Sorpresa de aniversario">
+    <div className="anniversary-story mandarin-story" aria-label="Sorpresa de aniversario">
       <button className="anniversary-close" type="button" onClick={onClose} aria-label="Saltar intro">
-        Saltar
+        Entrar a Alba
       </button>
-      <section className="story-cover">
-        <p>13 meses</p>
-        <h2>Una pequena historia antes de entrar</h2>
-        <span>Desliza hacia abajo</span>
-      </section>
-      <section className="story-stack" aria-label="Album de recuerdos">
-        {memories.map((memory) => (
-          <StoryPhoto key={memory.src} {...memory} />
-        ))}
-      </section>
-      <section className="story-final">
-        <div className="story-overlay-text">
-          <p>13 meses</p>
-          <h2>Felices 13 meses bonita</h2>
+      <AnniversaryConfetti />
+      <section className="mandarin-hero">
+        <div className="cat-family" aria-label="Mandarino y sus amigos">
+          <AnniversaryCat kind="black" label="Gatito negro" />
+          <AnniversaryCat kind="orange" label="Mandarino" />
+          <AnniversaryCat kind="siamese" label="Gatito siamés" />
         </div>
-        <button className="primary-button mt-8 max-w-sm" type="button" onClick={onClose}>
+        <p>14 meses</p>
+        <h2>Hoy Mandarino tiene una misión para nosotros</h2>
+        <span>Preparar algo frío, dulce y nuestro.</span>
+      </section>
+
+      <section className="recipe-mission">
+        <div className="recipe-heading">
+          <p>Nuestra receta</p>
+          <h2>Postre helado de mandarina y coco</h2>
+          <span>Brillante, cremoso, refrescante y con chocolate oscuro.</span>
+        </div>
+
+        <div className="recipe-columns">
+          <article>
+            <span className="recipe-step-number">Antes</span>
+            <h3>Tu parte secreta</h3>
+            <ul>
+              <li>Pelar 8–12 mandarinas y retirar toda la parte blanca.</li>
+              <li>Separar los gajos; quitar membranas si hay paciencia.</li>
+              <li>Congelarlos separados sobre una bandeja durante la noche.</li>
+              <li>Licuar carne de coco con poca agua de coco y congelar aparte.</li>
+            </ul>
+          </article>
+
+          <article>
+            <span className="recipe-step-number">Juntos</span>
+            <h3>La parte bonita</h3>
+            <ul>
+              <li>Licuar mandarina y coco congelados.</li>
+              <li>Añadir 1–2 cucharadas de miel, sal y ralladura de lima.</li>
+              <li>Agregar 2–4 cucharadas de crema de coco para textura de gelato.</li>
+              <li>Probar, ajustar y congelar 1 hora suave o 2–3 horas firme.</li>
+            </ul>
+          </article>
+
+          <article>
+            <span className="recipe-step-number">Final</span>
+            <h3>Hacerlo de aniversario</h3>
+            <ul>
+              <li>Servir en bowls fríos con gajos frescos.</li>
+              <li>Rallar chocolate oscuro justo antes de servir.</li>
+              <li>Sumar coco tostado, pistachos o almendras.</li>
+              <li>Opcional: gajos de mandarina bañados a medias en chocolate.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div className="recipe-buy">
+          <strong>La compra que más cambia el resultado</strong>
+          <span>Crema de coco, no leche de coco.</span>
+        </div>
+      </section>
+
+      <section className="mandarin-final">
+        <AnniversaryCat kind="orange" label="Mandarino celebrando" />
+        <p>Una mandarina congelada a la vez</p>
+        <h2>Gracias por un mes más vida mía 🤗💓</h2>
+        <button className="primary-button max-w-sm" type="button" onClick={onClose}>
           Entrar a Alba
         </button>
       </section>
@@ -1953,39 +2076,68 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
   );
 }
 
-function StoryPhoto({ src, index }: { src: string; index: number }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const tiltPattern = [-3.2, 2.4, -1.7, 3.1, -2.2, 1.5, -0.8, 2.7];
-  const xPattern = [-14, 10, -6, 15, -11, 5, -2, 12];
-  const tilt = tiltPattern[(index - 1) % tiltPattern.length];
-  const xOffset = xPattern[(index - 1) % xPattern.length];
-  const settledY = Math.max(-34, (index - 1) * -1.2);
-
+function AnniversaryCat({ kind, label }: { kind: "orange" | "black" | "siamese"; label: string }) {
   return (
-    <div className="story-photo-step">
-      <figure
-        className="story-photo"
-        style={
-          {
-            "--tilt": `${tilt}deg`,
-            "--x-offset": `${xOffset}px`,
-            "--settled-y": `${settledY}px`,
-            "--z": index,
-          } as React.CSSProperties
-        }
-      >
-        {!failed ? (
-          <img
-            src={src}
-            alt=""
-            className={loaded ? "story-image loaded" : "story-image"}
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
-          />
-        ) : null}
-        <div className="story-photo-fallback" aria-hidden="true" />
-      </figure>
+    <svg className={`anniversary-cat ${kind}`} viewBox="0 0 180 180" role="img" aria-label={label}>
+      <path className="cat-tail" d="M137 122c34 2 37-34 13-38-18-3-19 17-7 22" fill="none" strokeWidth="13" strokeLinecap="round" />
+      <ellipse className="cat-body" cx="92" cy="120" rx="50" ry="43" />
+      <path className="cat-head" d="M48 71 42 29l30 19a58 58 0 0 1 39 0l29-19-6 43c5 10 7 20 5 31-4 25-25 40-50 39-25 0-45-16-48-40-2-11 1-22 7-31Z" />
+      {kind === "siamese" ? <path className="cat-mask" d="M68 67c13-13 39-13 51 0 10 11 10 34-1 48-12 15-37 15-49 0-11-14-11-37-1-48Z" /> : null}
+      {kind === "orange" ? (
+        <g className="cat-stripes" fill="none" strokeWidth="6" strokeLinecap="round">
+          <path d="m72 48 5 15" />
+          <path d="m92 43 1 17" />
+          <path d="m113 49-5 14" />
+          <path d="m53 83 16 4" />
+          <path d="m130 83-15 4" />
+        </g>
+      ) : null}
+      <ellipse className="cat-eye" cx="74" cy="89" rx="6" ry="8" />
+      <ellipse className="cat-eye" cx="109" cy="89" rx="6" ry="8" />
+      <path className="cat-nose" d="m87 105 5 4 5-4-5-4Z" />
+      <path className="cat-smile" d="M92 109c-1 8-9 9-13 5m13-5c1 8 9 9 13 5" fill="none" strokeWidth="3" strokeLinecap="round" />
+      <g className="cat-whiskers" fill="none" strokeWidth="2" strokeLinecap="round">
+        <path d="M73 108 40 101" />
+        <path d="M73 115 38 117" />
+        <path d="m110 108 34-7" />
+        <path d="m110 115 35 2" />
+      </g>
+    </svg>
+  );
+}
+
+function AnniversaryNote({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="anniversary-note-backdrop" role="dialog" aria-modal="true" aria-label="Nota de mesario">
+      <AnniversaryConfetti />
+      <section className="anniversary-note">
+        <div className="note-cat-row">
+          <AnniversaryCat kind="black" label="Gatito negro" />
+          <AnniversaryCat kind="orange" label="Mandarino" />
+          <AnniversaryCat kind="siamese" label="Gatito siamés" />
+        </div>
+        <p>14 meses</p>
+        <h2>Gracias por un mes más vida mía 🤗💓</h2>
+        <button className="primary-button" type="button" onClick={onClose}>Guardar en el corazón</button>
+      </section>
+    </div>
+  );
+}
+
+function AnniversaryConfetti() {
+  return (
+    <div className="anniversary-confetti" aria-hidden="true">
+      {Array.from({ length: 28 }, (_, index) => (
+        <i key={index} style={{ "--i": index } as React.CSSProperties}>{index % 3 === 0 ? "♥" : index % 3 === 1 ? "✦" : "●"}</i>
+      ))}
+    </div>
+  );
+}
+
+function AnniversaryDayDecor() {
+  return (
+    <div className="anniversary-day-decor" aria-hidden="true">
+      {Array.from({ length: 14 }, (_, index) => <i key={index} style={{ "--i": index } as React.CSSProperties}>✦</i>)}
     </div>
   );
 }
