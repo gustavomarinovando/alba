@@ -813,7 +813,7 @@ textarea {
   }
 
   .cat-playground {
-    @apply relative min-h-40 overflow-hidden border-y border-[#ff9f1c]/45 bg-[#ff9f1c]/[0.06] px-3 py-3;
+    @apply relative mb-5 min-h-40 overflow-hidden border-y border-[#ff9f1c]/45 bg-[#ff9f1c]/[0.06] px-3 py-3;
   }
 
   .cat-playground::after {
@@ -822,7 +822,7 @@ textarea {
   }
 
   .cat-playground-copy {
-    @apply relative z-10 flex items-center justify-between gap-3;
+    @apply relative z-10 flex min-w-0 items-center justify-between gap-3;
   }
 
   .cat-playground-copy span {
@@ -830,7 +830,7 @@ textarea {
   }
 
   .cat-playground-copy strong {
-    @apply text-xs font-medium text-ink;
+    @apply max-w-[58%] text-right text-xs font-medium leading-4 text-ink;
     opacity: 0.7;
   }
 
@@ -875,6 +875,67 @@ textarea {
   .playground-love {
     @apply pointer-events-none absolute right-[13%] top-0 z-20 text-xl;
     animation: playground-love-float 2.2s ease-in-out infinite;
+  }
+
+  .cat-playground.tab-calendar .playground-love,
+  .cat-playground.tab-map .playground-love {
+    display: none;
+  }
+
+  .cat-playground-status {
+    @apply absolute bottom-2 right-3 z-10 text-[0.68rem] font-medium text-ink;
+    opacity: 0.5;
+  }
+
+  .wandering-cat {
+    @apply pointer-events-auto fixed z-30 w-24 sm:w-28;
+    filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.28));
+    animation: page-cat-walk 18s linear infinite;
+  }
+
+  .wandering-cat .anniversary-cat {
+    @apply w-full;
+  }
+
+  .wandering-cat .walking-cat {
+    animation: cat-walk-bob 560ms ease-in-out infinite;
+  }
+
+  .wandering-cat .walking-cat .cat-paw {
+    transform-box: fill-box;
+    transform-origin: right center;
+    animation: walking-paw-step 560ms ease-in-out infinite;
+  }
+
+  .wandering-cat .walking-cat .cat-tail {
+    animation-duration: 1.2s;
+  }
+
+  .wandering-calendar {
+    animation-duration: 20s;
+    animation-delay: -4s;
+  }
+
+  .wandering-chart {
+    animation-duration: 16s;
+    animation-direction: reverse;
+    animation-delay: -8s;
+  }
+
+  .wandering-map {
+    animation-duration: 22s;
+    animation-delay: -11s;
+  }
+
+  .wandering-ai {
+    animation-duration: 18s;
+    animation-direction: reverse;
+    animation-delay: -2s;
+  }
+
+  .wandering-settings {
+    animation-duration: 21s;
+    animation-delay: -14s;
   }
 
   .anniversary-cat.meow,
@@ -1388,6 +1449,39 @@ textarea {
   .anniversary-countdown small {
     @apply col-span-2 text-xs text-ink;
     opacity: 0.66;
+  }
+
+  .custom-date-list {
+    @apply border border-outline bg-surface p-3;
+  }
+
+  .custom-date-list h3 {
+    @apply mt-1 text-base font-semibold text-ink;
+  }
+
+  .custom-date-card {
+    @apply mt-3 flex flex-col gap-3 border border-outline bg-surface p-3 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .custom-date-card strong {
+    @apply block text-sm text-ink;
+  }
+
+  .custom-date-card span {
+    @apply mt-1 block text-xs leading-5 text-ink;
+    opacity: 0.68;
+  }
+
+  .custom-date-card small {
+    @apply mt-2 block text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-moss;
+  }
+
+  .custom-date-actions {
+    @apply flex shrink-0 gap-2;
+  }
+
+  .secondary-button.compact-action {
+    @apply min-h-0 px-3 py-2 text-xs;
   }
 
   @media (max-width: 520px) {
@@ -1934,33 +2028,113 @@ select.input option {
   }
 }
 
+@keyframes page-cat-walk {
+  0% {
+    left: -6rem;
+    top: 52vh;
+    transform: translateX(0) scaleX(1) rotate(-2deg);
+  }
+
+  24% {
+    left: 6vw;
+    top: 72vh;
+    transform: translateX(0) scaleX(1) rotate(2deg);
+  }
+
+  48% {
+    left: calc(100vw - 6rem);
+    top: 78vh;
+    transform: translateX(0) scaleX(1) rotate(-1deg);
+  }
+
+  49% {
+    transform: translateX(0) scaleX(-1) rotate(1deg);
+  }
+
+  72% {
+    left: 36vw;
+    top: 86vh;
+    transform: translateX(0) scaleX(-1) rotate(-2deg);
+  }
+
+  100% {
+    left: -6rem;
+    top: 64vh;
+    transform: translateX(0) scaleX(-1) rotate(2deg);
+  }
+}
+
+@keyframes cat-walk-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-5px) scale(1.02, 0.98);
+  }
+}
+
+@keyframes walking-paw-step {
+  0%,
+  100% {
+    transform: rotate(-6deg) translateX(0);
+  }
+
+  50% {
+    transform: rotate(12deg) translateX(-5px);
+  }
+}
+
 @media (max-width: 640px) {
+  .cat-playground {
+    max-width: calc(100vw - 2rem);
+    width: calc(100vw - 2rem);
+  }
+
+  .cat-playground-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .cat-playground-copy strong {
+    max-width: none;
+    text-align: left;
+  }
+
   .cat-playground-cat {
-    width: 23%;
+    width: 4.75rem;
   }
 
   .cat-playground-cat.playground-black {
-    left: 0;
+    left: calc((100vw - 2rem) * 0.04);
     animation-name: playground-black-mobile;
   }
 
   .cat-playground-cat.playground-lynx {
-    left: 22%;
+    left: calc((100vw - 2rem) * 0.28);
     animation-name: playground-lynx-mobile;
   }
 
   .cat-playground-cat.playground-orange {
-    right: 21%;
+    left: calc((100vw - 2rem) * 0.55);
+    right: auto;
     animation-name: playground-orange-mobile;
   }
 
   .cat-playground-cat.playground-tuxedo {
-    right: 0;
+    left: calc((100vw - 2rem) * 0.76);
+    right: auto;
     animation-name: playground-tuxedo-mobile;
   }
 
   .playground-love {
     right: 9%;
+  }
+
+  .wandering-cat {
+    animation-name: page-cat-walk-mobile;
   }
 }
 
@@ -1972,6 +2146,36 @@ select.input option {
 
   43% {
     transform: translateX(6px) rotate(4deg);
+  }
+}
+
+@keyframes page-cat-walk-mobile {
+  0% {
+    left: -6rem;
+    top: 74vh;
+    transform: translateX(0) scaleX(1) rotate(-2deg);
+  }
+
+  38% {
+    left: 4vw;
+    top: 82vh;
+    transform: translateX(0) scaleX(1) rotate(2deg);
+  }
+
+  52% {
+    left: calc(100vw - 5.5rem);
+    top: 88vh;
+    transform: translateX(0) scaleX(1) rotate(-1deg);
+  }
+
+  53% {
+    transform: translateX(0) scaleX(-1) rotate(1deg);
+  }
+
+  100% {
+    left: -6rem;
+    top: 92vh;
+    transform: translateX(0) scaleX(-1) rotate(2deg);
   }
 }
 
@@ -2106,7 +2310,10 @@ select.input option {
   .mandarino-teleport-guide,
   .future-cat-couple .anniversary-cat,
   .future-cat-couple > span,
-  .cat-playground-cat {
+  .cat-playground-cat,
+  .wandering-cat,
+  .wandering-cat .walking-cat,
+  .wandering-cat .walking-cat .cat-paw {
     animation: none;
   }
 

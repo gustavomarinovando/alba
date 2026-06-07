@@ -101,10 +101,33 @@ type AnniversarySparkle = {
   x: number;
   y: number;
 };
+type CustomDateId = "mandarino-monthiversary";
 
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
+const CUSTOM_DATE_ACTIVATIONS_KEY = "alba-custom-date-activations";
+const CUSTOM_DATE_DEVELOPMENTS: Array<{
+  id: CustomDateId;
+  title: string;
+  description: string;
+  trigger: string;
+}> = [
+  {
+    id: "mandarino-monthiversary",
+    title: "Mesario Mandarino",
+    description: "Gatitos, receta, nota y escena de siete vidas.",
+    trigger: "Cada día 6",
+  },
+];
+const PATROL_WANDERERS: Record<AppTab, AnniversaryCatKind> = {
+  today: "siamese",
+  calendar: "orange",
+  chart: "black",
+  map: "tuxedo",
+  ai: "siamese",
+  settings: "orange",
+};
 const MONTHLY_ANNIVERSARY_TITLE = "Buenos dias bonita, feliz mesario 🥰💕✨";
 const MORNING_GREETINGS = ["Buenos días", "Muyyy buenos días", "Muy buenos días", "Muy pero muy buenos días"] as const;
 const MORNING_ENDEARMENTS = [
@@ -188,6 +211,7 @@ export default function App() {
     return Notification.permission;
   });
   const [temperatureRemindersEnabled, setTemperatureRemindersEnabled] = useState(() => safeLocalGet(TEMPERATURE_REMINDERS_KEY) === "true");
+  const [customDateActivations, setCustomDateActivations] = useState<Record<CustomDateId, boolean>>(() => loadCustomDateActivations());
   const [temperatureFlyer, setTemperatureFlyer] = useState<TemperatureFlyer | null>(null);
   const showBrandLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("brand-lab");
   const isMonthlyAnniversary = new Date().getDate() === 6;
@@ -414,6 +438,19 @@ export default function App() {
   useEffect(() => {
     safeLocalSet(TEMPERATURE_REMINDERS_KEY, String(temperatureRemindersEnabled));
   }, [temperatureRemindersEnabled]);
+
+  useEffect(() => {
+    safeLocalSet(CUSTOM_DATE_ACTIVATIONS_KEY, JSON.stringify(customDateActivations));
+  }, [customDateActivations]);
+
+  useEffect(() => {
+    if (!customDateActivations["mandarino-monthiversary"] || new Date().getDate() !== 6) return;
+    const today = isoDate(new Date());
+    const promptKey = `alba-custom-date-mandarino-${today}`;
+    if (safeSessionGet(promptKey) === "prompted") return;
+    safeSessionSet(promptKey, "prompted");
+    setShowAnniversaryIntro(true);
+  }, [customDateActivations]);
 
   useEffect(() => {
     if (!temperatureRemindersEnabled || notificationPermission !== "granted" || isDemoMode) return;
@@ -936,6 +973,15 @@ export default function App() {
     setShowAnniversaryIntro(false);
   }
 
+  function toggleCustomDateActivation(id: CustomDateId) {
+    setCustomDateActivations((current) => ({ ...current, [id]: !current[id] }));
+  }
+
+  function replayCustomDate(id: CustomDateId) {
+    if (id !== "mandarino-monthiversary") return;
+    setShowAnniversaryIntro(true);
+  }
+
   function handleAnniversaryBrandTap(event: React.MouseEvent) {
     if (!isMonthlyAnniversary) {
       toggleTheme(event);
@@ -979,7 +1025,7 @@ export default function App() {
   }
 
   return (
-    <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen bg-surface text-ink" : "min-h-screen bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
+    <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen overflow-x-hidden bg-surface text-ink" : "min-h-screen overflow-x-hidden bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
       {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
       {isMonthlyAnniversary ? <AnniversaryDayDecor activeTab={activeTab} /> : null}
       {anniversarySparkles.map((sparkle) => (
@@ -1054,6 +1100,8 @@ export default function App() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <CatPlayground activeTab={activeTab} missingKind={PATROL_WANDERERS[activeTab]} />
+        <WanderingCat activeTab={activeTab} kind={PATROL_WANDERERS[activeTab]} />
         {activeTab === "today" ? renderToday() : null}
         {activeTab === "calendar" ? renderCalendar() : null}
         {activeTab === "chart" ? renderChart() : null}
@@ -1235,7 +1283,6 @@ export default function App() {
   function renderToday() {
     return (
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
-        {isMonthlyAnniversary ? <CatPlayground /> : null}
         <Panel className={shouldPrioritizeEntry ? "order-2" : ""}>
           <div className="day-summary-head">
             <div>
@@ -1712,6 +1759,33 @@ export default function App() {
           <span>Próximo mesario</span>
           <strong>{daysUntilNextMonthiversary()} días</strong>
           <small>El 6 vuelve Mandarino.</small>
+        </div>
+        <div className="custom-date-list mt-3">
+          <div>
+            <span className="eyebrow">Fechas especiales</span>
+            <h3>Experiencias guardadas</h3>
+          </div>
+          {CUSTOM_DATE_DEVELOPMENTS.map((item) => (
+            <article key={item.id} className="custom-date-card">
+              <div>
+                <strong>{item.title}</strong>
+                <span>{item.description}</span>
+                <small>{item.trigger}</small>
+              </div>
+              <div className="custom-date-actions">
+                <button className="secondary-button compact-action" type="button" onClick={() => replayCustomDate(item.id)}>
+                  Reabrir
+                </button>
+                <button
+                  className={customDateActivations[item.id] ? "secondary-button compact-action active-demo" : "secondary-button compact-action"}
+                  type="button"
+                  onClick={() => toggleCustomDateActivation(item.id)}
+                >
+                  {customDateActivations[item.id] ? "Activa" : "Activar"}
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
         <div className="info-box mt-3">
           Sync usa Supabase con <strong>couple_id = 1</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
@@ -2267,7 +2341,7 @@ function AnniversaryCat({
   );
 }
 
-function CatPlayground() {
+function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingKind?: AnniversaryCatKind }) {
   const [soundHint, setSoundHint] = useState<"single" | "double">("single");
   const cats = [
     { kind: "black" as const, label: "Gatito negro", className: "playground-black" },
@@ -2277,9 +2351,9 @@ function CatPlayground() {
   ];
 
   return (
-    <section className="cat-playground lg:col-span-2" aria-label="Los cuatro gatitos de Alba">
+    <section className={`cat-playground tab-${activeTab}`} aria-label="Patrulla de gatitos de Alba">
       <div className="cat-playground-copy">
-        <span>Patrulla de hoy</span>
+        <span>Patrulla Alba</span>
         <strong>
           {soundHint === "single"
             ? "Toca un gatito para saludarlo"
@@ -2287,7 +2361,7 @@ function CatPlayground() {
         </strong>
       </div>
       <div className="cat-playground-track">
-        {cats.map((cat) => (
+        {cats.filter((cat) => cat.kind !== missingKind).map((cat) => (
           <AnniversaryCat
             key={cat.kind}
             kind={cat.kind}
@@ -2298,7 +2372,23 @@ function CatPlayground() {
         ))}
         <span className="playground-love" aria-hidden="true">💕</span>
       </div>
+      {missingKind ? <small className="cat-playground-status">Uno anda de paseo por esta pantalla.</small> : null}
     </section>
+  );
+}
+
+function WanderingCat({ activeTab, kind }: { activeTab: AppTab; kind: AnniversaryCatKind }) {
+  const labels: Record<AnniversaryCatKind, string> = {
+    black: "Gatito negro paseando por Alba",
+    orange: "Mandarino paseando por Alba",
+    siamese: "Gatita lynx point paseando por Alba",
+    tuxedo: "Gatito esmoquin paseando por Alba",
+  };
+
+  return (
+    <div className={`wandering-cat wandering-${kind} wandering-${activeTab}`}>
+      <AnniversaryCat kind={kind} label={labels[kind]} className="walking-cat" />
+    </div>
   );
 }
 
@@ -2423,6 +2513,18 @@ function safeLocalSet(key: string, value: string): void {
     localStorage.setItem(key, value);
   } catch {
     // Demo autoload is best-effort only.
+  }
+}
+
+function loadCustomDateActivations(): Record<CustomDateId, boolean> {
+  const fallback: Record<CustomDateId, boolean> = { "mandarino-monthiversary": true };
+  const raw = safeLocalGet(CUSTOM_DATE_ACTIVATIONS_KEY);
+  if (!raw) return fallback;
+
+  try {
+    return { ...fallback, ...(JSON.parse(raw) as Partial<Record<CustomDateId, boolean>>) };
+  } catch {
+    return fallback;
   }
 }
 
