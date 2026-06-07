@@ -1792,6 +1792,18 @@ export default function App() {
             </article>
           ))}
         </div>
+        <div className="avatar-setup-card mt-3">
+          <div>
+            <span className="eyebrow">Avatares</span>
+            <h3>Vista de paseo</h3>
+            <p>La configuración de avatares también usará esta silueta lateral para previsualizar caminata, accesorios y sonidos.</p>
+          </div>
+          <div className="avatar-setup-preview" aria-label="Vista lateral de los avatares">
+            {CAT_KINDS.map((kind) => (
+              <SideWalkingCat key={kind} kind={kind} label={`Vista lateral ${kind}`} className="avatar-setup-cat" />
+            ))}
+          </div>
+        </div>
         <div className="info-box mt-3">
           Sync usa Supabase con <strong>couple_id = 1</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
           <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.
@@ -2382,7 +2394,7 @@ function SideWalkingCat({
   return (
     <svg
       className={`side-walking-cat ${kind} ${className}${reaction ? ` ${reaction}` : ""}`}
-      viewBox="0 0 220 130"
+      viewBox="0 20 220 105"
       role="button"
       tabIndex={0}
       aria-label={`${label}. Un toque para maullar, dos para ronronear.`}

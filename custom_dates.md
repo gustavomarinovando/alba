@@ -121,6 +121,7 @@ Per-avatar customization ideas:
 - palette controls for body, muzzle, belly, paws, tail, ears, eyes, and outline;
 - markings: stripes, masks, socks, blaze, nose spots, scars, freckles;
 - body details: tail length, ear shape, eye style, fluff level, sitting or walking silhouette;
+- avatar setup previews should include both the front/sitting view and the side-view walking silhouette;
 - accessories by slot: collar, charm, ribbon, hat, tiny bag, toy, blanket, background;
 - animation style: shy peek, patrol, sleepy, excited, playful fight, loving couple, celebration;
 - mood presets: calm, hungry, sleepy, affectionate, mischievous, proud;
@@ -196,6 +197,7 @@ Users edit text, date, avatar selection, and colors.
 Add a structured editor:
 
 - choose companions;
+- preview companions in front/sitting mode and side-view walking mode;
 - choose placement;
 - choose animation style;
 - choose audio;
