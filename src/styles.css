@@ -830,8 +830,10 @@ textarea {
   }
 
   .cat-playground-copy strong {
-    @apply max-w-[58%] text-right text-xs font-medium leading-4 text-ink;
-    opacity: 0.7;
+    @apply absolute right-0 top-0 min-w-0 max-w-[64%] shrink-0 text-right text-xs font-bold leading-4 text-[#ffd166];
+    opacity: 1;
+    overflow-wrap: anywhere;
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.55);
   }
 
   .cat-playground-track {
@@ -877,38 +879,14 @@ textarea {
     animation: playground-love-float 2.2s ease-in-out infinite;
   }
 
-  .cat-playground.tab-calendar .playground-love,
-  .cat-playground.tab-map .playground-love {
-    display: none;
-  }
-
-  .cat-playground-status {
-    @apply absolute bottom-2 right-3 z-10 text-[0.68rem] font-medium text-ink;
-    opacity: 0.5;
-  }
-
   .wandering-cat {
-    @apply pointer-events-auto fixed z-30 w-24 sm:w-28;
+    @apply pointer-events-auto fixed z-30 w-28 sm:w-32;
     filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.28));
     animation: page-cat-walk 18s linear infinite;
   }
 
-  .wandering-cat .anniversary-cat {
+  .wandering-cat .side-walking-cat {
     @apply w-full;
-  }
-
-  .wandering-cat .walking-cat {
-    animation: cat-walk-bob 560ms ease-in-out infinite;
-  }
-
-  .wandering-cat .walking-cat .cat-paw {
-    transform-box: fill-box;
-    transform-origin: right center;
-    animation: walking-paw-step 560ms ease-in-out infinite;
-  }
-
-  .wandering-cat .walking-cat .cat-tail {
-    animation-duration: 1.2s;
   }
 
   .wandering-calendar {
@@ -956,7 +934,9 @@ textarea {
   }
 
   .anniversary-cat.meow .cat-tap-paw,
-  .anniversary-cat.purr .cat-tap-paw {
+  .anniversary-cat.purr .cat-tap-paw,
+  .side-walking-cat.meow .cat-tap-paw,
+  .side-walking-cat.purr .cat-tap-paw {
     animation: cat-paw-pop 1.8s ease-out both;
   }
 
@@ -1274,6 +1254,141 @@ textarea {
     transform-box: fill-box;
     transform-origin: left center;
     animation: cat-tail 2.4s ease-in-out infinite;
+  }
+
+  .side-walking-cat {
+    @apply block h-auto overflow-visible outline-none;
+    cursor: pointer;
+    touch-action: manipulation;
+    animation: side-cat-body-walk 620ms ease-in-out infinite;
+  }
+
+  .side-walking-cat:focus-visible {
+    filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.8));
+  }
+
+  .side-walking-cat.meow {
+    animation: cat-petted 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .side-walking-cat.purr {
+    animation: cat-purr 180ms ease-in-out 7;
+  }
+
+  .side-walking-cat .side-body,
+  .side-walking-cat .side-head,
+  .side-walking-cat .side-ear,
+  .side-walking-cat .side-tail {
+    fill: #f29a2e;
+    stroke: #f29a2e;
+  }
+
+  .side-walking-cat.black .side-body,
+  .side-walking-cat.black .side-head,
+  .side-walking-cat.black .side-ear,
+  .side-walking-cat.black .side-tail {
+    fill: #242426;
+    stroke: #242426;
+  }
+
+  .side-walking-cat.siamese .side-body,
+  .side-walking-cat.siamese .side-head,
+  .side-walking-cat.siamese .side-ear,
+  .side-walking-cat.siamese .side-tail {
+    fill: #d7c0a4;
+    stroke: #9f795b;
+  }
+
+  .side-walking-cat.tuxedo .side-body,
+  .side-walking-cat.tuxedo .side-head,
+  .side-walking-cat.tuxedo .side-ear,
+  .side-walking-cat.tuxedo .side-tail {
+    fill: #17191c;
+    stroke: #17191c;
+  }
+
+  .side-walking-cat .side-chest {
+    fill: #f4eadc;
+  }
+
+  .side-walking-cat .side-mask {
+    fill: #9b7357;
+  }
+
+  .side-walking-cat .side-tuxedo-chest,
+  .side-walking-cat .side-tuxedo-face,
+  .side-walking-cat .side-tuxedo-muzzle {
+    fill: #f4f1e9;
+  }
+
+  .side-walking-cat .side-leg,
+  .side-walking-cat .side-mouth,
+  .side-walking-cat .side-whiskers,
+  .side-walking-cat .side-stripes {
+    stroke: #9f5418;
+  }
+
+  .side-walking-cat.black .side-leg,
+  .side-walking-cat.black .side-mouth,
+  .side-walking-cat.black .side-whiskers {
+    stroke: #d9d2c8;
+  }
+
+  .side-walking-cat.siamese .side-leg,
+  .side-walking-cat.siamese .side-mouth,
+  .side-walking-cat.siamese .side-whiskers,
+  .side-walking-cat.siamese .side-stripes {
+    stroke: #644635;
+  }
+
+  .side-walking-cat.tuxedo .side-leg,
+  .side-walking-cat.tuxedo .side-mouth,
+  .side-walking-cat.tuxedo .side-whiskers {
+    stroke: #d9d2c8;
+  }
+
+  .side-walking-cat .side-eye {
+    fill: #141414;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cat-blink 4.6s infinite;
+  }
+
+  .side-walking-cat.siamese .side-eye {
+    fill: #60a9c2;
+  }
+
+  .side-walking-cat.tuxedo .side-eye {
+    fill: #a8b46e;
+  }
+
+  .side-walking-cat .side-nose {
+    fill: #ef8f86;
+  }
+
+  .side-walking-cat .side-tail {
+    transform-box: fill-box;
+    transform-origin: right center;
+    animation: side-tail-sway 1.4s ease-in-out infinite;
+  }
+
+  .side-walking-cat .side-leg {
+    transform-box: fill-box;
+    transform-origin: top center;
+    animation: side-leg-step 620ms ease-in-out infinite;
+  }
+
+  .side-walking-cat .leg-back-b,
+  .side-walking-cat .leg-front-a {
+    animation-delay: -310ms;
+  }
+
+  .dark .cat-playground .anniversary-cat.tuxedo,
+  .dark .wandering-cat .side-walking-cat.tuxedo {
+    filter:
+      drop-shadow(0 0 2px rgba(255, 244, 218, 0.95))
+      drop-shadow(0 0 8px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 18px 22px rgba(0, 0, 0, 0.34));
   }
 
   .recipe-mission {
@@ -2030,59 +2145,70 @@ select.input option {
 
 @keyframes page-cat-walk {
   0% {
-    left: -6rem;
+    left: 1rem;
     top: 52vh;
     transform: translateX(0) scaleX(1) rotate(-2deg);
   }
 
-  24% {
-    left: 6vw;
-    top: 72vh;
+  32% {
+    left: 23vw;
+    top: 68vh;
     transform: translateX(0) scaleX(1) rotate(2deg);
   }
 
-  48% {
-    left: calc(100vw - 6rem);
-    top: 78vh;
+  54% {
+    left: calc(100vw - 8.5rem);
+    top: 80vh;
     transform: translateX(0) scaleX(1) rotate(-1deg);
   }
 
-  49% {
+  55% {
     transform: translateX(0) scaleX(-1) rotate(1deg);
   }
 
-  72% {
-    left: 36vw;
-    top: 86vh;
+  78% {
+    left: 34vw;
+    top: 72vh;
     transform: translateX(0) scaleX(-1) rotate(-2deg);
   }
 
   100% {
-    left: -6rem;
-    top: 64vh;
+    left: 1rem;
+    top: 58vh;
     transform: translateX(0) scaleX(-1) rotate(2deg);
   }
 }
 
-@keyframes cat-walk-bob {
+@keyframes side-cat-body-walk {
   0%,
   100% {
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 
   50% {
-    transform: translateY(-5px) scale(1.02, 0.98);
+    transform: translateY(-4px);
   }
 }
 
-@keyframes walking-paw-step {
+@keyframes side-leg-step {
   0%,
   100% {
-    transform: rotate(-6deg) translateX(0);
+    transform: rotate(-12deg) translateX(0) translateY(0);
   }
 
   50% {
-    transform: rotate(12deg) translateX(-5px);
+    transform: rotate(14deg) translateX(4px) translateY(-2px);
+  }
+}
+
+@keyframes side-tail-sway {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+
+  50% {
+    transform: rotate(9deg);
   }
 }
 
@@ -2092,15 +2218,11 @@ select.input option {
     width: calc(100vw - 2rem);
   }
 
-  .cat-playground-copy {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
   .cat-playground-copy strong {
-    max-width: none;
-    text-align: left;
+    max-width: 5.5rem;
+    font-size: 0.68rem;
+    line-height: 0.9rem;
+    white-space: nowrap;
   }
 
   .cat-playground-cat {
@@ -2124,7 +2246,7 @@ select.input option {
   }
 
   .cat-playground-cat.playground-tuxedo {
-    left: calc((100vw - 2rem) * 0.76);
+    left: calc((100vw - 2rem) * 0.70);
     right: auto;
     animation-name: playground-tuxedo-mobile;
   }
@@ -2151,20 +2273,20 @@ select.input option {
 
 @keyframes page-cat-walk-mobile {
   0% {
-    left: -6rem;
-    top: 74vh;
+    left: 0.35rem;
+    top: 70vh;
     transform: translateX(0) scaleX(1) rotate(-2deg);
   }
 
   38% {
-    left: 4vw;
-    top: 82vh;
+    left: 32vw;
+    top: 80vh;
     transform: translateX(0) scaleX(1) rotate(2deg);
   }
 
   52% {
     left: calc(100vw - 5.5rem);
-    top: 88vh;
+    top: 84vh;
     transform: translateX(0) scaleX(1) rotate(-1deg);
   }
 
@@ -2173,8 +2295,8 @@ select.input option {
   }
 
   100% {
-    left: -6rem;
-    top: 92vh;
+    left: 0.35rem;
+    top: 76vh;
     transform: translateX(0) scaleX(-1) rotate(2deg);
   }
 }
@@ -2312,8 +2434,9 @@ select.input option {
   .future-cat-couple > span,
   .cat-playground-cat,
   .wandering-cat,
-  .wandering-cat .walking-cat,
-  .wandering-cat .walking-cat .cat-paw {
+  .wandering-cat .side-walking-cat,
+  .wandering-cat .side-leg,
+  .wandering-cat .side-tail {
     animation: none;
   }
 

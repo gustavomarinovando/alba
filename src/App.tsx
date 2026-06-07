@@ -86,6 +86,7 @@ const tabs = [
   { id: "settings", label: "Ajustes", icon: Database },
 ] as const;
 type AppTab = (typeof tabs)[number]["id"];
+type AnniversaryCatKind = "orange" | "black" | "siamese" | "tuxedo";
 type BrowserNotificationPermission = NotificationPermission | "unsupported";
 type TemperatureFlyer = {
   id: number;
@@ -120,14 +121,7 @@ const CUSTOM_DATE_DEVELOPMENTS: Array<{
     trigger: "Cada día 6",
   },
 ];
-const PATROL_WANDERERS: Record<AppTab, AnniversaryCatKind> = {
-  today: "siamese",
-  calendar: "orange",
-  chart: "black",
-  map: "tuxedo",
-  ai: "siamese",
-  settings: "orange",
-};
+const CAT_KINDS: AnniversaryCatKind[] = ["black", "siamese", "orange", "tuxedo"];
 const MONTHLY_ANNIVERSARY_TITLE = "Buenos dias bonita, feliz mesario 🥰💕✨";
 const MORNING_GREETINGS = ["Buenos días", "Muyyy buenos días", "Muy buenos días", "Muy pero muy buenos días"] as const;
 const MORNING_ENDEARMENTS = [
@@ -212,6 +206,7 @@ export default function App() {
   });
   const [temperatureRemindersEnabled, setTemperatureRemindersEnabled] = useState(() => safeLocalGet(TEMPERATURE_REMINDERS_KEY) === "true");
   const [customDateActivations, setCustomDateActivations] = useState<Record<CustomDateId, boolean>>(() => loadCustomDateActivations());
+  const [wanderingKind, setWanderingKind] = useState<AnniversaryCatKind | null>(null);
   const [temperatureFlyer, setTemperatureFlyer] = useState<TemperatureFlyer | null>(null);
   const showBrandLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("brand-lab");
   const isMonthlyAnniversary = new Date().getDate() === 6;
@@ -451,6 +446,16 @@ export default function App() {
     safeSessionSet(promptKey, "prompted");
     setShowAnniversaryIntro(true);
   }, [customDateActivations]);
+
+  useEffect(() => {
+    setWanderingKind(null);
+    const timeout = window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * CAT_KINDS.length);
+      setWanderingKind(CAT_KINDS[randomIndex] ?? "orange");
+    }, 1800);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!temperatureRemindersEnabled || notificationPermission !== "granted" || isDemoMode) return;
@@ -1100,8 +1105,8 @@ export default function App() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <CatPlayground activeTab={activeTab} missingKind={PATROL_WANDERERS[activeTab]} />
-        <WanderingCat activeTab={activeTab} kind={PATROL_WANDERERS[activeTab]} />
+        <CatPlayground activeTab={activeTab} missingKind={wanderingKind ?? undefined} />
+        {wanderingKind ? <WanderingCat activeTab={activeTab} kind={wanderingKind} /> : null}
         {activeTab === "today" ? renderToday() : null}
         {activeTab === "calendar" ? renderCalendar() : null}
         {activeTab === "chart" ? renderChart() : null}
@@ -2237,8 +2242,6 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
   );
 }
 
-type AnniversaryCatKind = "orange" | "black" | "siamese" | "tuxedo";
-
 function AnniversaryCat({
   kind,
   label,
@@ -2341,8 +2344,112 @@ function AnniversaryCat({
   );
 }
 
+function SideWalkingCat({
+  kind,
+  label,
+  className = "",
+  onReaction,
+}: {
+  kind: AnniversaryCatKind;
+  label: string;
+  className?: string;
+  onReaction?: (reaction: "meow" | "purr") => void;
+}) {
+  const [reaction, setReaction] = useState<"meow" | "purr" | null>(null);
+  const tapTimer = useRef<number | null>(null);
+
+  function reactToTap(event: React.MouseEvent<SVGSVGElement>) {
+    if (event.detail > 1) {
+      if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      triggerCatReaction("purr");
+      return;
+    }
+
+    tapTimer.current = window.setTimeout(() => {
+      triggerCatReaction("meow");
+      tapTimer.current = null;
+    }, 240);
+  }
+
+  function triggerCatReaction(nextReaction: "meow" | "purr") {
+    setReaction(nextReaction);
+    playCatAudio(kind, nextReaction);
+    onReaction?.(nextReaction);
+    window.setTimeout(() => setReaction((current) => (current === nextReaction ? null : current)), nextReaction === "purr" ? 1300 : 900);
+  }
+
+  return (
+    <svg
+      className={`side-walking-cat ${kind} ${className}${reaction ? ` ${reaction}` : ""}`}
+      viewBox="0 0 220 130"
+      role="button"
+      tabIndex={0}
+      aria-label={`${label}. Un toque para maullar, dos para ronronear.`}
+      onClick={reactToTap}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        triggerCatReaction("meow");
+      }}
+    >
+      <path className="side-tail" d="M51 73C21 70 14 39 34 32c18-6 31 9 18 25" fill="none" strokeWidth="12" strokeLinecap="round" />
+      <g className="side-back-legs" fill="none" strokeWidth="10" strokeLinecap="round">
+        <path className="side-leg leg-back-a" d="M80 92c-3 17-11 25-24 28" />
+        <path className="side-leg leg-back-b" d="M104 94c2 16 9 23 23 26" />
+      </g>
+      <ellipse className="side-body" cx="104" cy="72" rx="61" ry="30" />
+      {kind === "siamese" ? <ellipse className="side-chest" cx="135" cy="77" rx="18" ry="22" /> : null}
+      {kind === "tuxedo" ? <path className="side-tuxedo-chest" d="M119 51c6 18 7 36 1 53 15-2 28-10 35-25-6-16-19-25-36-28Z" /> : null}
+      <g className="side-front-legs" fill="none" strokeWidth="10" strokeLinecap="round">
+        <path className="side-leg leg-front-a" d="M126 93c-4 18-14 25-28 27" />
+        <path className="side-leg leg-front-b" d="M151 90c4 18 13 25 27 26" />
+      </g>
+      <path className="side-ear side-ear-back" d="M155 33 151 8l19 16Z" />
+      <path className="side-ear side-ear-front" d="M181 32 190 9l10 28Z" />
+      <circle className="side-head" cx="171" cy="53" r="29" />
+      {kind === "siamese" ? (
+        <>
+          <path className="side-mask" d="M154 44c9-15 33-15 43 0 9 14 2 35-16 39-23 5-41-18-27-39Z" />
+          <g className="side-stripes" fill="none" strokeWidth="3" strokeLinecap="round">
+            <path d="m164 30 2 12" />
+            <path d="m180 27-3 14" />
+            <path d="m193 37-10 7" />
+            <path d="M75 58c18 4 31 5 46 2" />
+            <path d="M68 74c20 6 37 7 56 2" />
+          </g>
+        </>
+      ) : null}
+      {kind === "orange" ? (
+        <g className="side-stripes" fill="none" strokeWidth="4" strokeLinecap="round">
+          <path d="m159 28 5 13" />
+          <path d="m178 26-2 14" />
+          <path d="m195 38-12 6" />
+          <path d="M67 58c17 4 31 5 45 1" />
+          <path d="M78 80c17 5 33 5 48 1" />
+        </g>
+      ) : null}
+      {kind === "tuxedo" ? (
+        <>
+          <path className="side-tuxedo-face" d="M165 27c-4 11-5 23-1 33l8 9 8-9c4-10 2-22-2-33l-7 12Z" />
+          <ellipse className="side-tuxedo-muzzle" cx="177" cy="66" rx="18" ry="13" />
+        </>
+      ) : null}
+      <ellipse className="side-eye" cx="183" cy="50" rx="5" ry="7" />
+      <path className="side-nose" d="m198 62 5 3-5 4-4-4Z" />
+      <path className="side-mouth" d="M196 68c-3 5-8 5-11 1" fill="none" strokeWidth="2.5" strokeLinecap="round" />
+      <g className="side-whiskers" fill="none" strokeWidth="2" strokeLinecap="round">
+        <path d="m191 62 25-5" />
+        <path d="m191 68 25 1" />
+      </g>
+      <text className={`cat-tap-paw ${kind}`} x="172" y="20" textAnchor="middle" aria-hidden="true">🐾</text>
+    </svg>
+  );
+}
+
 function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingKind?: AnniversaryCatKind }) {
   const [soundHint, setSoundHint] = useState<"single" | "double">("single");
+  const showLove = missingKind !== "orange" && missingKind !== "tuxedo";
   const cats = [
     { kind: "black" as const, label: "Gatito negro", className: "playground-black" },
     { kind: "siamese" as const, label: "Gatita lynx point", className: "playground-lynx" },
@@ -2353,11 +2460,9 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
   return (
     <section className={`cat-playground tab-${activeTab}`} aria-label="Patrulla de gatitos de Alba">
       <div className="cat-playground-copy">
-        <span>Patrulla Alba</span>
+        <span>Patrulla</span>
         <strong>
-          {soundHint === "single"
-            ? "Toca un gatito para saludarlo"
-            : "Toca 2 veces para un ronroneo"}
+          {soundHint === "single" ? "1 toque 🔊" : "2 toques 🔊"}
         </strong>
       </div>
       <div className="cat-playground-track">
@@ -2370,9 +2475,8 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
             onReaction={(reaction) => setSoundHint(reaction === "meow" ? "double" : "single")}
           />
         ))}
-        <span className="playground-love" aria-hidden="true">💕</span>
+        {showLove ? <span className="playground-love" aria-hidden="true">💕</span> : null}
       </div>
-      {missingKind ? <small className="cat-playground-status">Uno anda de paseo por esta pantalla.</small> : null}
     </section>
   );
 }
@@ -2387,7 +2491,7 @@ function WanderingCat({ activeTab, kind }: { activeTab: AppTab; kind: Anniversar
 
   return (
     <div className={`wandering-cat wandering-${kind} wandering-${activeTab}`}>
-      <AnniversaryCat kind={kind} label={labels[kind]} className="walking-cat" />
+      <SideWalkingCat kind={kind} label={labels[kind]} />
     </div>
   );
 }

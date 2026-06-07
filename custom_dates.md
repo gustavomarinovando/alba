@@ -72,6 +72,22 @@ The current activation flag is local-only through localStorage. It should move t
 - `equipped boolean`
 - `created_at timestamptz`
 
+### `avatar_sound_assets`
+
+- `id uuid primary key`
+- `couple_id uuid`
+- `companion_id uuid`
+- `uploaded_by uuid`
+- `kind text`: `meow`, `purr`, `tap`, `save`, `celebration`, `sleep`
+- `storage_bucket text`
+- `storage_path text`
+- `duration_ms integer`
+- `loudness_lufs numeric null`
+- `mime_type text`
+- `source text`: `recorded`, `uploaded`, `template`
+- `status text`: `active`, `archived`, `needs_review`
+- `created_at timestamptz`
+
 ### `streaks`
 
 - `id uuid primary key`
@@ -93,6 +109,50 @@ The current activation flag is local-only through localStorage. It should move t
 - `price_cents integer null`
 - `is_template boolean`
 - `created_at timestamptz`
+
+## Avatar Customization and Audio
+
+Avatar customization should become one of the most expressive parts of Alba. The goal is not just choosing a cat; it should feel like building a tiny companion with memory, personality, and special-date roles.
+
+Per-avatar customization ideas:
+
+- name, nickname, pronouns, owner, and relationship role;
+- species or base body: orange cat, tuxedo, black cat, lynx point, future companions;
+- palette controls for body, muzzle, belly, paws, tail, ears, eyes, and outline;
+- markings: stripes, masks, socks, blaze, nose spots, scars, freckles;
+- body details: tail length, ear shape, eye style, fluff level, sitting or walking silhouette;
+- accessories by slot: collar, charm, ribbon, hat, tiny bag, toy, blanket, background;
+- animation style: shy peek, patrol, sleepy, excited, playful fight, loving couple, celebration;
+- mood presets: calm, hungry, sleepy, affectionate, mischievous, proud;
+- special-date overrides so Mandarino can look different on anniversaries without changing the everyday avatar.
+
+Audio customization should support both recording inside the app and uploading existing files:
+
+- record a custom meow or purr through the browser microphone after explicit permission;
+- upload existing audio clips such as `.m4a`, `.mp3`, `.wav`, `.ogg`, or `.webm`;
+- assign sounds per avatar and action: one tap, double tap, save, reward unlock, sleeping, streak celebration;
+- preview the waveform, trim start/end, and choose the best short segment;
+- keep multiple variants so each cat can have a few meows instead of one repetitive sound.
+
+Recommended pre-normalization pipeline:
+
+- trim leading and trailing silence;
+- reject clips that are too long, too loud, silent, or distorted;
+- normalize perceived loudness around `-16 LUFS` for interaction sounds;
+- add a tiny fade-in and fade-out to avoid clicks;
+- convert to a web-friendly format such as AAC/M4A or Opus/WebM;
+- generate metadata: duration, peak, loudness, waveform preview, original filename;
+- optionally keep the original file only for a short retention window, then store the normalized derivative.
+
+Future storage strategy:
+
+- store binary files in Supabase Storage, not directly in Postgres;
+- keep only paths and metadata in `avatar_sound_assets`;
+- use a private bucket such as `avatar-audio` with RLS or signed URLs;
+- scope every asset by `couple_id` and `companion_id`;
+- cache normalized audio through the browser cache or service worker after first playback;
+- enforce file size and duration limits, for example 2 MB and 10 seconds before trimming;
+- require clear consent if the recording contains a human voice or identifiable private audio.
 
 ## Streak and Reward Ideas
 
