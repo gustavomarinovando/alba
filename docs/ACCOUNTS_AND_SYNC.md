@@ -84,3 +84,13 @@ Las policies deben permitir leer una pareja solo cuando existe una fila en `coup
 4. Añadir sujetos y permisos de registro/aprobacion.
 5. Migrar los 37 registros actuales con respaldo y validacion.
 6. Incorporar recompensas, autoria visible y aprobaciones.
+
+## Modulos que dependen de cuentas
+
+Cuando el modelo de cuentas este estable, los siguientes modulos deben dejar de vivir solo en localStorage o codigo hardcodeado:
+
+- avatares y companions: ver `docs/AVATARS.md`;
+- fechas especiales y experiencias replayables: ver `custom_dates.md`;
+- roadmap de lanzamiento y monetizacion: ver `docs/LAUNCH_ROADMAP.md`.
+
+El orden seguro es sincronizar primero datos de salud y permisos, luego avatares, y finalmente experiencias personalizadas con fotos/audio.

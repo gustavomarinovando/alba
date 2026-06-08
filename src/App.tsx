@@ -102,7 +102,7 @@ type AnniversarySparkle = {
   x: number;
   y: number;
 };
-type CustomDateId = "mandarino-monthiversary";
+type CustomDateId = "may-photo-album" | "mandarino-monthiversary";
 
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
@@ -113,12 +113,21 @@ const CUSTOM_DATE_DEVELOPMENTS: Array<{
   title: string;
   description: string;
   trigger: string;
+  status: "built" | "needs-build";
 }> = [
+  {
+    id: "may-photo-album",
+    title: "Álbum de mayo",
+    description: "Primer evento especial: una experiencia sencilla basada en un álbum de fotos.",
+    trigger: "Mayo, fecha exacta por confirmar",
+    status: "needs-build",
+  },
   {
     id: "mandarino-monthiversary",
     title: "Mesario Mandarino",
     description: "Gatitos, receta, nota y escena de siete vidas.",
     trigger: "Cada día 6",
+    status: "built",
   },
 ];
 const CAT_KINDS: AnniversaryCatKind[] = ["black", "siamese", "orange", "tuxedo"];
@@ -1778,16 +1787,22 @@ export default function App() {
                 <small>{item.trigger}</small>
               </div>
               <div className="custom-date-actions">
-                <button className="secondary-button compact-action" type="button" onClick={() => replayCustomDate(item.id)}>
-                  Reabrir
-                </button>
-                <button
-                  className={customDateActivations[item.id] ? "secondary-button compact-action active-demo" : "secondary-button compact-action"}
-                  type="button"
-                  onClick={() => toggleCustomDateActivation(item.id)}
-                >
-                  {customDateActivations[item.id] ? "Activa" : "Activar"}
-                </button>
+                {item.status === "built" ? (
+                  <>
+                    <button className="secondary-button compact-action" type="button" onClick={() => replayCustomDate(item.id)}>
+                      Reabrir
+                    </button>
+                    <button
+                      className={customDateActivations[item.id] ? "secondary-button compact-action active-demo" : "secondary-button compact-action"}
+                      type="button"
+                      onClick={() => toggleCustomDateActivation(item.id)}
+                    >
+                      {customDateActivations[item.id] ? "Activa" : "Activar"}
+                    </button>
+                  </>
+                ) : (
+                  <span className="custom-date-pill">Por armar</span>
+                )}
               </div>
             </article>
           ))}
@@ -2633,7 +2648,7 @@ function safeLocalSet(key: string, value: string): void {
 }
 
 function loadCustomDateActivations(): Record<CustomDateId, boolean> {
-  const fallback: Record<CustomDateId, boolean> = { "mandarino-monthiversary": true };
+  const fallback: Record<CustomDateId, boolean> = { "may-photo-album": false, "mandarino-monthiversary": true };
   const raw = safeLocalGet(CUSTOM_DATE_ACTIVATIONS_KEY);
   if (!raw) return fallback;
 

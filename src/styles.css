@@ -1607,6 +1607,11 @@ textarea {
     @apply flex shrink-0 gap-2;
   }
 
+  .custom-date-pill {
+    @apply inline-flex min-h-9 items-center justify-center border border-outline px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink;
+    opacity: 0.68;
+  }
+
   .avatar-setup-card {
     @apply border border-outline bg-surface p-3;
   }
