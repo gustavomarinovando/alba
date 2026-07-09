@@ -1,11 +1,9 @@
 ﻿import { addDays, addMonths, differenceInCalendarDays, format, isSameMonth, parseISO, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
-import Tippy from "@tippyjs/react";
-import "tippy.js/dist/tippy.css";
-import "tippy.js/animations/shift-away-subtle.css";
 import {
   CalendarDays,
   Bell,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -16,6 +14,7 @@ import {
   HeartPulse,
   Info,
   Loader2,
+  MessageCircle,
   Minus,
   Moon,
   Plus,
@@ -40,7 +39,7 @@ import {
   YAxis,
 } from "recharts";
 import { requestCycleInsight } from "./lib/ai";
-import { calculateStats, getRecentEntries } from "./lib/cycles";
+import { calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
 import { calendarDaysForMonth, displayDate, isToday, isoDate } from "./lib/date";
 import {
   cervixFirmnessOptions,
@@ -102,7 +101,32 @@ type AnniversarySparkle = {
   x: number;
   y: number;
 };
-type CustomDateId = "may-photo-album" | "mandarino-monthiversary";
+type CustomDateId = "may-photo-album" | "mandarino-monthiversary" | "first-kiss-monthiversary";
+type ChatPlatform = "whatsapp" | "instagram";
+type ChatMoment = {
+  platform: ChatPlatform;
+  sender: string;
+  date: Date;
+  text: string;
+  mediaType?: "photo" | "audio" | "video" | "sticker" | "share" | "media";
+};
+type ChatWrappedStats = {
+  isLoading: boolean;
+  error: string;
+  totalMessages: number;
+  totalWords: number;
+  kissWords: number;
+  participants: Array<{ name: string; messages: number; emojis: Array<{ emoji: string; count: number }> }>;
+  topWords: Array<{ word: string; count: number }>;
+  topEmojis: Array<{ emoji: string; count: number }>;
+  activeHours: Array<{ label: string; count: number; percent: number }>;
+  activeWeekdays: Array<{ label: string; count: number; percent: number }>;
+  activeMonths: Array<{ label: string; count: number }>;
+  media: { photos: number; audio: number; videos: number; stickers: number; shares: number; other: number };
+  firstDate?: string;
+  lastDate?: string;
+  sampleMoments: ChatMoment[];
+};
 
 const THEME_STORAGE_KEY = "alba-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
@@ -127,6 +151,13 @@ const CUSTOM_DATE_DEVELOPMENTS: Array<{
     title: "Mesario Mandarino",
     description: "Gatitos, receta, nota y escena de siete vidas.",
     trigger: "Cada día 6",
+    status: "built",
+  },
+  {
+    id: "first-kiss-monthiversary",
+    title: "15 meses del primer beso",
+    description: "Infografías de mensajes con tema de besitos y una historia unificada.",
+    trigger: "Cada día 7",
     status: "built",
   },
 ];
@@ -193,9 +224,8 @@ export default function App() {
   const [prioritizedEntryDate, setPrioritizedEntryDate] = useState<string | null>(null);
   const [lastTemperatureActionAt, setLastTemperatureActionAt] = useState(0);
   const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
-  const [focusedSegmentId, setFocusedSegmentId] = useState<string | null>(null);
-  const [mapTooltip, setMapTooltip] = useState<{ segmentId: string; anchorDate: string; pinned: boolean } | null>(null);
-  const [isMobileMap, setIsMobileMap] = useState(false);
+  const [mapCycleOffset, setMapCycleOffset] = useState(0);
+  const [mapSelectedDate, setMapSelectedDate] = useState<string | null>(() => isoDate(new Date()));
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -222,6 +252,10 @@ export default function App() {
   const [showAnniversaryIntro, setShowAnniversaryIntro] = useState(() => {
     const today = isoDate(new Date());
     return today === "2026-06-06" && safeSessionGet(`alba-anniversary-${today}`) !== "seen";
+  });
+  const [showChatCelebration, setShowChatCelebration] = useState(() => {
+    const today = isoDate(new Date());
+    return new Date().getDate() === 7 && loadCustomDateActivations()["first-kiss-monthiversary"] && safeSessionGet(`alba-chat-celebration-${today}`) !== "seen";
   });
   const [showAnniversaryNote, setShowAnniversaryNote] = useState(false);
   const [anniversaryTapCount, setAnniversaryTapCount] = useState(0);
@@ -289,9 +323,6 @@ export default function App() {
     });
   };
 
-
-  const mapRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     async function loadInitialData() {
       try {
@@ -333,12 +364,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobileMap(mediaQuery.matches);
-    update();
-    mediaQuery.addEventListener("change", update);
-    return () => mediaQuery.removeEventListener("change", update);
-  }, []);
+    const revealItems = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      revealItems.forEach((item) => item.classList.add("is-revealed"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (items) => {
+        items.forEach((item) => {
+          if (!item.isIntersecting) return;
+          item.target.classList.add("is-revealed");
+          observer.unobserve(item.target);
+        });
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+    );
+
+    revealItems.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, [activeTab]);
 
   useEffect(() => {
     if (isDemoMode || !isSupabaseConfigured()) return;
@@ -405,8 +450,14 @@ export default function App() {
     if (!stats.lastPeriodStart) return undefined;
     return isoDate(addDays(parseISO(stats.lastPeriodStart), Math.round(stats.averageCycleLength ?? 30)));
   }, [stats.averageCycleLength, stats.lastPeriodStart, stats.predictedNextPeriod]);
-  const visiblePhaseDays = useMemo(() => getRecentEntries(entries, 60).map((entry) => phaseByDate.get(entry.date)).filter(Boolean), [entries, phaseByDate]);
-  const phaseSegments = useMemo(() => buildPhaseSegments(visiblePhaseDays, entries), [visiblePhaseDays, entries]);
+  const cycleWindows = useMemo(
+    () => buildCycleWindows(entries, phaseByDate, Math.round(stats.averageCycleLength ?? 30)),
+    [entries, phaseByDate, stats.averageCycleLength],
+  );
+  const activeCycleIndex = Math.max(0, cycleWindows.length - 1 + mapCycleOffset);
+  const activeCycle = cycleWindows[activeCycleIndex];
+  const mapSelectedDay = mapSelectedDate ? activeCycle?.days.find((day) => day.date === mapSelectedDate) : undefined;
+  const mapSelectedEntry = mapSelectedDay ? entryByDate.get(mapSelectedDay.date) : undefined;
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
@@ -415,10 +466,6 @@ export default function App() {
     parsedPendingTemperature === undefined ||
     Date.now() - lastTemperatureActionAt < 6000 ||
     hasSameMinuteTemperature(draft, parsedPendingTemperature, pendingTemperatureSite);
-  const selectedSegment = phaseSegments.find((segment) => selectedDate >= segment.start && selectedDate <= segment.end);
-  const activeMapSegment = phaseSegments.find((segment) => segment.id === focusedSegmentId) ?? selectedSegment ?? phaseSegments[0];
-  const activeMapPhase: CyclePhase = activeMapSegment?.phase ?? "follicular";
-  const activeMapMeta = phaseMeta[activeMapPhase];
 
   useEffect(() => {
     if (!status) return;
@@ -448,13 +495,17 @@ export default function App() {
   }, [customDateActivations]);
 
   useEffect(() => {
-    if (!customDateActivations["mandarino-monthiversary"] || new Date().getDate() !== 6) return;
+    if (!customDateActivations["mandarino-monthiversary"] || customDateActivations["first-kiss-monthiversary"] || new Date().getDate() !== 6) return;
     const today = isoDate(new Date());
     const promptKey = `alba-custom-date-mandarino-${today}`;
     if (safeSessionGet(promptKey) === "prompted") return;
     safeSessionSet(promptKey, "prompted");
     setShowAnniversaryIntro(true);
   }, [customDateActivations]);
+
+  useEffect(() => {
+    if (showChatCelebration) setShowAnniversaryIntro(false);
+  }, [showChatCelebration]);
 
   useEffect(() => {
     setWanderingKind(null);
@@ -514,16 +565,15 @@ export default function App() {
   }, [selectedDate]);
 
   useEffect(() => {
-    if (!mapTooltip?.pinned) return;
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (mapRef.current?.contains(event.target as Node)) return;
-      setMapTooltip(null);
-    };
-
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [mapTooltip?.pinned]);
+    if (activeTab !== "map") return;
+    const timeout = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(".cycle-map-panel");
+      if (!target) return;
+      const top = target.getBoundingClientRect().top + window.scrollY - 40;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }, 120);
+    return () => window.clearTimeout(timeout);
+  }, [activeTab]);
 
   useEffect(() => {
     const existing = entryByDate.get(draft.date);
@@ -987,13 +1037,23 @@ export default function App() {
     setShowAnniversaryIntro(false);
   }
 
+  function closeChatCelebration() {
+    safeSessionSet(`alba-chat-celebration-${isoDate(new Date())}`, "seen");
+    setShowChatCelebration(false);
+  }
+
   function toggleCustomDateActivation(id: CustomDateId) {
     setCustomDateActivations((current) => ({ ...current, [id]: !current[id] }));
   }
 
   function replayCustomDate(id: CustomDateId) {
-    if (id !== "mandarino-monthiversary") return;
-    setShowAnniversaryIntro(true);
+    if (id === "mandarino-monthiversary") {
+      setShowAnniversaryIntro(true);
+      return;
+    }
+    if (id === "first-kiss-monthiversary") {
+      setShowChatCelebration(true);
+    }
   }
 
   function handleAnniversaryBrandTap(event: React.MouseEvent) {
@@ -1040,7 +1100,8 @@ export default function App() {
 
   return (
     <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen overflow-x-hidden bg-surface text-ink" : "min-h-screen overflow-x-hidden bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
-      {showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
+      {showChatCelebration ? <ChatCelebration onClose={closeChatCelebration} /> : null}
+      {!showChatCelebration && showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
       {isMonthlyAnniversary ? <AnniversaryDayDecor activeTab={activeTab} /> : null}
       {anniversarySparkles.map((sparkle) => (
         <span className="pointer-sparkle" key={sparkle.id} style={{ left: sparkle.x, top: sparkle.y }} aria-hidden="true">
@@ -1116,12 +1177,14 @@ export default function App() {
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <CatPlayground activeTab={activeTab} missingKind={wanderingKind ?? undefined} />
         {wanderingKind ? <WanderingCat activeTab={activeTab} kind={wanderingKind} /> : null}
-        {activeTab === "today" ? renderToday() : null}
-        {activeTab === "calendar" ? renderCalendar() : null}
-        {activeTab === "chart" ? renderChart() : null}
-        {activeTab === "map" ? renderMap() : null}
-        {activeTab === "ai" ? renderAi() : null}
-        {activeTab === "settings" ? renderSettings() : null}
+        <div className="tab-scene" key={activeTab}>
+          {activeTab === "today" ? renderToday() : null}
+          {activeTab === "calendar" ? renderCalendar() : null}
+          {activeTab === "chart" ? renderChart() : null}
+          {activeTab === "map" ? renderMap() : null}
+          {activeTab === "ai" ? renderAi() : null}
+          {activeTab === "settings" ? renderSettings() : null}
+        </div>
       </div>
     </main>
   );
@@ -1538,127 +1601,82 @@ export default function App() {
   }
 
   function renderMap() {
+    const canViewOlder = activeCycleIndex > 0;
+    const canViewNewer = activeCycleIndex < cycleWindows.length - 1;
+    const selectedMeta = mapSelectedDay ? phaseMeta[mapSelectedDay.phase] : phaseMeta.follicular;
+    const cervixObservations = mapSelectedEntry
+      ? [
+          mapSelectedEntry.cervixHeight ? optionLabel(cervixHeightOptions, mapSelectedEntry.cervixHeight) : null,
+          mapSelectedEntry.cervixFirmness ? optionLabel(cervixFirmnessOptions, mapSelectedEntry.cervixFirmness) : null,
+          mapSelectedEntry.cervixOpenness ? optionLabel(cervixOpennessOptions, mapSelectedEntry.cervixOpenness) : null,
+        ].filter((value): value is string => Boolean(value))
+      : [];
+
+    function moveCycle(direction: -1 | 1) {
+      const nextIndex = activeCycleIndex + direction;
+      const nextCycle = cycleWindows[nextIndex];
+      if (!nextCycle) return;
+      setMapCycleOffset(nextIndex - (cycleWindows.length - 1));
+      setMapSelectedDate(nextCycle.isCurrent ? nextCycle.days.find((day) => day.isToday)?.date ?? null : null);
+    }
+
     return (
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
-        <Panel>
-          <div className="mb-4 flex items-center gap-2">
-            <HeartPulse className="h-5 w-5 text-moss" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Tu mapa</h2>
-          </div>
-          <div
-            ref={mapRef}
-            className="phase-strip"
-            role="list"
-            aria-label="Fases del ciclo"
-            onMouseLeave={() => {
-              if (!mapTooltip?.pinned) setMapTooltip(null);
-            }}
-          >
-            {phaseSegments.map((segment) => {
-              const meta = phaseMeta[segment.phase];
-              return (
-                <div className="phase-block" key={segment.id} role="listitem">
-                  {segment.days.map((day, index) => (
-                    <Tippy
-                      key={day.date}
-                      content={<PhaseSegmentTooltip segment={segment} />}
-                      animation="shift-away-subtle"
-                      duration={[160, 140]}
-                      hideOnClick={false}
-                      interactive
-                      interactiveBorder={18}
-                      maxWidth={320}
-                      offset={[0, 10]}
-                      onClickOutside={() => setMapTooltip(null)}
-                      placement="bottom"
-                      popperOptions={{
-                        modifiers: [
-                          { name: "flip", options: { fallbackPlacements: ["bottom", "right", "left"] } },
-                          { name: "preventOverflow", options: { padding: { top: 96, right: 16, bottom: 16, left: 16 } } },
-                        ],
-                      }}
-                      theme="alba"
-                      trigger="manual"
-                      visible={mapTooltip?.segmentId === segment.id && mapTooltip.anchorDate === day.date}
-                      disabled={isMobileMap}
-                    >
-                      <button
-                        className={segment.id === activeMapSegment?.id ? "phase-chip active" : "phase-chip"}
-                        type="button"
-                        style={{ background: meta.soft, borderColor: meta.color }}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setFocusedSegmentId(segment.id);
-                          setSelectedDate(day.date);
-                          setMapTooltip(isMobileMap ? null : { segmentId: segment.id, anchorDate: day.date, pinned: true });
-                        }}
-                        onFocus={() => {
-                          setFocusedSegmentId(segment.id);
-                          if (!isMobileMap && !mapTooltip?.pinned && mapTooltip?.segmentId !== segment.id) setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
-                        }}
-                        onMouseEnter={() => {
-                          setFocusedSegmentId(segment.id);
-                          if (isMobileMap || mapTooltip?.pinned) return;
-                          if (mapTooltip?.segmentId === segment.id) return;
-                          setMapTooltip({ segmentId: segment.id, anchorDate: day.date, pinned: false });
-                        }}
-                      >
-                        <span>{index === 0 ? segment.days.length : displayDate(day.date, "d")}</span>
-                      </button>
-                    </Tippy>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-          <div className="phase-legend mt-4 gap-2 sm:grid-cols-2">
-            {Object.entries(phaseMeta).map(([key, meta]) => (
-              <button
-                className={key === activeMapPhase ? "legend-row active" : "legend-row"}
-                key={key}
-                type="button"
-                onClick={() => {
-                  const segment = phaseSegments.find((item) => item.phase === key);
-                  setFocusedSegmentId(segment?.id ?? null);
-                  setMapTooltip(segment && !isMobileMap ? { segmentId: segment.id, anchorDate: segment.start, pinned: true } : null);
-                  if (segment) setSelectedDate(segment.start);
-                }}
-                onFocus={() => setFocusedSegmentId(phaseSegments.find((segment) => segment.phase === key)?.id ?? null)}
-                onMouseEnter={() => {
-                  if (isMobileMap || mapTooltip?.pinned) return;
-                  const segment = phaseSegments.find((item) => item.phase === key);
-                  setFocusedSegmentId(segment?.id ?? null);
-                  setMapTooltip(segment ? { segmentId: segment.id, anchorDate: segment.start, pinned: false } : null);
-                }}
-              >
-                <span style={{ background: meta.color }} />
-                {meta.label}
-              </button>
+      <div className="cycle-map-layout">
+        <Panel className="cycle-map-panel">
+          <header className="cycle-map-header">
+            <button className="icon-button compact" type="button" onClick={() => moveCycle(-1)} disabled={!canViewOlder} aria-label="Ver ciclo anterior" title="Ciclo anterior">
+              <ChevronLeft aria-hidden="true" size={18} />
+            </button>
+            <div>
+              <p>{activeCycle?.isCurrent ? "Ciclo actual" : "Ciclo anterior"}</p>
+              <h2>{activeCycle ? `${displayDate(activeCycle.start, "d MMM")} - ${displayDate(activeCycle.end, "d MMM")}` : "Aún sin ciclo"}</h2>
+            </div>
+            <button className="icon-button compact" type="button" onClick={() => moveCycle(1)} disabled={!canViewNewer} aria-label="Ver ciclo siguiente" title="Ciclo siguiente">
+              <ChevronRight aria-hidden="true" size={18} />
+            </button>
+          </header>
+
+          {activeCycle ? (
+            <CycleWheel
+              cycle={activeCycle}
+              selectedDate={mapSelectedDay?.date}
+              onSelectDate={setMapSelectedDate}
+            />
+          ) : (
+            <EmptyState text="Registra el inicio del periodo para dibujar tu mapa." />
+          )}
+
+          <div className="cycle-map-legend" aria-label="Leyenda de fases">
+            {(["period", "follicular", "fertile", "possible-ovulation", "luteal"] as CyclePhase[]).map((phase) => (
+              <span key={phase}>
+                <i style={{ background: phaseMeta[phase].color }} />
+                {phase === "possible-ovulation" ? "Ovulación posible" : phaseMeta[phase].label}
+              </span>
             ))}
           </div>
-          <div className="phase-focus-card mt-4" style={{ borderColor: activeMapMeta.color }}>
-            <strong style={{ color: activeMapMeta.color }}>{activeMapMeta.label}</strong>
-            <span>{activeMapSegment ? `${displayDate(activeMapSegment.start)} - ${displayDate(activeMapSegment.end)} · ${activeMapSegment.days.length} día${activeMapSegment.days.length === 1 ? "" : "s"}` : phaseExplanation(activeMapPhase)}</span>
-            <ul>
-              {(activeMapSegment?.insights ?? ["Aún faltan datos para interpretar este bloque."]).map((insight) => (
-                <li key={insight}>{insight}</li>
-              ))}
-            </ul>
-          </div>
+
+          <p className="cycle-map-safety">
+            Los días con espermatozoides representan mayor riesgo de embarazo al tener relaciones sin protección.
+          </p>
         </Panel>
 
-        <Panel>
+        <Panel className="cycle-map-detail">
           <div className="mb-4 flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-moss" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Resumen detallado</h2>
+            <h2 className="text-lg font-semibold">{mapSelectedDay ? "Lectura del día" : "Resumen del ciclo"}</h2>
+          </div>
+          <div className="cycle-day-focus" style={{ borderColor: selectedMeta.color, background: selectedMeta.soft }}>
+            <span>{mapSelectedDay ? `Día ${mapSelectedDay.cycleDay}` : "Duración registrada"}</span>
+            <strong>{mapSelectedDay ? displayDate(mapSelectedDay.date, "EEEE, d 'de' MMMM") : `${activeCycle?.days.length ?? 0} días`}</strong>
+            <p>{mapSelectedDay?.description ?? "Selecciona un punto del círculo para revisar la lectura de ese día."}</p>
           </div>
           <dl className="grid grid-cols-2 gap-3">
-            <Stat label="Fase actual" value={selectedPhase?.label ?? "Sin datos"} />
-            <Stat label="Confianza" value={selectedPhase?.confidence ?? "Pendiente"} />
-            <Stat label="Día del ciclo" value={selectedPhase?.cycleDay ? String(selectedPhase.cycleDay) : "Pendiente"} />
+            {mapSelectedDay ? <Stat label="Fase estimada" value={mapSelectedDay.label} /> : null}
+            {mapSelectedDay ? <Stat label="Confianza" value={mapSelectedDay.confidence} /> : null}
+            {mapSelectedDay ? <Stat label="Día del ciclo" value={String(mapSelectedDay.cycleDay)} /> : null}
             <Stat label="Promedio ciclo" value={stats.averageCycleLength ? `${stats.averageCycleLength} días` : "Pendiente"} />
-            <Stat label="Flujo cervical" value={optionLabel(mucusOptions, draft.cervicalMucus)} />
-            <Stat label="Cuello uterino" value={`${optionLabel(cervixHeightOptions, draft.cervixHeight)} / ${optionLabel(cervixFirmnessOptions, draft.cervixFirmness)}`} />
+            {mapSelectedEntry?.cervicalMucus ? <Stat label="Flujo cervical" value={optionLabel(mucusOptions, mapSelectedEntry.cervicalMucus)} /> : null}
+            {cervixObservations.length > 0 ? <Stat label="Cuello uterino" value={cervixObservations.join(" / ")} /> : null}
           </dl>
           <div className="info-box warning mt-3">
             Próximo periodo estimado:{" "}
@@ -1932,110 +1950,154 @@ function temperatureSiteLabel(site: TemperatureSite): string {
   return temperatureSiteOptions.find((option) => option.value === site)?.label ?? "Bucal";
 }
 
-interface PhaseSegment {
-  id: string;
-  phase: CyclePhase;
+interface CycleWheelDay extends PhaseDay {
+  isFuture: boolean;
+  isToday: boolean;
+}
+
+interface CycleWindow {
   start: string;
   end: string;
-  days: PhaseDay[];
-  sourcePhases: CyclePhase[];
-  confidence: string;
-  insights: string[];
+  isCurrent: boolean;
+  days: CycleWheelDay[];
 }
 
-function buildPhaseSegments(days: Array<PhaseDay | undefined>, entries: CycleEntry[]): PhaseSegment[] {
-  const filtered = days.filter((day): day is PhaseDay => Boolean(day));
-  const segments: Omit<PhaseSegment, "id" | "confidence" | "insights" | "sourcePhases">[] = [];
+function buildCycleWindows(entries: CycleEntry[], phaseByDate: Map<string, PhaseDay>, averageCycleLength: number): CycleWindow[] {
+  const today = isoDate(new Date());
+  const starts = getPeriodStarts([...entries].sort((a, b) => a.date.localeCompare(b.date))).filter((start) => start <= today);
+  const safeCycleLength = Math.min(45, Math.max(21, averageCycleLength));
 
-  for (const day of filtered) {
-    const displayPhase = mapPhaseForTimeline(day.phase);
-    const last = segments.at(-1);
-    if (!last || last.phase !== displayPhase) {
-      segments.push({ phase: displayPhase, start: day.date, end: day.date, days: [day] });
-      continue;
+  return starts.map((start, index) => {
+    const nextStart = starts[index + 1];
+    const predictedEnd = isoDate(addDays(parseISO(start), safeCycleLength - 1));
+    const end = nextStart
+      ? isoDate(addDays(parseISO(nextStart), -1))
+      : today > predictedEnd
+        ? today
+        : predictedEnd;
+    const days: CycleWheelDay[] = [];
+
+    for (let cursor = parseISO(start); cursor <= parseISO(end); cursor = addDays(cursor, 1)) {
+      const date = isoDate(cursor);
+      const cycleDay = differenceInCalendarDays(cursor, parseISO(start)) + 1;
+      const known = phaseByDate.get(date);
+      const fallbackPhase = fallbackCyclePhase(cycleDay, safeCycleLength);
+      const meta = phaseMeta[fallbackPhase];
+      days.push({
+        date,
+        cycleDay,
+        phase: known?.phase ?? fallbackPhase,
+        label: known?.label ?? meta.label,
+        confidence: known?.confidence ?? "baja",
+        description: known?.description ?? phaseExplanation(fallbackPhase),
+        isFuture: date > today,
+        isToday: date === today,
+      });
     }
 
-    last.end = day.date;
-    last.days.push(day);
-  }
-
-  return segments.map((segment, index) => ({
-    ...segment,
-    id: `${segment.phase}-${segment.start}-${index}`,
-    sourcePhases: Array.from(new Set(segment.days.map((day) => day.phase))),
-    confidence: segmentConfidence(segment.days),
-    insights: getPhaseSegmentInsights(segment, entries),
-  }));
+    return { start, end, days, isCurrent: index === starts.length - 1 };
+  });
 }
 
-function mapPhaseForTimeline(phase: CyclePhase): CyclePhase {
-  return phase === "possible-ovulation" ? "fertile" : phase;
+function fallbackCyclePhase(cycleDay: number, cycleLength: number): CyclePhase {
+  const ovulationDay = Math.max(12, cycleLength - 14);
+  if (cycleDay <= 5) return "period";
+  if (cycleDay >= ovulationDay - 5 && cycleDay < ovulationDay) return "fertile";
+  if (cycleDay === ovulationDay) return "possible-ovulation";
+  if (cycleDay > ovulationDay) return "luteal";
+  return "follicular";
 }
 
-function segmentConfidence(days: PhaseDay[]): string {
-  if (days.some((day) => day.confidence === "alta")) return "alta";
-  if (days.some((day) => day.confidence === "media")) return "media";
-  return "baja";
+function CycleWheel({
+  cycle,
+  selectedDate,
+  onSelectDate,
+}: {
+  cycle: CycleWindow;
+  selectedDate?: string;
+  onSelectDate: (date: string) => void;
+}) {
+  const size = 360;
+  const center = size / 2;
+  const dayRadius = 147;
+  const selected = selectedDate ? cycle.days.find((day) => day.date === selectedDate) : undefined;
+
+  return (
+    <div className="cycle-wheel-shell">
+      <svg className="cycle-wheel" viewBox={`0 0 ${size} ${size}`} role="group" aria-label={`Ciclo de ${cycle.days.length} días`}>
+        <defs>
+          <filter id="cycle-day-glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id="sperm-head-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fff8ed" />
+            <stop offset="52%" stopColor="#d8d0c3" />
+            <stop offset="100%" stopColor="#958f86" />
+          </linearGradient>
+          <linearGradient id="sperm-tail-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#c9c0b2" />
+            <stop offset="100%" stopColor="#8f8a82" stopOpacity="0.35" />
+          </linearGradient>
+        </defs>
+        <circle className="cycle-wheel-inner" cx={center} cy={center} r={107} />
+        {cycle.days.map((day, index) => {
+          const angle = -90 + (index / cycle.days.length) * 360;
+          const radians = (angle * Math.PI) / 180;
+          const x = center + Math.cos(radians) * dayRadius;
+          const y = center + Math.sin(radians) * dayRadius;
+          const cueRadius = dayRadius - 20;
+          const cueX = center + Math.cos(radians) * cueRadius;
+          const cueY = center + Math.sin(radians) * cueRadius;
+          const meta = phaseMeta[day.phase];
+          const isSelected = day.date === selected?.date;
+          const showFertilityCue = day.phase === "fertile" || day.phase === "possible-ovulation";
+
+          return (
+            <g
+              className={`cycle-wheel-day${day.isFuture ? " is-future" : ""}${day.isToday ? " is-today" : ""}${isSelected ? " is-selected" : ""}`}
+              key={day.date}
+              role="button"
+              tabIndex={0}
+              aria-label={`Día ${day.cycleDay}, ${day.label}${day.isToday ? ", hoy" : ""}`}
+              onClick={() => onSelectDate(day.date)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onSelectDate(day.date);
+              }}
+            >
+              <circle className="cycle-day-hit" cx={x} cy={y} r={17} />
+              {isSelected ? <circle className="cycle-day-selection" cx={x} cy={y} r={17} style={{ stroke: meta.color }} /> : null}
+              <circle className="cycle-day-dot" cx={x} cy={y} r={day.isToday ? 14 : 12.5} style={{ fill: meta.color }} />
+              {showFertilityCue ? <SpermCue x={cueX} y={cueY} rotation={angle + 180} /> : null}
+              <text className="cycle-day-number" x={x} y={y + 0.5} fontWeight={900}>
+                {day.cycleDay}
+              </text>
+            </g>
+          );
+        })}
+        <text className="cycle-wheel-eyebrow" x={center} y={149}>{selected ? "DÍA DEL CICLO" : "DURACIÓN DEL CICLO"}</text>
+        <text className="cycle-wheel-value" x={center} y={193}>{selected?.cycleDay ?? cycle.days.length}</text>
+        <text className="cycle-wheel-phase" x={center} y={219}>{selected?.label ?? "días"}</text>
+        {selected?.isToday ? <text className="cycle-wheel-today" x={center} y={238}>HOY</text> : null}
+      </svg>
+    </div>
+  );
 }
 
-function getPhaseSegmentInsights(segment: { phase: CyclePhase; start: string; end: string; days: PhaseDay[] }, entries: CycleEntry[]): string[] {
-  const segmentEntries = entries.filter((entry) => entry.date >= segment.start && entry.date <= segment.end);
-  const insights: string[] = [];
-  const temps = segmentEntries.map((entry) => getOralTemperature(entry)?.value).filter((value): value is number => typeof value === "number");
-  const mucus = segmentEntries.map((entry) => entry.cervicalMucus).filter(Boolean);
-
-  if (segment.phase === "period") {
-    const flows = segmentEntries.map((entry) => entry.flow).filter((flow) => flow && flow !== "none");
-    const dominantFlow = mostCommon(flows);
-    insights.push(`Duración registrada: ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
-    insights.push(dominantFlow ? `Flujo predominante: ${optionLabel(flowOptions, dominantFlow).toLowerCase()}.` : "Falta registrar intensidad de flujo.");
-    insights.push(segment.days.length >= 2 && segment.days.length <= 7 ? "Duracion dentro de un rango menstrual comun." : "Duracion fuera de lo comun; conviene observar si se repite.");
-  } else if (segment.phase === "fertile") {
-    const ovulationDays = segment.days.filter((day) => day.phase === "possible-ovulation");
-    insights.push(`Ventana estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
-    if (ovulationDays.length > 0) {
-      insights.push(`Posible ovulación alrededor de ${ovulationDays.map((day) => displayDate(day.date)).join(", ")}.`);
-    }
-    insights.push(mucus.length ? `Flujo observado: ${mucus.map((value) => optionLabel(mucusOptions, value)).join(", ")}.` : "Sin flujo cervical registrado en este bloque.");
-    insights.push("Alba la trata como estimacion educativa, no confirmacion.");
-  } else if (segment.phase === "possible-ovulation") {
-    insights.push("Punto probable de ovulación, no confirmación.");
-    insights.push(mucus.includes("eggwhite") ? "Hay flujo tipo clara de huevo registrado cerca." : "Sin clara de huevo registrada en este bloque.");
-    insights.push(temps.length ? `Temperatura en este bloque: ${formatTempRange(temps)}.` : "Faltan tomas para apoyar la lectura.");
-  } else if (segment.phase === "thermal-shift") {
-    insights.push("Bloque donde Alba busca si la subida térmica se sostiene.");
-    insights.push(temps.length >= 2 ? `Temperaturas: ${formatTempRange(temps)}.` : "Faltan temperaturas para evaluar tendencia.");
-    insights.push(temps.length >= 2 && temps.at(-1)! > temps[0] ? "Se ve una tendencia de subida dentro del bloque." : "Todavia no se ve una subida clara dentro del bloque.");
-  } else if (segment.phase === "luteal") {
-    insights.push(`Fase lútea estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"} en esta vista.`);
-    insights.push(temps.length ? `Temperatura promedio: ${average(temps).toFixed(1)} C.` : "Sin suficientes tomas en este bloque.");
-    insights.push("Si la temperatura se mantiene más alta, refuerza la lectura lútea.");
-  } else if (segment.phase === "expected-period") {
-    insights.push("Inicio estimado por promedio de ciclos.");
-    insights.push("No es una indicación médica ni fertilidad segura.");
-  } else {
-    insights.push(`Fase folicular estimada de ${segment.days.length} día${segment.days.length === 1 ? "" : "s"}.`);
-    insights.push(temps.length ? `Temperaturas registradas: ${temps.length}.` : "Aún sin temperaturas en este bloque.");
-    insights.push("Suele ser el tramo de preparacion antes de la ventana fertil.");
-  }
-
-  insights.push(`Confianza agregada ${segmentConfidence(segment.days)}.`);
-  return insights;
-}
-
-function mostCommon<T extends string>(values: T[]): T | undefined {
-  const counts = new Map<T, number>();
-  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
-  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
-}
-
-function average(values: number[]): number {
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function formatTempRange(values: number[]): string {
-  if (values.length === 0) return "sin datos";
-  return `${Math.min(...values).toFixed(1)}-${Math.max(...values).toFixed(1)} C`;
+function SpermCue({ x, y, rotation }: { x: number; y: number; rotation: number }) {
+  return (
+    <g className="fertility-cue" transform={`translate(${x} ${y}) rotate(${rotation})`} aria-hidden="true">
+      <path className="fertility-cue-head" d="M -4.8 -1.2 C -4.5 -5.4 0.6 -7.3 4.2 -4.4 C 6.7 -2.3 6.5 1.8 3.7 3.8 C 0.1 6.3 -4.5 3.2 -4.8 -1.2 Z" />
+      <path className="fertility-cue-cap" d="M -4.5 -1.5 C -3.8 -4.6 -0.7 -5.9 1.8 -5 C -0.4 -1.8 -0.5 1.2 -2.4 3 C -4 1.9 -4.8 0.2 -4.5 -1.5 Z" />
+      <path className="fertility-cue-midpiece" d="M 4.4 -0.2 C 7 -0.6 8.9 0.1 10.7 1.1" />
+      <path className="fertility-cue-tail" d="M 10.2 1 C 15.2 4.7 15.8 -4.8 20.8 -2.6 C 25.2 -0.7 21.4 6.1 26.3 6.6 C 30.4 7 30.8 1.9 34.7 2.7" />
+    </g>
+  );
 }
 
 function AdvancedSelect({
@@ -2068,7 +2130,7 @@ function AdvancedSelect({
 }
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`panel rounded border border-outline bg-surface p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
+  return <section data-reveal className={`panel motion-reveal rounded border border-outline bg-surface p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -2150,28 +2212,199 @@ function SaveFeedback({ state }: { state: "saving" | "saved" }) {
   );
 }
 
-function PhaseSegmentTooltip({ segment }: { segment: PhaseSegment }) {
-  const meta = phaseMeta[segment.phase];
-  const insights = segment.insights;
-  const ovulationDay = segment.days.find((day) => day.phase === "possible-ovulation");
+function ChatCelebration({ onClose }: { onClose: () => void }) {
+  const [stats, setStats] = useState<ChatWrappedStats>(() => emptyChatWrappedStats(true));
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    loadChatWrappedStats()
+      .then((nextStats) => {
+        if (!isCancelled) setStats(nextStats);
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setStats({ ...emptyChatWrappedStats(false), error: error instanceof Error ? error.message : "No se pudo leer la historia." });
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const peakHour = stats.activeHours.reduce((best, item) => (item.count > best.count ? item : best), { label: "-", count: 0, percent: 0 });
+  const totalMedia = stats.media.photos + stats.media.audio + stats.media.videos + stats.media.stickers + stats.media.shares + stats.media.other;
+  const topMonths = [...stats.activeMonths].sort((a, b) => b.count - a.count).slice(0, 4);
 
   return (
-    <div className="phase-tooltip">
-      <div className="phase-tooltip-header">
-        <span className="phase-tooltip-dot" style={{ background: meta.color }} />
-        <div>
-          <strong>{meta.label}</strong>
-          <span>
-            {displayDate(segment.start)} - {displayDate(segment.end)} · {segment.days.length} día{segment.days.length === 1 ? "" : "s"}
-          </span>
-        </div>
+    <div className="chat-celebration-shell" role="dialog" aria-modal="true" aria-label="Resumen de mensajes de mesario">
+      <div className="chat-liquid-bg" aria-hidden="true">
+        <span />
+        <span />
+        <span />
       </div>
-      {ovulationDay ? <div className="phase-tooltip-pill">Posible ovulación · {displayDate(ovulationDay.date)}</div> : null}
-      <ul className="phase-tooltip-list">
-        {insights.map((insight) => (
-          <li key={insight}>{insight}</li>
-        ))}
-      </ul>
+
+      <div className="chat-phone-frame">
+        <button className="chat-close-button" type="button" onClick={onClose}>
+          Entrar a Alba
+        </button>
+
+        <section className="chat-hero-panel chat-glass-card">
+          <span className="chat-kicker">7 de julio · 15 meses del primer beso</span>
+          <h2>Quince meses desde ese primer besito</h2>
+          <p>
+            WhatsApp e Instagram se vuelven una cartita líquida: palabras, horarios, emojis y todas esas señales pequeñas que empezaron a crecer desde aquel beso.
+          </p>
+          <div className="chat-hero-stats">
+            <strong>{stats.isLoading ? "..." : compactNumber(stats.totalMessages)}</strong>
+            <span>mensajes encontrados</span>
+          </div>
+        </section>
+
+        {stats.error ? (
+          <section className="chat-glass-card chat-error-card">
+            <strong>No pude leer los chats todavía.</strong>
+            <span>{stats.error}</span>
+          </section>
+        ) : null}
+
+        <section className="chat-stats-grid" aria-label="Resumen principal">
+          {[
+            { label: "Besitos", value: stats.isLoading ? "..." : compactNumber(stats.kissWords), detail: "veces que el chat se acercó" },
+            { label: "Palabras", value: stats.isLoading ? "..." : compactNumber(stats.totalWords), detail: "lo que nos dijimos" },
+            { label: "Multimedia", value: stats.isLoading ? "..." : compactNumber(totalMedia), detail: "recuerdos, reels, archivos y cositas" },
+            { label: "Hora viva", value: stats.isLoading ? "..." : peakHour.label, detail: "cuando más nos buscamos" },
+          ].map((item) => (
+            <article className="chat-mini-card chat-glass-card" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <MessageCircle aria-hidden="true" size={18} />
+            <div>
+              <span>Frecuencia</span>
+              <h3>Horas con más ganas de besito</h3>
+            </div>
+          </div>
+          <div className="chat-hour-chart" aria-label="Distribución de mensajes por hora">
+            {stats.activeHours.map((hour) => (
+              <span key={hour.label} style={{ "--bar-height": `${Math.max(8, hour.percent)}%` } as React.CSSProperties}>
+                <i />
+                <small>{hour.label}</small>
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <CalendarDays aria-hidden="true" size={18} />
+            <div>
+              <span>Ritmo semanal</span>
+              <h3>Los días que más volvimos</h3>
+            </div>
+          </div>
+          <div className="chat-week-bars">
+            {stats.activeWeekdays.map((day) => (
+              <div key={day.label}>
+                <span>{day.label}</span>
+                <strong style={{ width: `${Math.max(4, day.percent)}%` }} />
+                <small>{day.count}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <Sparkles aria-hidden="true" size={18} />
+            <div>
+              <span>Nube de besitos</span>
+              <h3>Palabras que se acercan</h3>
+            </div>
+          </div>
+          <div className="chat-word-cloud">
+            {(stats.topWords.length ? stats.topWords : [{ word: "cargando", count: 1 }]).slice(0, 26).map((word, index) => (
+              <span key={`${word.word}-${index}`} style={{ "--weight": Math.min(2.3, 0.88 + word.count / Math.max(1, stats.topWords[0]?.count ?? 1) * 1.45) } as React.CSSProperties}>
+                {word.word}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <HeartPulse aria-hidden="true" size={18} />
+            <div>
+              <span>Emojis</span>
+              <h3>Caritas que también besan</h3>
+            </div>
+          </div>
+          <div className="chat-emoji-grid">
+            {stats.participants.map((participant) => (
+              <article key={participant.name}>
+                <strong>{shortParticipantName(participant.name)}</strong>
+                <div>
+                  {(participant.emojis.length ? participant.emojis : stats.topEmojis).slice(0, 6).map((emoji) => (
+                    <span key={`${participant.name}-${emoji.emoji}`}>{emoji.emoji}<small>{emoji.count}</small></span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <BarChart3 aria-hidden="true" size={18} />
+            <div>
+              <span>Línea de tiempo</span>
+              <h3>Meses desde el primer beso</h3>
+            </div>
+          </div>
+          <div className="chat-month-stack">
+            {topMonths.map((month) => (
+              <span key={month.label}>
+                <strong>{month.label}</strong>
+                <small>{compactNumber(month.count)} mensajes</small>
+              </span>
+            ))}
+          </div>
+          <p className="chat-date-range">{stats.firstDate && stats.lastDate ? `${stats.firstDate} -> ${stats.lastDate}` : "Leyendo la línea de tiempo..."}</p>
+        </section>
+
+        <section className="chat-glass-card chat-section-card">
+          <div className="chat-section-heading">
+            <Download aria-hidden="true" size={18} />
+            <div>
+              <span>Multimedia</span>
+              <h3>Lo que guardó un poquito más</h3>
+            </div>
+          </div>
+          <div className="chat-media-grid">
+            <span><strong>{stats.media.photos}</strong><small>fotos</small></span>
+            <span><strong>{stats.media.audio}</strong><small>audios</small></span>
+            <span><strong>{stats.media.videos}</strong><small>videos</small></span>
+            <span><strong>{stats.media.shares}</strong><small>reels y links</small></span>
+            <span><strong>{stats.media.other}</strong><small>archivos</small></span>
+          </div>
+        </section>
+
+        <section className="chat-final-panel chat-glass-card">
+          <span>Resumen de hoy</span>
+          <h3>Quince meses después, ese primer beso todavía sigue abriendo puertas.</h3>
+          <p>De todos estos mensajes, lo más bonito es que todavía encuentro nuevas formas de acercarme a ti.</p>
+          <button className="primary-button" type="button" onClick={onClose}>
+            Guardar este besito
+          </button>
+        </section>
+      </div>
     </div>
   );
 }
@@ -2648,7 +2881,7 @@ function safeLocalSet(key: string, value: string): void {
 }
 
 function loadCustomDateActivations(): Record<CustomDateId, boolean> {
-  const fallback: Record<CustomDateId, boolean> = { "may-photo-album": false, "mandarino-monthiversary": true };
+  const fallback: Record<CustomDateId, boolean> = { "may-photo-album": false, "mandarino-monthiversary": true, "first-kiss-monthiversary": true };
   const raw = safeLocalGet(CUSTOM_DATE_ACTIVATIONS_KEY);
   if (!raw) return fallback;
 
@@ -2657,6 +2890,240 @@ function loadCustomDateActivations(): Record<CustomDateId, boolean> {
   } catch {
     return fallback;
   }
+}
+
+function emptyChatWrappedStats(isLoading: boolean): ChatWrappedStats {
+  const activeHours = Array.from({ length: 24 }, (_, hour) => ({ label: `${hour.toString().padStart(2, "0")}h`, count: 0, percent: 0 }));
+  const activeWeekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((label) => ({ label, count: 0, percent: 0 }));
+  return {
+    isLoading,
+    error: "",
+    totalMessages: 0,
+    totalWords: 0,
+    kissWords: 0,
+    participants: [],
+    topWords: [],
+    topEmojis: [],
+    activeHours,
+    activeWeekdays,
+    activeMonths: [],
+    media: { photos: 0, audio: 0, videos: 0, stickers: 0, shares: 0, other: 0 },
+    sampleMoments: [],
+  };
+}
+
+async function loadChatWrappedStats(): Promise<ChatWrappedStats> {
+  const [whatsappResponse, instagramResponse] = await Promise.all([
+    fetch("/whatsapp/Chat%20de%20WhatsApp%20con%20Futura%20Esposita%20%F0%9F%92%96.txt"),
+    fetch("/instagram/message_1.json"),
+  ]);
+
+  if (!whatsappResponse.ok && !instagramResponse.ok) {
+    throw new Error("No encontré los archivos exportados en public/whatsapp y public/instagram.");
+  }
+
+  const moments: ChatMoment[] = [];
+
+  if (whatsappResponse.ok) {
+    moments.push(...parseWhatsAppChat(await whatsappResponse.text()));
+  }
+
+  if (instagramResponse.ok) {
+    moments.push(...parseInstagramChat(await instagramResponse.json()));
+  }
+
+  return buildChatWrappedStats(moments);
+}
+
+function parseWhatsAppChat(rawText: string): ChatMoment[] {
+  const text = repairMojibake(rawText);
+  const lines = text.split(/\r?\n/);
+  const moments: ChatMoment[] = [];
+  let current: ChatMoment | null = null;
+  const messagePattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}):(\d{2})\s*([ap])\.\s*m\. - ([^:]+):\s*([\s\S]*)$/i;
+
+  for (const line of lines) {
+    const match = line.match(messagePattern);
+    if (!match) {
+      if (current && line.trim()) current.text = `${current.text}\n${line.trim()}`;
+      continue;
+    }
+
+    const [, day, month, year, rawHour, minute, meridiem, sender, content] = match;
+    let hour = Number(rawHour) % 12;
+    if (meridiem.toLowerCase() === "p") hour += 12;
+    const date = new Date(Number(year), Number(month) - 1, Number(day), hour, Number(minute));
+    const textContent = repairMojibake(content.trim());
+    current = {
+      platform: "whatsapp",
+      sender: repairMojibake(sender.trim()),
+      date,
+      text: textContent,
+      mediaType: whatsappMediaType(textContent),
+    };
+    moments.push(current);
+  }
+
+  return moments.filter((moment) => !Number.isNaN(moment.date.getTime()));
+}
+
+function parseInstagramChat(rawJson: unknown): ChatMoment[] {
+  const container = rawJson as { messages?: Array<Record<string, unknown>> };
+  return (container.messages ?? []).map((message) => {
+    const textParts = [
+      typeof message.content === "string" ? repairMojibake(message.content) : "",
+      typeof (message.share as { share_text?: unknown } | undefined)?.share_text === "string"
+        ? repairMojibake(String((message.share as { share_text?: unknown }).share_text))
+        : "",
+    ].filter(Boolean);
+
+    return {
+      platform: "instagram" as const,
+      sender: repairMojibake(String(message.sender_name ?? "Instagram")),
+      date: new Date(Number(message.timestamp_ms ?? 0)),
+      text: textParts.join("\n"),
+      mediaType: instagramMediaType(message),
+    };
+  }).filter((moment) => !Number.isNaN(moment.date.getTime()));
+}
+
+function buildChatWrappedStats(rawMoments: ChatMoment[]): ChatWrappedStats {
+  const moments = rawMoments
+    .filter((moment) => moment.text || moment.mediaType)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const stats = emptyChatWrappedStats(false);
+  const wordCounts = new Map<string, number>();
+  const emojiCounts = new Map<string, number>();
+  const participantMap = new Map<string, { name: string; messages: number; emojiCounts: Map<string, number> }>();
+  const monthCounts = new Map<string, number>();
+  const stopWords = new Set([
+    "para", "pero", "porque", "como", "esta", "este", "esto", "estas", "estos", "cuando", "donde", "entonces", "tambien", "también",
+    "amor", "jaja", "jiji", "jsjs", "jajaja", "jeje", "hola", "holis", "oki", "ok", "que", "con", "por", "los", "las", "una", "uno",
+    "del", "estoy", "estas", "estás", "tengo", "tienes", "you", "sent", "attachment", "este", "ese", "esa", "mas", "más", "muy",
+  ]);
+
+  for (const moment of moments) {
+    stats.totalMessages += 1;
+    const participant = participantMap.get(moment.sender) ?? { name: moment.sender, messages: 0, emojiCounts: new Map<string, number>() };
+    participant.messages += 1;
+    participantMap.set(moment.sender, participant);
+
+    const hour = moment.date.getHours();
+    stats.activeHours[hour].count += 1;
+    const weekdayIndex = (moment.date.getDay() + 6) % 7;
+    stats.activeWeekdays[weekdayIndex].count += 1;
+    const monthLabel = format(moment.date, "MMM yyyy", { locale: es });
+    monthCounts.set(monthLabel, (monthCounts.get(monthLabel) ?? 0) + 1);
+
+    if (moment.mediaType === "photo") stats.media.photos += 1;
+    else if (moment.mediaType === "audio") stats.media.audio += 1;
+    else if (moment.mediaType === "video") stats.media.videos += 1;
+    else if (moment.mediaType === "sticker") stats.media.stickers += 1;
+    else if (moment.mediaType === "share") stats.media.shares += 1;
+    else if (moment.mediaType === "media") stats.media.other += 1;
+
+    const analysisText = chatAnalysisText(moment.text);
+
+    for (const emoji of extractEmojis(analysisText)) {
+      emojiCounts.set(emoji, (emojiCounts.get(emoji) ?? 0) + 1);
+      participant.emojiCounts.set(emoji, (participant.emojiCounts.get(emoji) ?? 0) + 1);
+    }
+
+    const words = normalizeWords(analysisText);
+    stats.totalWords += words.length;
+    stats.kissWords += words.filter((word) => word.startsWith("bes")).length;
+    for (const word of words) {
+      if (word.length < 4 || stopWords.has(word)) continue;
+      wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
+    }
+  }
+
+  const maxHour = Math.max(1, ...stats.activeHours.map((item) => item.count));
+  stats.activeHours = stats.activeHours.map((item) => ({ ...item, percent: Math.round(item.count / maxHour * 100) }));
+  const maxWeekday = Math.max(1, ...stats.activeWeekdays.map((item) => item.count));
+  stats.activeWeekdays = stats.activeWeekdays.map((item) => ({ ...item, percent: Math.round(item.count / maxWeekday * 100) }));
+  stats.activeMonths = Array.from(monthCounts, ([label, count]) => ({ label, count }));
+  stats.topWords = Array.from(wordCounts, ([word, count]) => ({ word, count })).sort((a, b) => b.count - a.count).slice(0, 36);
+  stats.topEmojis = Array.from(emojiCounts, ([emoji, count]) => ({ emoji, count })).sort((a, b) => b.count - a.count).slice(0, 18);
+  stats.participants = Array.from(participantMap.values())
+    .sort((a, b) => b.messages - a.messages)
+    .slice(0, 2)
+    .map((participant) => ({
+      name: participant.name,
+      messages: participant.messages,
+      emojis: Array.from(participant.emojiCounts, ([emoji, count]) => ({ emoji, count })).sort((a, b) => b.count - a.count).slice(0, 8),
+    }));
+  stats.firstDate = moments[0] ? displayDate(isoDate(moments[0].date)) : undefined;
+  stats.lastDate = moments.at(-1) ? displayDate(isoDate(moments[moments.length - 1].date)) : undefined;
+  stats.sampleMoments = moments.filter((moment) => moment.text).slice(-6);
+
+  return stats;
+}
+
+function whatsappMediaType(text: string): ChatMoment["mediaType"] {
+  const normalized = text.toLowerCase();
+  if (!normalized.includes("multimedia omitido")) return undefined;
+  if (normalized.includes("audio")) return "audio";
+  if (normalized.includes("sticker")) return "sticker";
+  if (normalized.includes("video")) return "video";
+  return "media";
+}
+
+function instagramMediaType(message: Record<string, unknown>): ChatMoment["mediaType"] {
+  if (Array.isArray(message.photos)) return "photo";
+  if (Array.isArray(message.audio_files) || Array.isArray(message.audio)) return "audio";
+  if (Array.isArray(message.videos)) return "video";
+  if (Array.isArray(message.sticker)) return "sticker";
+  if (message.share) return "share";
+  return undefined;
+}
+
+function repairMojibake(value: string): string {
+  if (!/[ÃÂâð]/.test(value)) return value;
+  try {
+    const bytes = Uint8Array.from(Array.from(value, (character) => character.charCodeAt(0)).filter((code) => code <= 255));
+    const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    return repaired.replace(/\u0000/g, "").trim() || value;
+  } catch {
+    return value;
+  }
+}
+
+function normalizeWords(text: string): string[] {
+  return chatAnalysisText(repairMojibake(text))
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function chatAnalysisText(text: string): string {
+  return repairMojibake(text)
+    .replace(/<\s*multimedia omitido\s*>/gi, " ")
+    .replace(/\bmultimedia omitido\b/gi, " ")
+    .replace(/\byou sent an attachment\b/gi, " ")
+    .replace(/\byou sent a message\b/gi, " ")
+    .replace(/\byou added to a collection:[^\n]*/gi, " ")
+    .replace(/\bse elimin[oó] este mensaje\b/gi, " ")
+    .replace(/\beliminaste este mensaje\b/gi, " ")
+    .replace(/<\s*se edit[oó] este mensaje\.\s*>/gi, " ");
+}
+
+function extractEmojis(text: string): string[] {
+  return repairMojibake(text).match(/\p{Extended_Pictographic}/gu) ?? [];
+}
+
+function compactNumber(value: number): string {
+  return new Intl.NumberFormat("es-BO", { notation: value >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+}
+
+function shortParticipantName(name: string): string {
+  if (name.toLowerCase().includes("sarit")) return "Sarit";
+  if (name.toLowerCase().includes("marvin")) return "Marvin";
+  return name.split(" ")[0] ?? name;
 }
 
 function BrandLab({

@@ -114,13 +114,12 @@ textarea {
   }
 
   .panel {
-    animation: rise-in 420ms ease both;
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     transition:
-      transform 180ms ease,
-      border-color 180ms ease,
-      background-color 180ms ease,
-      box-shadow 180ms ease;
+      transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 320ms ease,
+      background-color 320ms ease,
+      box-shadow 420ms ease;
   }
 
   .app-title {
@@ -616,94 +615,232 @@ textarea {
     @apply block text-ink;
   }
 
-  .phase-strip {
-    @apply grid grid-cols-10 gap-1 sm:grid-cols-12;
+  .cycle-map-layout {
+    @apply grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)];
+    position: relative;
+    z-index: 10;
   }
 
-  .phase-block {
-    @apply contents;
+  .cycle-map-panel {
+    @apply overflow-hidden;
   }
 
-  .phase-chip {
-    @apply grid aspect-square place-items-center rounded border text-xs font-semibold text-ink transition hover:-translate-y-0.5 hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-moss;
+  .cycle-map-layout .panel {
+    background-color: color-mix(in srgb, var(--color-paper) 92%, transparent);
   }
 
-  .phase-chip.active {
-    @apply scale-105 ring-2 ring-white/35;
+  .cycle-map-header {
+    @apply grid grid-cols-[40px_1fr_40px] items-center gap-3 text-center;
   }
 
-  .phase-chip.active + .phase-chip.active {
-    @apply ring-white/20;
+  .cycle-map-header p {
+    @apply text-xs font-semibold uppercase text-moss;
+    letter-spacing: 0;
   }
 
-  .legend-row {
-    @apply flex items-center gap-2 rounded border border-outline bg-surface backdrop-blur-xl px-3 py-2 text-left text-sm text-ink transition hover:border-moss hover:bg-surfaceVariant backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-moss;
+  .cycle-map-header h2 {
+    @apply mt-1 text-base font-semibold sm:text-lg;
   }
 
-  .phase-legend {
-    @apply hidden md:grid;
+  .cycle-wheel-shell {
+    width: min(100%, 450px);
+    margin: 0.75rem auto 0;
+    aspect-ratio: 1;
   }
 
-  .legend-row.active {
-    @apply border-moss bg-mossLight text-ink;
+  .cycle-wheel {
+    @apply h-full w-full;
+    overflow: visible;
+    touch-action: manipulation;
   }
 
-  .legend-row span {
-    @apply h-3 w-3 rounded-full;
+  .cycle-wheel-inner {
+    fill: none;
+    stroke: var(--color-outline);
   }
 
-  .phase-focus-card {
-    @apply rounded border bg-surface backdrop-blur-xl p-4 text-sm leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+  .cycle-wheel-inner {
+    fill: var(--color-surface);
+    stroke-width: 1;
+    filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.12));
   }
 
-  .phase-focus-card strong {
-    @apply mb-1 block text-sm font-semibold;
+  .cycle-wheel-day {
+    cursor: pointer;
+    outline: none;
+    transition: opacity 280ms ease;
   }
 
-  .phase-focus-card span {
-    @apply block text-ink;
+  .cycle-day-hit {
+    fill: transparent;
+    pointer-events: all;
   }
 
-  .phase-focus-card ul,
-  .phase-tooltip-list {
-    @apply mt-2 list-disc space-y-1 pl-5 text-ink;
+  .cycle-wheel-day.is-future {
+    opacity: 1;
   }
 
-  .phase-focus-card li,
-  .phase-tooltip-list li {
-    @apply bg-transparent px-0 py-0;
+  .cycle-day-dot,
+  .cycle-day-selection,
+  .cycle-day-number {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+      transform 260ms cubic-bezier(0.2, 0.9, 0.2, 1),
+      filter 260ms ease,
+      opacity 260ms ease;
   }
 
-  .phase-tooltip {
-    @apply max-w-xs space-y-3 text-sm leading-6 text-ink;
+  .cycle-day-dot {
+    stroke: rgba(255, 255, 255, 0.24);
+    stroke-width: 0.8;
   }
 
-  .phase-tooltip-header {
-    @apply flex items-start gap-3;
+  .cycle-wheel-day.is-future .cycle-day-dot {
+    opacity: 0.32;
   }
 
-  .phase-tooltip-header strong {
-    @apply block text-base font-semibold text-ink;
+  .cycle-wheel-day.is-today .cycle-day-dot {
+    filter: url("#cycle-day-glow");
+    stroke: var(--color-ink);
+    stroke-width: 1.5;
   }
 
-  .phase-tooltip-header span {
-    @apply block text-ink;
+  .cycle-day-selection {
+    fill: var(--color-surface);
+    stroke-width: 2;
+    animation: cycle-selection-arrive 420ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
   }
 
-  .phase-tooltip-dot {
-    @apply mt-1 h-3 w-3 shrink-0 rounded-full shadow-[0_0_0_5px_rgba(255,255,255,0.06)];
+  .cycle-day-number {
+    fill: #17201d;
+    stroke: none;
+    font-family: "Arial Black", "Segoe UI Black", Arial, sans-serif;
+    font-size: 8.8px;
+    font-weight: 900 !important;
+    font-variant-numeric: lining-nums tabular-nums;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
   }
 
-  .phase-tooltip-pill {
-    @apply inline-flex rounded-full border border-marigold bg-marigoldLight px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink;
+  .cycle-wheel-day.is-future .cycle-day-number {
+    fill: #fff;
+    opacity: 1;
   }
 
-  .tippy-box[data-theme~="alba"] {
-    @apply rounded border border-outline bg-surface backdrop-blur-xl/95 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl;
+  .cycle-wheel-day:focus-visible .cycle-day-selection,
+  .cycle-wheel-day:focus-visible .cycle-day-dot {
+    stroke: var(--color-ink);
+    stroke-width: 2;
   }
 
-  .tippy-box[data-theme~="alba"] .tippy-content {
-    @apply p-4;
+  .fertility-cue {
+    opacity: 0.9;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18));
+  }
+
+  .cycle-wheel-day.is-future .fertility-cue {
+    opacity: 0.5;
+  }
+
+  .fertility-cue-head {
+    fill: url("#sperm-head-gradient");
+    stroke: rgba(73, 69, 64, 0.45);
+    stroke-width: 0.55;
+  }
+
+  .fertility-cue-cap {
+    fill: rgba(255, 255, 255, 0.38);
+  }
+
+  .fertility-cue-midpiece {
+    fill: none;
+    stroke: #8e887e;
+    stroke-linecap: round;
+    stroke-width: 3.2;
+    stroke-dasharray: 1.2 1.5;
+  }
+
+  .fertility-cue-tail {
+    fill: none;
+    stroke: url("#sperm-tail-gradient");
+    stroke-linecap: round;
+    stroke-width: 1.6;
+  }
+
+  .cycle-wheel-eyebrow,
+  .cycle-wheel-phase,
+  .cycle-wheel-today {
+    fill: var(--color-ink);
+    text-anchor: middle;
+  }
+
+  .cycle-wheel-eyebrow {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0;
+    opacity: 0.56;
+  }
+
+  .cycle-wheel-value {
+    fill: var(--color-ink);
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    font-size: 46px;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    text-anchor: middle;
+  }
+
+  .cycle-wheel-phase {
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .cycle-wheel-today {
+    fill: var(--color-moss);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .cycle-map-legend {
+    @apply mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-ink;
+    opacity: 0.72;
+  }
+
+  .cycle-map-legend span {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .cycle-map-legend i {
+    @apply h-2.5 w-2.5 rounded-full;
+  }
+
+  .cycle-map-safety {
+    @apply mx-auto mt-4 max-w-xl border-t border-outline pt-3 text-center text-xs leading-5 text-ink;
+    opacity: 0.62;
+  }
+
+  .cycle-day-focus {
+    @apply mb-4 rounded border p-4;
+    transition: background-color 280ms ease, border-color 280ms ease;
+  }
+
+  .cycle-day-focus span {
+    @apply text-xs font-semibold uppercase text-ink;
+    opacity: 0.62;
+    letter-spacing: 0;
+  }
+
+  .cycle-day-focus strong {
+    @apply mt-1 block text-lg font-semibold text-ink;
+  }
+
+  .cycle-day-focus p {
+    @apply mt-2 text-sm leading-6 text-ink;
+    opacity: 0.78;
   }
 
   .anniversary-story {
@@ -900,7 +1037,8 @@ textarea {
     animation-delay: -8s;
   }
 
-  .wandering-map {
+  .wandering-cat.wandering-map {
+    z-index: 35;
     animation-duration: 22s;
     animation-delay: -11s;
   }
@@ -1637,7 +1775,298 @@ textarea {
     @apply min-h-0 px-3 py-2 text-xs;
   }
 
+  .chat-celebration-shell {
+    --chat-bg-a: #24101d;
+    --chat-bg-b: #4a1832;
+    --chat-pink: #ff7aac;
+    --chat-lilac: #ffc2e6;
+    --chat-cyan: #ffe1f2;
+    --chat-cream: #fff4fa;
+    --chat-glass: rgba(255, 255, 255, 0.13);
+    --chat-glass-strong: rgba(255, 255, 255, 0.2);
+    @apply fixed inset-0 z-[90] overflow-y-auto overflow-x-hidden px-3 py-4 text-white;
+    background:
+      radial-gradient(circle at 20% 5%, rgba(255, 122, 172, 0.34), transparent 19rem),
+      radial-gradient(circle at 85% 18%, rgba(255, 225, 242, 0.22), transparent 17rem),
+      linear-gradient(155deg, var(--chat-bg-a), var(--chat-bg-b) 58%, #1f0d19);
+    scroll-behavior: smooth;
+  }
+
+  .chat-liquid-bg {
+    @apply pointer-events-none fixed inset-0 overflow-hidden;
+  }
+
+  .chat-liquid-bg span {
+    @apply absolute rounded-full blur-3xl;
+    width: 18rem;
+    height: 18rem;
+    background: rgba(255, 122, 172, 0.3);
+    animation: chat-liquid-float 18s ease-in-out infinite;
+  }
+
+  .chat-liquid-bg span:nth-child(1) {
+    left: -5rem;
+    top: 5rem;
+  }
+
+  .chat-liquid-bg span:nth-child(2) {
+    right: -6rem;
+    top: 22rem;
+    background: rgba(255, 194, 230, 0.28);
+    animation-delay: -6s;
+  }
+
+  .chat-liquid-bg span:nth-child(3) {
+    bottom: 4rem;
+    left: 20%;
+    background: rgba(255, 225, 242, 0.18);
+    animation-delay: -11s;
+  }
+
+  .chat-phone-frame {
+    @apply relative z-10 mx-auto flex min-h-full w-full max-w-[430px] flex-col gap-3 pb-8;
+    max-width: min(360px, calc(100vw - 2rem));
+  }
+
+  .chat-close-button {
+    @apply sticky top-3 z-20 ml-auto inline-flex min-h-10 items-center justify-center rounded-full border border-white/25 bg-white/15 px-4 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow-[0_16px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl transition active:scale-95;
+  }
+
+  .chat-glass-card {
+    @apply relative min-w-0 overflow-hidden rounded-2xl border border-white/20 p-4 shadow-[0_24px_80px_rgba(12,6,24,0.34)] backdrop-blur-2xl transition active:scale-[0.985];
+    background:
+      linear-gradient(140deg, rgba(255,255,255,0.2), rgba(255,255,255,0.07)),
+      var(--chat-glass);
+    animation: chat-card-rise 640ms ease both;
+  }
+
+  .chat-glass-card::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-4 top-0 h-px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.86), transparent);
+  }
+
+  .chat-glass-card::after {
+    content: "";
+    @apply pointer-events-none absolute -inset-16 opacity-0 transition duration-500;
+    background: radial-gradient(circle at 35% 20%, rgba(255,255,255,0.34), transparent 32%);
+  }
+
+  .chat-glass-card:active::after {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+
+  .chat-hero-panel {
+    @apply min-h-[72vh] px-5 py-8;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background:
+      radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.2), transparent 12rem),
+      radial-gradient(circle at 72% 30%, rgba(255, 122, 172, 0.28), transparent 11rem),
+      linear-gradient(160deg, rgba(255, 122, 172, 0.26), rgba(255, 194, 230, 0.12)),
+      var(--chat-glass);
+  }
+
+  .chat-kicker,
+  .chat-section-heading span,
+  .chat-final-panel > span {
+    @apply text-[0.68rem] font-bold uppercase tracking-[0.2em];
+    color: var(--chat-cyan);
+  }
+
+  .chat-hero-panel h2 {
+    @apply mt-3 text-4xl font-semibold leading-[0.98] text-white;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-hero-panel p,
+  .chat-final-panel p {
+    @apply mt-4 text-sm leading-6;
+    color: rgba(255, 247, 255, 0.78);
+    overflow-wrap: anywhere;
+  }
+
+  .chat-hero-stats {
+    @apply mt-8 rounded-2xl border border-white/20 bg-white/10 p-4;
+  }
+
+  .chat-hero-stats strong {
+    @apply block text-5xl font-semibold leading-none;
+  }
+
+  .chat-hero-stats span {
+    @apply mt-2 block text-xs font-semibold uppercase tracking-[0.18em];
+    color: rgba(255, 247, 255, 0.66);
+  }
+
+  .chat-stats-grid {
+    @apply grid min-w-0 grid-cols-2 gap-3;
+  }
+
+  .chat-mini-card {
+    @apply min-h-36 p-3;
+  }
+
+  .chat-mini-card span,
+  .chat-mini-card small {
+    @apply block text-xs;
+    color: rgba(255, 247, 255, 0.66);
+  }
+
+  .chat-mini-card strong {
+    @apply my-3 block text-3xl font-semibold leading-none text-white;
+  }
+
+  .chat-section-card {
+    @apply scroll-mt-4;
+  }
+
+  .chat-section-heading {
+    @apply mb-4 flex items-start gap-3;
+  }
+
+  .chat-section-heading svg {
+    @apply mt-1 shrink-0 text-white;
+    filter: drop-shadow(0 0 12px rgba(255,255,255,0.34));
+  }
+
+  .chat-section-heading h3 {
+    @apply mt-1 text-xl font-semibold leading-tight text-white;
+  }
+
+  .chat-hour-chart {
+    @apply grid h-44 grid-cols-12 items-end gap-1 pt-3;
+  }
+
+  .chat-hour-chart span {
+    @apply flex h-full min-w-0 flex-col items-center justify-end gap-2;
+  }
+
+  .chat-hour-chart i {
+    @apply block w-full rounded-full;
+    height: var(--bar-height);
+    background: linear-gradient(180deg, var(--chat-cyan), var(--chat-pink));
+    box-shadow: 0 0 18px rgba(255, 122, 172, 0.34);
+  }
+
+  .chat-hour-chart small {
+    @apply text-[0.56rem];
+    color: rgba(255, 247, 255, 0.56);
+    writing-mode: vertical-rl;
+  }
+
+  .chat-week-bars {
+    @apply grid gap-3;
+  }
+
+  .chat-week-bars div {
+    @apply grid grid-cols-[2.4rem_minmax(0,1fr)_2.2rem] items-center gap-2 text-xs;
+    color: rgba(255, 247, 255, 0.68);
+  }
+
+  .chat-week-bars strong {
+    @apply block h-3 rounded-full;
+    background: linear-gradient(90deg, var(--chat-lilac), var(--chat-pink));
+    box-shadow: 0 0 18px rgba(199, 167, 255, 0.25);
+  }
+
+  .chat-word-cloud {
+    @apply flex flex-wrap items-center justify-center gap-2 py-2;
+  }
+
+  .chat-word-cloud span {
+    @apply rounded-full border border-white/15 bg-white/10 px-3 py-1 font-semibold;
+    color: rgba(255, 247, 255, 0.88);
+    font-size: calc(0.72rem * var(--weight));
+  }
+
+  .chat-emoji-grid {
+    @apply grid gap-3;
+  }
+
+  .chat-emoji-grid article {
+    @apply rounded-2xl border border-white/15 bg-white/10 p-3;
+  }
+
+  .chat-emoji-grid article > strong {
+    @apply text-sm text-white;
+  }
+
+  .chat-emoji-grid div {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .chat-emoji-grid span {
+    @apply inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-lg;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .chat-emoji-grid small {
+    @apply text-[0.65rem] font-semibold;
+    color: rgba(255, 247, 255, 0.62);
+  }
+
+  .chat-month-stack {
+    @apply grid gap-2;
+  }
+
+  .chat-month-stack span,
+  .chat-media-grid span {
+    @apply flex items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-3 py-3;
+  }
+
+  .chat-month-stack strong,
+  .chat-media-grid strong {
+    @apply text-white;
+  }
+
+  .chat-month-stack small,
+  .chat-media-grid small,
+  .chat-date-range {
+    @apply text-xs;
+    color: rgba(255, 247, 255, 0.64);
+  }
+
+  .chat-date-range {
+    @apply mt-4 text-center;
+  }
+
+  .chat-media-grid {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .chat-media-grid span {
+    @apply flex-col items-start;
+  }
+
+  .chat-media-grid strong {
+    @apply text-3xl font-semibold;
+  }
+
+  .chat-final-panel {
+    @apply mb-4 p-5 text-center;
+  }
+
+  .chat-final-panel h3 {
+    @apply mt-2 text-2xl font-semibold leading-tight text-white;
+  }
+
+  .chat-final-panel .primary-button {
+    @apply mt-5 rounded-full bg-white text-[#26133d] hover:bg-white focus:ring-white;
+  }
+
+  .chat-error-card {
+    @apply border-coral bg-coralLight text-white;
+  }
+
   @media (max-width: 520px) {
+    .chat-phone-frame {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
     .mandarin-story .anniversary-close {
       left: 1rem;
       right: auto;
@@ -1654,6 +2083,95 @@ textarea {
 select.input option {
   color: var(--color-ink);
   background: var(--color-input-option-bg);
+}
+
+.motion-reveal {
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(18px) scale(0.992);
+}
+
+.motion-reveal.is-revealed {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0) scale(1);
+}
+
+.tab-scene {
+  position: relative;
+  z-index: 20;
+  animation: tab-scene-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: 50% 0;
+}
+
+button,
+[role="button"],
+.input-card,
+.calendar-day {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+[role="button"]:not(.cycle-wheel-day):active {
+  transform: scale(0.975);
+  transition-duration: 90ms;
+}
+
+.cycle-wheel-day:active .cycle-day-dot {
+  transform: scale(0.9);
+  transition-duration: 90ms;
+}
+
+.input-card,
+.info-box,
+.calendar-day,
+.stat-card {
+  transition:
+    transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 260ms ease,
+    background-color 260ms ease,
+    box-shadow 320ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .input-card:hover,
+  .info-box:hover,
+  .stat-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--color-moss) 44%, var(--color-outline));
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.16);
+  }
+
+  .cycle-wheel-day:hover .cycle-day-dot {
+    filter: brightness(1.12) drop-shadow(0 5px 8px rgba(0, 0, 0, 0.22));
+    transform: scale(1.18);
+  }
+}
+
+@keyframes tab-scene-enter {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(10px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cycle-selection-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes rise-in {
@@ -1675,6 +2193,35 @@ select.input option {
 
   to {
     opacity: 1;
+  }
+}
+
+@keyframes chat-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes chat-liquid-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  38% {
+    transform: translate3d(4rem, 6rem, 0) scale(1.18);
+  }
+
+  68% {
+    transform: translate3d(-2rem, 10rem, 0) scale(0.92);
   }
 }
 
@@ -2456,6 +3003,19 @@ select.input option {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .motion-reveal,
+  .motion-reveal.is-revealed,
+  .tab-scene,
+  .cycle-day-selection,
+  .cycle-day-dot,
+  .cycle-day-number {
+    animation: none;
+    filter: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
   .anniversary-brand-mark,
   .calendar-day.anniversary-six,
   .anniversary-day-decor i,

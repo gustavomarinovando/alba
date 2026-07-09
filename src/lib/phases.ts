@@ -17,13 +17,13 @@ export interface PhaseDay {
 }
 
 export const phaseMeta: Record<CyclePhase, { label: string; color: string; soft: string }> = {
-  period: { label: "Periodo", color: "#d89b8b", soft: "rgba(216,155,139,0.24)" },
-  follicular: { label: "Folicular", color: "#8fb9ad", soft: "rgba(143,185,173,0.18)" },
-  fertile: { label: "Ventana fértil estimada", color: "#d7c783", soft: "rgba(215,199,131,0.2)" },
-  "possible-ovulation": { label: "Posible ovulación", color: "#f0dca2", soft: "rgba(240,220,162,0.24)" },
-  "thermal-shift": { label: "Transición térmica", color: "#aeb7dc", soft: "rgba(174,183,220,0.22)" },
-  luteal: { label: "Lútea", color: "#9fb7d8", soft: "rgba(159,183,216,0.18)" },
-  "expected-period": { label: "Periodo estimado", color: "#c9a0b5", soft: "rgba(201,160,181,0.2)" },
+  period: { label: "Periodo", color: "#efb4aa", soft: "rgba(239,180,170,0.22)" },
+  follicular: { label: "Folicular", color: "#a9d7c9", soft: "rgba(169,215,201,0.18)" },
+  fertile: { label: "Ventana fértil estimada", color: "#ead887", soft: "rgba(234,216,135,0.2)" },
+  "possible-ovulation": { label: "Posible ovulación", color: "#d8a4e8", soft: "rgba(216,164,232,0.2)" },
+  "thermal-shift": { label: "Transición térmica", color: "#bdc7ed", soft: "rgba(189,199,237,0.2)" },
+  luteal: { label: "Lútea", color: "#aec9e8", soft: "rgba(174,201,232,0.18)" },
+  "expected-period": { label: "Periodo estimado", color: "#ddb7cc", soft: "rgba(221,183,204,0.2)" },
 };
 
 export function buildPhaseMap(entries: CycleEntry[]): Map<string, PhaseDay> {
@@ -35,8 +35,8 @@ export function buildPhaseMap(entries: CycleEntry[]): Map<string, PhaseDay> {
   if (sorted.length === 0) return phaseMap;
 
   const first = parseISO(sorted[0].date);
-  const todayPlusBuffer = addDays(new Date(), 14);
-  const lastEntryPlusBuffer = addDays(parseISO(sorted.at(-1)!.date), 14);
+  const todayPlusBuffer = addDays(new Date(), 45);
+  const lastEntryPlusBuffer = addDays(parseISO(sorted.at(-1)!.date), 45);
   const last = lastEntryPlusBuffer > todayPlusBuffer ? lastEntryPlusBuffer : todayPlusBuffer;
 
   for (let cursor = first; cursor <= last; cursor = addDays(cursor, 1)) {
