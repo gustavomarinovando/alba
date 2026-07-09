@@ -217,6 +217,7 @@ export default function App() {
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
+  const [isInitialCloudSyncSettling, setIsInitialCloudSyncSettling] = useState(() => isSupabaseConfigured());
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
   const [pendingTemperatureInput, setPendingTemperatureInput] = useState("36.9");
@@ -332,6 +333,7 @@ export default function App() {
           setEntries(demoEntries);
           setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, demoEntries) ? selectedDate : null);
           setIsDemoMode(true);
+          setIsInitialCloudSyncSettling(false);
           setStatus("Modo demo activo. Estos datos no se sincronizan.");
           return;
         }
@@ -346,9 +348,12 @@ export default function App() {
         setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, realEntries) ? selectedDate : null);
 
         if (isSupabaseConfigured()) {
-          void syncCloudData({ quiet: true, entriesOverride: realEntries });
+          void syncCloudData({ quiet: true, entriesOverride: realEntries, initial: true });
+        } else {
+          setIsInitialCloudSyncSettling(false);
         }
       } catch {
+        setIsInitialCloudSyncSettling(false);
         setStatus("No se pudo abrir la base local.");
       }
     }
@@ -746,7 +751,7 @@ export default function App() {
     }
   }
 
-  async function syncCloudData(options?: { quiet?: boolean; entriesOverride?: CycleEntry[] }) {
+  async function syncCloudData(options?: { quiet?: boolean; entriesOverride?: CycleEntry[]; initial?: boolean }) {
     if (cloudSyncRun.current) return cloudSyncRun.current;
 
     const run = performCloudSync(options, true);
@@ -769,13 +774,15 @@ export default function App() {
     }
   }
 
-  async function performCloudSync(options: { quiet?: boolean; entriesOverride?: CycleEntry[] } | undefined, shouldPushMergedEntries: boolean) {
+  async function performCloudSync(options: { quiet?: boolean; entriesOverride?: CycleEntry[]; initial?: boolean } | undefined, shouldPushMergedEntries: boolean) {
     if (isDemoMode) {
+      if (options?.initial) setIsInitialCloudSyncSettling(false);
       if (!options?.quiet) setStatus("El modo demo no se sincroniza. Sal del demo para probar la nube con datos reales.");
       return;
     }
 
     if (!isSupabaseConfigured()) {
+      if (options?.initial) setIsInitialCloudSyncSettling(false);
       if (!options?.quiet) setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
       return;
     }
@@ -796,6 +803,7 @@ export default function App() {
       if (!options?.quiet) setStatus(error instanceof Error ? error.message : "No se pudo sincronizar.");
     } finally {
       setIsSyncing(false);
+      if (options?.initial) setIsInitialCloudSyncSettling(false);
     }
   }
 
@@ -1603,6 +1611,7 @@ export default function App() {
   function renderMap() {
     const canViewOlder = activeCycleIndex > 0;
     const canViewNewer = activeCycleIndex < cycleWindows.length - 1;
+    const shouldWaitForInitialSync = isInitialCloudSyncSettling && !isDemoMode;
     const selectedMeta = mapSelectedDay ? phaseMeta[mapSelectedDay.phase] : phaseMeta.follicular;
     const cervixObservations = mapSelectedEntry
       ? [
@@ -1636,7 +1645,9 @@ export default function App() {
             </button>
           </header>
 
-          {activeCycle ? (
+          {shouldWaitForInitialSync ? (
+            <EmptyState text="Sincronizando los datos recientes antes de dibujar el ciclo." />
+          ) : activeCycle ? (
             <CycleWheel
               cycle={activeCycle}
               selectedDate={mapSelectedDay?.date}
@@ -2021,6 +2032,7 @@ function CycleWheel({
   const center = size / 2;
   const dayRadius = 147;
   const selected = selectedDate ? cycle.days.find((day) => day.date === selectedDate) : undefined;
+  const selectedDisplayDate = selected ? displayWheelDate(selected.date) : undefined;
 
   return (
     <div className="cycle-wheel-shell">
@@ -2083,10 +2095,19 @@ function CycleWheel({
         <text className="cycle-wheel-eyebrow" x={center} y={149}>{selected ? "DÍA DEL CICLO" : "DURACIÓN DEL CICLO"}</text>
         <text className="cycle-wheel-value" x={center} y={193}>{selected?.cycleDay ?? cycle.days.length}</text>
         <text className="cycle-wheel-phase" x={center} y={219}>{selected?.label ?? "días"}</text>
-        {selected?.isToday ? <text className="cycle-wheel-today" x={center} y={238}>HOY</text> : null}
+        {selectedDisplayDate ? <text className="cycle-wheel-date" x={center} y={238}>{selectedDisplayDate}</text> : null}
+        {selected?.isToday ? <text className="cycle-wheel-today" x={center} y={256}>HOY</text> : null}
       </svg>
     </div>
   );
+}
+
+function displayWheelDate(date: string): string {
+  const today = new Date();
+  if (date === isoDate(addDays(today, -1))) return "Ayer";
+  if (date === isoDate(addDays(today, 1))) return "Mañana";
+  const [day, month] = displayDate(date, "d|MMMM").split("|");
+  return `${day} de ${month.charAt(0).toUpperCase()}${month.slice(1)}`;
 }
 
 function SpermCue({ x, y, rotation }: { x: number; y: number; rotation: number }) {

@@ -716,7 +716,7 @@ textarea {
     fill: #17201d;
     stroke: none;
     font-family: "Arial Black", "Segoe UI Black", Arial, sans-serif;
-    font-size: 8.8px;
+    font-size: 10px;
     font-weight: 900 !important;
     font-variant-numeric: lining-nums tabular-nums;
     text-anchor: middle;
@@ -772,6 +772,7 @@ textarea {
 
   .cycle-wheel-eyebrow,
   .cycle-wheel-phase,
+  .cycle-wheel-date,
   .cycle-wheel-today {
     fill: var(--color-ink);
     text-anchor: middle;
@@ -796,6 +797,13 @@ textarea {
   .cycle-wheel-phase {
     font-size: 10px;
     font-weight: 700;
+  }
+
+  .cycle-wheel-date {
+    fill: var(--color-ink);
+    font-size: 9px;
+    font-weight: 800;
+    opacity: 0.74;
   }
 
   .cycle-wheel-today {
