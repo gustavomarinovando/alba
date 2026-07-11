@@ -1,12 +1,13 @@
 -- Run only after 001_accounts_sync_v2.sql and after creating the first Auth user.
--- Replace the two values marked REPLACE_ME. This script is transactional and
+-- Replace the display name marked REPLACE_ME. The Auth email is prefilled.
+-- This script is transactional and
 -- aborts without partial copy if the source/destination verification differs.
 
 begin;
 
 do $$
 declare
-  v_owner_email text := 'REPLACE_ME@example.com';
+  v_owner_email text := 'gustavomarinovando@gmail.com';
   v_display_name text := 'REPLACE_ME';
   v_owner_id uuid;
   v_existing_owner_id uuid;

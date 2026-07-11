@@ -19,7 +19,7 @@ where couple_id = 1;
 ## Execution order
 
 1. Run `migrations/001_accounts_sync_v2.sql` in the SQL Editor. This creates only additive v2 structures and policies.
-2. Open `migrations/002_seed_and_copy_legacy_couple.sql`, replace `REPLACE_ME@example.com` and `REPLACE_ME`, then run it.
+2. Open `migrations/002_seed_and_copy_legacy_couple.sql`, confirm the prefilled Auth email and replace `REPLACE_ME` with the cycle subject's display name, then run it.
 3. Confirm its final result contains `status = verified` with equal counts and hashes.
 4. Run `migrations/003_verify_legacy_copy.sql`. Its first result must contain `verified = true`.
 5. Stop. Do not disable the old policies yet. The frontend still targets the legacy table until the authenticated sync client is implemented and deployed.
