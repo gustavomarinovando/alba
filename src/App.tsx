@@ -50,7 +50,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { getCurrentSession, resolveAccountContext, signInWithPassword, signOut, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { getCurrentSession, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -222,8 +222,9 @@ export default function App() {
   const [accountContext, setAccountContext] = useState<AlbaAccountContext | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authEmail, setAuthEmail] = useState("gustavomarinovando@gmail.com");
+  const [authEmail, setAuthEmail] = useState("saritcarrillofuentes@gmail.com");
   const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
   const [isInitialCloudSyncSettling, setIsInitialCloudSyncSettling] = useState(() => isSupabaseConfigured());
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -1057,7 +1058,14 @@ export default function App() {
     if (!authEmail.trim() || !authPassword) return;
     setIsAuthenticating(true);
     try {
-      const session = await signInWithPassword(authEmail, authPassword);
+      const session = authMode === "register"
+        ? await signUpWithPassword(authEmail, authPassword)
+        : await signInWithPassword(authEmail, authPassword);
+      if (!session) {
+        setStatus("Revisa tu correo para confirmar la cuenta y luego inicia sesión.");
+        setAuthMode("login");
+        return;
+      }
       const context = await resolveAccountContext(session);
       await bindDatasetToSubject("legacy-local", context.subjectId);
       setAccountContext(context);
@@ -1182,6 +1190,28 @@ export default function App() {
 
   if (showBrandLab) {
     return <BrandLab theme={theme} onToggleTheme={toggleTheme} />;
+  }
+
+  if (isAuthReady && !accountContext) {
+    return (
+      <main className="min-h-screen bg-background px-4 py-10 text-ink">
+        <section className="modal-panel mx-auto max-w-md">
+          <div>
+            <p className="eyebrow">Alba privada</p>
+            <h1>{authMode === "register" ? "Crear tu cuenta" : "Iniciar sesión"}</h1>
+            <p>Tus registros permanecen ocultos hasta verificar tu identidad.</p>
+          </div>
+          <form className="grid gap-3" onSubmit={logInToAlba}>
+            <label className="grid gap-1">Correo<input className="rounded border border-outline bg-surface px-3 py-2" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} /></label>
+            <label className="grid gap-1">Contraseña<input className="rounded border border-outline bg-surface px-3 py-2" type="password" minLength={8} autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} /></label>
+            <button className="primary-button" type="submit" disabled={isAuthenticating || authPassword.length < 8}>{isAuthenticating ? "Procesando..." : authMode === "register" ? "Registrarme" : "Entrar"}</button>
+          </form>
+          <button className="secondary-button" type="button" onClick={() => setAuthMode((mode) => mode === "login" ? "register" : "login")}>{authMode === "login" ? "Crear una cuenta" : "Ya tengo cuenta"}</button>
+          {status ? <div className="info-box">{status}</div> : null}
+          <p className="text-xs text-ink/60">Cerrar sesión oculta la información sin borrar la copia local segura.</p>
+        </section>
+      </main>
+    );
   }
 
   return (

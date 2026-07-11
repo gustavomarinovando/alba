@@ -38,6 +38,12 @@ export async function signInWithPassword(email: string, password: string): Promi
   return data.session;
 }
 
+export async function signUpWithPassword(email: string, password: string): Promise<Session | null> {
+  const { data, error } = await getSupabaseClient().auth.signUp({ email: email.trim(), password });
+  if (error) throw error;
+  return data.session;
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await getSupabaseClient().auth.signOut();
   if (error) throw error;
@@ -53,7 +59,12 @@ export async function resolveAccountContext(session: Session): Promise<AlbaAccou
     .limit(1)
     .maybeSingle();
   if (membershipError) throw membershipError;
-  if (!membership) throw new Error("Esta cuenta todavía no tiene una pareja migrada.");
+  if (!membership && session.user.email?.toLowerCase() === "saritcarrillofuentes@gmail.com") {
+    const { error: claimError } = await client.rpc("claim_legacy_cycle_dataset");
+    if (claimError) throw claimError;
+    return resolveAccountContext(session);
+  }
+  if (!membership) throw new Error("Esta cuenta todavía no tiene una pareja. Usa una invitación para unirte.");
 
   const { data: subject, error: subjectError } = await client
     .from("cycle_subjects")
