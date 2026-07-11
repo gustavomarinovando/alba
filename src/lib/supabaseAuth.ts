@@ -1,0 +1,75 @@
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+
+export interface AlbaAccountContext {
+  userId: string;
+  email: string;
+  coupleId: string;
+  subjectId: string;
+  subjectName: string;
+}
+
+let sharedClient: SupabaseClient<any> | null = null;
+
+export function isSupabaseConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+}
+
+export function getSupabaseClient(): SupabaseClient<any> {
+  if (sharedClient) return sharedClient;
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("Falta la configuración de Supabase.");
+  sharedClient = createClient<any>(url.replace(/\/$/, ""), key, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  return sharedClient;
+}
+
+export async function getCurrentSession(): Promise<Session | null> {
+  const { data, error } = await getSupabaseClient().auth.getSession();
+  if (error) throw error;
+  return data.session;
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<Session> {
+  const { data, error } = await getSupabaseClient().auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+  if (!data.session) throw new Error("Supabase no devolvió una sesión.");
+  return data.session;
+}
+
+export async function signOut(): Promise<void> {
+  const { error } = await getSupabaseClient().auth.signOut();
+  if (error) throw error;
+}
+
+export async function resolveAccountContext(session: Session): Promise<AlbaAccountContext> {
+  const client = getSupabaseClient();
+  const { data: membership, error: membershipError } = await client
+    .from("couple_members")
+    .select("couple_id")
+    .eq("user_id", session.user.id)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (membershipError) throw membershipError;
+  if (!membership) throw new Error("Esta cuenta todavía no tiene una pareja migrada.");
+
+  const { data: subject, error: subjectError } = await client
+    .from("cycle_subjects")
+    .select("id, display_name")
+    .eq("couple_id", membership.couple_id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (subjectError) throw subjectError;
+  if (!subject) throw new Error("Esta pareja todavía no tiene un sujeto de ciclo.");
+
+  return {
+    userId: session.user.id,
+    email: session.user.email ?? "",
+    coupleId: membership.couple_id,
+    subjectId: subject.id,
+    subjectName: subject.display_name,
+  };
+}

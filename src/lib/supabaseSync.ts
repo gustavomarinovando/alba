@@ -1,11 +1,15 @@
-import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { CycleEntry } from "../types";
 import { completePendingSyncMutation, getPendingSyncMutations } from "./storage";
+import { getSupabaseClient, isSupabaseConfigured, type AlbaAccountContext } from "./supabaseAuth";
+
+export { isSupabaseConfigured } from "./supabaseAuth";
 
 const COUPLE_ID = 1;
 
 interface SupabaseCycleRow {
-  couple_id: number;
+  couple_id: number | string;
+  subject_id?: string;
   date: string;
   entry: CycleEntry;
   updated_at: string;
@@ -36,11 +40,12 @@ export interface RealtimeCycleChange {
   entry?: CycleEntry;
 }
 
-export function isSupabaseConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-}
-
-export async function testSupabaseConnection(): Promise<void> {
+export async function testSupabaseConnection(context?: AlbaAccountContext): Promise<void> {
+  if (context) {
+    const { error } = await getSupabaseClient().from("cycle_entries_v2").select("date").eq("subject_id", context.subjectId).limit(1);
+    if (error) throw error;
+    return;
+  }
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&select=date&limit=1`, {
     headers: headers(),
   });
@@ -79,44 +84,44 @@ export async function savePushSubscription(subscription: PushSubscription): Prom
   }
 }
 
-export async function syncWithSupabase(localEntries: CycleEntry[]): Promise<CycleEntry[]> {
-  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+export async function syncWithSupabase(localEntries: CycleEntry[], context?: AlbaAccountContext): Promise<CycleEntry[]> {
+  const remoteEntries = (await fetchRemoteEntries(context)).filter((entry) => !isDemoEntry(entry));
   const merged = mergeEntries(
     localEntries.filter((entry) => !isDemoEntry(entry)),
     remoteEntries,
   );
-  await pushRemoteEntries(merged);
+  await pushRemoteEntries(merged, context);
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function pullFromSupabase(localEntries: CycleEntry[]): Promise<CycleEntry[]> {
-  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+export async function pullFromSupabase(localEntries: CycleEntry[], context?: AlbaAccountContext): Promise<CycleEntry[]> {
+  const remoteEntries = (await fetchRemoteEntries(context)).filter((entry) => !isDemoEntry(entry));
   return mergeEntries(
     localEntries.filter((entry) => !isDemoEntry(entry)),
     remoteEntries,
   ).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function previewSyncWithSupabase(localEntries: CycleEntry[]): Promise<SupabaseSyncPreview> {
+export async function previewSyncWithSupabase(localEntries: CycleEntry[], context?: AlbaAccountContext): Promise<SupabaseSyncPreview> {
   const safeLocalEntries = localEntries.filter((entry) => !isDemoEntry(entry));
-  const remoteEntries = (await fetchRemoteEntries()).filter((entry) => !isDemoEntry(entry));
+  const remoteEntries = (await fetchRemoteEntries(context)).filter((entry) => !isDemoEntry(entry));
   return compareEntriesForSync(safeLocalEntries, remoteEntries);
 }
 
-export async function upsertSupabaseEntry(entry: CycleEntry): Promise<void> {
+export async function upsertSupabaseEntry(entry: CycleEntry, context?: AlbaAccountContext): Promise<void> {
   if (isDemoEntry(entry)) return;
-  await pushRemoteEntries([entry]);
+  await pushRemoteEntries([entry], context);
 }
 
-export async function flushPendingSupabaseMutations(): Promise<number> {
+export async function flushPendingSupabaseMutations(context?: AlbaAccountContext): Promise<number> {
   const pending = await getPendingSyncMutations();
   let completed = 0;
 
   for (const mutation of pending) {
     if (mutation.type === "upsert" && mutation.entry) {
-      await upsertSupabaseEntry(mutation.entry);
+      await upsertSupabaseEntry(mutation.entry, context);
     } else {
-      await deleteSupabaseEntry(mutation.date);
+      await deleteSupabaseEntry(mutation.date, context);
     }
     await completePendingSyncMutation(mutation.date, mutation.revision);
     completed += 1;
@@ -128,8 +133,11 @@ export async function flushPendingSupabaseMutations(): Promise<number> {
 export function subscribeToCycleEntryChanges(
   onChange: (change: RealtimeCycleChange) => void,
   onStatus?: (status: string) => void,
+  context?: AlbaAccountContext,
 ): () => void {
-  const client = supabaseClient();
+  const client = getSupabaseClient();
+  const table = context ? "cycle_entries_v2" : "cycle_entries";
+  const filter = context ? `subject_id=eq.${context.subjectId}` : `couple_id=eq.${COUPLE_ID}`;
   let channel: RealtimeChannel | null = client
     .channel(`alba-cycle-entries-${crypto.randomUUID()}`)
     .on(
@@ -137,8 +145,8 @@ export function subscribeToCycleEntryChanges(
       {
         event: "*",
         schema: "public",
-        table: "cycle_entries",
-        filter: `couple_id=eq.${COUPLE_ID}`,
+        table,
+        filter,
       },
       (payload) => {
         const newRow = payload.new as Partial<SupabaseCycleRow>;
@@ -159,7 +167,12 @@ export function subscribeToCycleEntryChanges(
   };
 }
 
-export async function deleteSupabaseEntry(date: string): Promise<void> {
+export async function deleteSupabaseEntry(date: string, context?: AlbaAccountContext): Promise<void> {
+  if (context) {
+    const { error } = await getSupabaseClient().from("cycle_entries_v2").delete().eq("subject_id", context.subjectId).eq("date", date);
+    if (error) throw error;
+    return;
+  }
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&date=eq.${date}`, {
     method: "DELETE",
     headers: headers(),
@@ -170,7 +183,12 @@ export async function deleteSupabaseEntry(date: string): Promise<void> {
   }
 }
 
-export async function deleteAllSupabaseEntries(): Promise<void> {
+export async function deleteAllSupabaseEntries(context?: AlbaAccountContext): Promise<void> {
+  if (context) {
+    const { error } = await getSupabaseClient().from("cycle_entries_v2").delete().eq("subject_id", context.subjectId);
+    if (error) throw error;
+    return;
+  }
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}`, {
     method: "DELETE",
     headers: headers(),
@@ -181,7 +199,12 @@ export async function deleteAllSupabaseEntries(): Promise<void> {
   }
 }
 
-async function fetchRemoteEntries(): Promise<CycleEntry[]> {
+async function fetchRemoteEntries(context?: AlbaAccountContext): Promise<CycleEntry[]> {
+  if (context) {
+    const { data, error } = await getSupabaseClient().from("cycle_entries_v2").select("entry").eq("subject_id", context.subjectId);
+    if (error) throw error;
+    return (data ?? []).map((row) => row.entry as CycleEntry);
+  }
   const response = await fetch(`${baseUrl()}/rest/v1/cycle_entries?couple_id=eq.${COUPLE_ID}&select=date,entry,updated_at`, {
     headers: headers(),
   });
@@ -194,8 +217,23 @@ async function fetchRemoteEntries(): Promise<CycleEntry[]> {
   return rows.map((row) => row.entry);
 }
 
-async function pushRemoteEntries(entries: CycleEntry[]): Promise<void> {
+async function pushRemoteEntries(entries: CycleEntry[], context?: AlbaAccountContext): Promise<void> {
   const safeEntries = entries.filter((entry) => !isDemoEntry(entry));
+  if (context) {
+    const rows = safeEntries.map((entry) => ({
+      couple_id: context.coupleId,
+      subject_id: context.subjectId,
+      date: entry.date,
+      recorded_by: context.userId,
+      review_state: "accepted",
+      entry,
+      updated_at: entry.updatedAt,
+    }));
+    if (rows.length === 0) return;
+    const { error } = await getSupabaseClient().from("cycle_entries_v2").upsert(rows, { onConflict: "subject_id,date" });
+    if (error) throw error;
+    return;
+  }
   const rows: SupabaseCycleRow[] = safeEntries.map((entry) => ({
     couple_id: COUPLE_ID,
     date: entry.date,
@@ -293,18 +331,4 @@ function headers(): HeadersInit {
     apikey: key,
     Authorization: `Bearer ${key}`,
   };
-}
-
-let sharedClient: ReturnType<typeof createClient> | null = null;
-
-function supabaseClient(): ReturnType<typeof createClient> {
-  if (sharedClient) return sharedClient;
-  sharedClient = createClient(baseUrl(), String(import.meta.env.VITE_SUPABASE_ANON_KEY), {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
-  return sharedClient;
 }

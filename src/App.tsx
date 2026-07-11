@@ -49,7 +49,8 @@ import {
   optionLabel,
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
-import { applyRemoteDelete, applyRemoteEntry, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
+import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
+import { getCurrentSession, resolveAccountContext, signInWithPassword, signOut, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -218,6 +219,11 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<{ fileName: string; entries: CycleEntry[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [accountContext, setAccountContext] = useState<AlbaAccountContext | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authEmail, setAuthEmail] = useState("gustavomarinovando@gmail.com");
+  const [authPassword, setAuthPassword] = useState("");
   const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
   const [isInitialCloudSyncSettling, setIsInitialCloudSyncSettling] = useState(() => isSupabaseConfigured());
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -327,6 +333,27 @@ export default function App() {
   };
 
   useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const session = await getCurrentSession();
+        if (!session) {
+          if (active) setIsInitialCloudSyncSettling(false);
+          return;
+        }
+        const context = await resolveAccountContext(session);
+        await bindDatasetToSubject("legacy-local", context.subjectId);
+        if (active) setAccountContext(context);
+      } catch (error) {
+        if (active) setStatus(error instanceof Error ? error.message : "No se pudo abrir la cuenta de Alba.");
+      } finally {
+        if (active) setIsAuthReady(true);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     async function loadInitialData() {
       try {
         const storedEntries = await getAllEntries();
@@ -349,11 +376,7 @@ export default function App() {
         setEntries(realEntries);
         setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, realEntries) ? selectedDate : null);
 
-        if (isSupabaseConfigured()) {
-          void syncCloudData({ quiet: true, entriesOverride: realEntries, initial: true });
-        } else {
-          setIsInitialCloudSyncSettling(false);
-        }
+        if (!isSupabaseConfigured()) setIsInitialCloudSyncSettling(false);
       } catch {
         setIsInitialCloudSyncSettling(false);
         setStatus("No se pudo abrir la base local.");
@@ -369,6 +392,11 @@ export default function App() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthReady || !accountContext || isDemoMode) return;
+    void syncCloudData({ quiet: true, initial: true });
+  }, [isAuthReady, accountContext?.subjectId]);
 
   useEffect(() => {
     const revealItems = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
@@ -393,7 +421,7 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (isDemoMode || !isSupabaseConfigured()) return;
+    if (isDemoMode || !accountContext) return;
 
     const syncIfActive = () => {
       if (document.visibilityState === "hidden" || isSyncing) return;
@@ -412,10 +440,10 @@ export default function App() {
       window.removeEventListener("online", syncIfActive);
       document.removeEventListener("visibilitychange", syncIfActive);
     };
-  }, [isDemoMode, isSyncing]);
+  }, [isDemoMode, isSyncing, accountContext?.subjectId]);
 
   useEffect(() => {
-    if (isDemoMode || !isSupabaseConfigured()) {
+    if (isDemoMode || !accountContext) {
       setLiveSyncState("off");
       return;
     }
@@ -442,10 +470,11 @@ export default function App() {
         else if (nextStatus === "CHANNEL_ERROR" || nextStatus === "TIMED_OUT") setLiveSyncState("error");
         else if (nextStatus === "CLOSED") setLiveSyncState("connecting");
       },
+      accountContext,
     );
 
     return unsubscribe;
-  }, [isDemoMode]);
+  }, [isDemoMode, accountContext?.subjectId]);
 
   const entryByDate = useMemo(() => new Map(entries.map((entry) => [entry.date, entry])), [entries]);
   const stats = useMemo(() => calculateStats(entries), [entries]);
@@ -648,9 +677,9 @@ export default function App() {
     setEntries(storedEntries);
     setSaveState("saved");
     if (!options?.quiet) setStatus(`Registro de ${displayDate(normalized.date)} guardado.`);
-    if (isSupabaseConfigured()) {
+    if (accountContext) {
       try {
-        await flushPendingSupabaseMutations();
+        await flushPendingSupabaseMutations(accountContext);
       } catch {
         setStatus("Guardado en este dispositivo; no se pudo sincronizar con la nube.");
       }
@@ -671,9 +700,9 @@ export default function App() {
 
     setEntries((current) => current.filter((entry) => entry.date !== selectedDate));
     await deleteEntryForSync(selectedDate);
-    if (isSupabaseConfigured()) {
+    if (accountContext) {
       try {
-        await flushPendingSupabaseMutations();
+        await flushPendingSupabaseMutations(accountContext);
       } catch {
         setStatus("Eliminado en este dispositivo; la nube se actualizará al recuperar conexión.");
       }
@@ -694,8 +723,8 @@ export default function App() {
 
     if (!window.confirm("Esto borrará todos los registros de este dispositivo y de la nube compartida.")) return;
     try {
-      if (isSupabaseConfigured()) {
-        await deleteAllSupabaseEntries();
+      if (accountContext) {
+        await deleteAllSupabaseEntries(accountContext);
       }
       await clearEntries();
       setEntries([]);
@@ -736,15 +765,15 @@ export default function App() {
       return;
     }
 
-    if (!isSupabaseConfigured()) {
-      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
+    if (!accountContext) {
+      setStatus("Inicia sesión para sincronizar con la cuenta migrada.");
       return;
     }
 
     setIsPreparingSyncPreview(true);
     try {
       const sourceEntries = (await getAllEntries()).filter((entry) => !isDemoEntry(entry));
-      const preview = await previewSyncWithSupabase(sourceEntries);
+      const preview = await previewSyncWithSupabase(sourceEntries, accountContext);
       setSyncPreview(preview);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo preparar el resumen de sync.");
@@ -783,20 +812,20 @@ export default function App() {
       return;
     }
 
-    if (!isSupabaseConfigured()) {
+    if (!accountContext) {
       if (options?.initial) setIsInitialCloudSyncSettling(false);
-      if (!options?.quiet) setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.");
+      if (!options?.quiet) setStatus("Inicia sesión para sincronizar con la cuenta migrada.");
       return;
     }
 
     setIsSyncing(true);
     lastCloudSyncAt.current = Date.now();
     try {
-      await flushPendingSupabaseMutations();
+      await flushPendingSupabaseMutations(accountContext);
       const sourceEntries = (options?.entriesOverride ?? (await getAllEntries())).filter((entry) => !isDemoEntry(entry));
       const mergedEntries = shouldPushMergedEntries
-        ? await syncWithSupabase(sourceEntries)
-        : await pullFromSupabase(sourceEntries);
+        ? await syncWithSupabase(sourceEntries, accountContext)
+        : await pullFromSupabase(sourceEntries, accountContext);
       await replaceEntries(mergedEntries);
       setEntries(await getAllEntries());
       setSyncPreview(null);
@@ -810,14 +839,14 @@ export default function App() {
   }
 
   async function testCloudConnection() {
-    if (!isSupabaseConfigured()) {
-      setStatus("Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para probar Supabase.");
+    if (!accountContext) {
+      setStatus("Inicia sesión para probar el acceso autenticado.");
       return;
     }
 
     setIsTestingCloud(true);
     try {
-      await testSupabaseConnection();
+      await testSupabaseConnection(accountContext);
       setStatus("Conexión con la nube lista.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo probar Supabase.");
@@ -1020,6 +1049,39 @@ export default function App() {
       setStatus(error instanceof Error ? error.message : "No se pudo importar el archivo.");
     } finally {
       if (importInput.current) importInput.current.value = "";
+    }
+  }
+
+  async function logInToAlba(event: React.FormEvent) {
+    event.preventDefault();
+    if (!authEmail.trim() || !authPassword) return;
+    setIsAuthenticating(true);
+    try {
+      const session = await signInWithPassword(authEmail, authPassword);
+      const context = await resolveAccountContext(session);
+      await bindDatasetToSubject("legacy-local", context.subjectId);
+      setAccountContext(context);
+      setAuthPassword("");
+      setStatus(`Sesión iniciada como ${context.email}. Tus datos locales siguen intactos.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
+    } finally {
+      setIsAuthenticating(false);
+      setIsAuthReady(true);
+    }
+  }
+
+  async function logOutOfAlba() {
+    setIsAuthenticating(true);
+    try {
+      await signOut();
+      setAccountContext(null);
+      setLiveSyncState("off");
+      setStatus("Sesión cerrada. Los datos locales permanecen en este dispositivo.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo cerrar sesión.");
+    } finally {
+      setIsAuthenticating(false);
     }
   }
 
@@ -1792,6 +1854,35 @@ export default function App() {
           <Database className="h-5 w-5 text-moss" aria-hidden="true" />
           <h2 className="text-lg font-semibold">Ajustes</h2>
         </div>
+        <div className="input-card mb-4">
+          <span className="eyebrow">Cuenta Alba</span>
+          {accountContext ? (
+            <div className="mt-2 grid gap-3">
+              <div>
+                <strong>{accountContext.email}</strong>
+                <p>Ciclo de {accountContext.subjectName}. Sync autenticado activo.</p>
+              </div>
+              <button className="secondary-button" type="button" onClick={logOutOfAlba} disabled={isAuthenticating}>
+                Cerrar sesión
+              </button>
+            </div>
+          ) : (
+            <form className="mt-2 grid gap-3" onSubmit={logInToAlba}>
+              <label className="grid gap-1 text-sm">
+                Correo
+                <input className="rounded border border-outline bg-surface px-3 py-2" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                Contraseña
+                <input className="rounded border border-outline bg-surface px-3 py-2" type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+              </label>
+              <button className="primary-button" type="submit" disabled={!isAuthReady || isAuthenticating || !authPassword}>
+                {isAuthenticating ? "Entrando..." : "Iniciar sesión"}
+              </button>
+              <p className="text-xs text-ink/60">Iniciar o cerrar sesión nunca borra IndexedDB.</p>
+            </form>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <button className={isDemoMode ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={isDemoMode ? exitDemoMode : loadDemoData}>
             <Database aria-hidden="true" size={17} />
@@ -1909,7 +2000,7 @@ export default function App() {
           </div>
         </div>
         <div className="info-box mt-3">
-          Sync usa Supabase con <strong>couple_id = 1</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
+          Sync de ciclo: <strong>{accountContext ? `cuenta de ${accountContext.subjectName}` : "requiere iniciar sesión"}</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
           <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.
           Los datos demo son solo para explorar y nunca se suben.
         </div>
