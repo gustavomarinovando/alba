@@ -50,7 +50,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { getCurrentSession, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { getCurrentSession, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -1093,6 +1093,18 @@ export default function App() {
     }
   }
 
+  async function resendConfirmation() {
+    setIsAuthenticating(true);
+    try {
+      await resendSignupConfirmation(authEmail);
+      setStatus("Enviamos un enlace nuevo. Usa el más reciente y descarta el que apunta a localhost.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo reenviar la confirmación.");
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }
+
   async function confirmImportData() {
     if (!importPreview) return;
     setIsImporting(true);
@@ -1195,18 +1207,22 @@ export default function App() {
   if (isAuthReady && !accountContext) {
     return (
       <main className="min-h-screen bg-background px-4 py-10 text-ink">
-        <section className="modal-panel mx-auto max-w-md">
+        <section className="modal-panel mx-auto max-w-md gap-5">
           <div>
             <p className="eyebrow">Alba privada</p>
-            <h1>{authMode === "register" ? "Crear tu cuenta" : "Iniciar sesión"}</h1>
-            <p>Tus registros permanecen ocultos hasta verificar tu identidad.</p>
+            <h1>{authMode === "register" ? "Crea tu cuenta de Alba" : "Bienvenida de vuelta"}</h1>
+            <p>{authMode === "register" ? "Esta cuenta protegerá tus registros y los vinculará contigo." : "Entra para ver tus registros privados."}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Acceso a Alba">
+            <button className={authMode === "register" ? "primary-button" : "secondary-button"} type="button" onClick={() => setAuthMode("register")}>Crear cuenta</button>
+            <button className={authMode === "login" ? "primary-button" : "secondary-button"} type="button" onClick={() => setAuthMode("login")}>Iniciar sesión</button>
           </div>
           <form className="grid gap-3" onSubmit={logInToAlba}>
             <label className="grid gap-1">Correo<input className="rounded border border-outline bg-surface px-3 py-2" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} /></label>
             <label className="grid gap-1">Contraseña<input className="rounded border border-outline bg-surface px-3 py-2" type="password" minLength={8} autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} /></label>
             <button className="primary-button" type="submit" disabled={isAuthenticating || authPassword.length < 8}>{isAuthenticating ? "Procesando..." : authMode === "register" ? "Registrarme" : "Entrar"}</button>
           </form>
-          <button className="secondary-button" type="button" onClick={() => setAuthMode((mode) => mode === "login" ? "register" : "login")}>{authMode === "login" ? "Crear una cuenta" : "Ya tengo cuenta"}</button>
+          {authMode === "login" ? <button className="secondary-button" type="button" onClick={resendConfirmation} disabled={isAuthenticating || !authEmail}>Reenviar confirmación</button> : null}
           {status ? <div className="info-box">{status}</div> : null}
           <p className="text-xs text-ink/60">Cerrar sesión oculta la información sin borrar la copia local segura.</p>
         </section>

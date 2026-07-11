@@ -39,9 +39,26 @@ export async function signInWithPassword(email: string, password: string): Promi
 }
 
 export async function signUpWithPassword(email: string, password: string): Promise<Session | null> {
-  const { data, error } = await getSupabaseClient().auth.signUp({ email: email.trim(), password });
+  const { data, error } = await getSupabaseClient().auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: authRedirectUrl() },
+  });
   if (error) throw error;
   return data.session;
+}
+
+export async function resendSignupConfirmation(email: string): Promise<void> {
+  const { error } = await getSupabaseClient().auth.resend({
+    type: "signup",
+    email: email.trim(),
+    options: { emailRedirectTo: authRedirectUrl() },
+  });
+  if (error) throw error;
+}
+
+function authRedirectUrl(): string {
+  return typeof window === "undefined" ? "https://alba-psi.vercel.app/" : `${window.location.origin}/`;
 }
 
 export async function signOut(): Promise<void> {
