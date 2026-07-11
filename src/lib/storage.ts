@@ -2,9 +2,39 @@ import Dexie, { type Table } from "dexie";
 import type { CycleEntry, ExportPayload } from "../types";
 import { normalizeTemperatureReadings } from "./temperature";
 
+export const LEGACY_LOCAL_DATASET_ID = "legacy-local";
+
+interface StoredCycleEntry extends CycleEntry {
+  datasetId: string;
+}
+
+export interface LocalDataset {
+  id: string;
+  kind: "legacy" | "subject";
+  subjectId?: string;
+  createdAt: string;
+  migratedAt?: string;
+}
+
+export interface PendingSyncMutation {
+  datasetId: string;
+  date: string;
+  type: "upsert" | "delete";
+  entry?: CycleEntry;
+  queuedAt: string;
+  revision: string;
+}
+
+interface LegacyPendingSyncMutation extends Omit<PendingSyncMutation, "datasetId"> {}
+
 class CycleDatabase extends Dexie {
+  /** Kept as a read-only rollback copy after the v3 migration. */
   entries!: Table<CycleEntry, string>;
-  syncQueue!: Table<PendingSyncMutation, string>;
+  /** Kept as a read-only rollback copy after the v3 migration. */
+  syncQueue!: Table<LegacyPendingSyncMutation, string>;
+  cycleEntries!: Table<StoredCycleEntry, [string, string]>;
+  syncQueueV3!: Table<PendingSyncMutation, [string, string]>;
+  datasets!: Table<LocalDataset, string>;
 
   constructor() {
     super("ciclo-local");
@@ -15,33 +45,60 @@ class CycleDatabase extends Dexie {
       entries: "&date, isPeriod, updatedAt",
       syncQueue: "&date, type, queuedAt",
     });
+    this.version(3)
+      .stores({
+        entries: "&date, isPeriod, updatedAt",
+        syncQueue: "&date, type, queuedAt",
+        cycleEntries: "&[datasetId+date], datasetId, date, isPeriod, updatedAt",
+        syncQueueV3: "&[datasetId+date], datasetId, date, type, queuedAt",
+        datasets: "&id, kind, subjectId, createdAt",
+      })
+      .upgrade(async (transaction) => {
+        const migratedAt = new Date().toISOString();
+        const legacyEntries = (await transaction.table<CycleEntry, string>("entries").toArray()).map((entry) => ({
+          ...normalizeEntry(entry),
+          datasetId: LEGACY_LOCAL_DATASET_ID,
+        }));
+        const legacyQueue = (await transaction.table<LegacyPendingSyncMutation, string>("syncQueue").toArray()).map((mutation) => ({
+          ...mutation,
+          datasetId: LEGACY_LOCAL_DATASET_ID,
+        }));
+
+        await transaction.table<LocalDataset, string>("datasets").put({
+          id: LEGACY_LOCAL_DATASET_ID,
+          kind: "legacy",
+          createdAt: migratedAt,
+          migratedAt,
+        });
+        if (legacyEntries.length > 0) {
+          await transaction.table<StoredCycleEntry, [string, string]>("cycleEntries").bulkPut(legacyEntries);
+        }
+        if (legacyQueue.length > 0) {
+          await transaction.table<PendingSyncMutation, [string, string]>("syncQueueV3").bulkPut(legacyQueue);
+        }
+      });
   }
 }
 
 export const db = new CycleDatabase();
 
-export interface PendingSyncMutation {
-  date: string;
-  type: "upsert" | "delete";
-  entry?: CycleEntry;
-  queuedAt: string;
-  revision: string;
+export async function getAllEntries(datasetId = LEGACY_LOCAL_DATASET_ID): Promise<CycleEntry[]> {
+  const entries = await db.cycleEntries.where("datasetId").equals(datasetId).sortBy("date");
+  return entries.map(toCycleEntry);
 }
 
-export async function getAllEntries(): Promise<CycleEntry[]> {
-  const entries = await db.entries.orderBy("date").toArray();
-  return entries.map(normalizeEntry);
+export async function saveEntry(entry: CycleEntry, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
+  await ensureDataset(datasetId);
+  await db.cycleEntries.put(toStoredEntry(entry, datasetId));
 }
 
-export async function saveEntry(entry: CycleEntry): Promise<void> {
-  await db.entries.put(normalizeEntry(entry));
-}
-
-export async function saveEntryForSync(entry: CycleEntry): Promise<void> {
+export async function saveEntryForSync(entry: CycleEntry, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
   const normalized = normalizeEntry(entry);
-  await db.transaction("rw", db.entries, db.syncQueue, async () => {
-    await db.entries.put(normalized);
-    await db.syncQueue.put({
+  await ensureDataset(datasetId);
+  await db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    await db.cycleEntries.put(toStoredEntry(normalized, datasetId));
+    await db.syncQueueV3.put({
+      datasetId,
       date: normalized.date,
       type: "upsert",
       entry: normalized,
@@ -51,14 +108,16 @@ export async function saveEntryForSync(entry: CycleEntry): Promise<void> {
   });
 }
 
-export async function deleteEntry(date: string): Promise<void> {
-  await db.entries.delete(date);
+export async function deleteEntry(date: string, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
+  await db.cycleEntries.delete([datasetId, date]);
 }
 
-export async function deleteEntryForSync(date: string): Promise<void> {
-  await db.transaction("rw", db.entries, db.syncQueue, async () => {
-    await db.entries.delete(date);
-    await db.syncQueue.put({
+export async function deleteEntryForSync(date: string, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
+  await ensureDataset(datasetId);
+  await db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    await db.cycleEntries.delete([datasetId, date]);
+    await db.syncQueueV3.put({
+      datasetId,
       date,
       type: "delete",
       queuedAt: new Date().toISOString(),
@@ -67,48 +126,74 @@ export async function deleteEntryForSync(date: string): Promise<void> {
   });
 }
 
-export async function getPendingSyncMutations(): Promise<PendingSyncMutation[]> {
-  return db.syncQueue.orderBy("queuedAt").toArray();
+export async function getPendingSyncMutations(datasetId = LEGACY_LOCAL_DATASET_ID): Promise<PendingSyncMutation[]> {
+  return db.syncQueueV3.where("datasetId").equals(datasetId).sortBy("queuedAt");
 }
 
-export async function completePendingSyncMutation(date: string, revision: string): Promise<void> {
-  await db.transaction("rw", db.syncQueue, async () => {
-    const current = await db.syncQueue.get(date);
-    if (current?.revision === revision) await db.syncQueue.delete(date);
+export async function completePendingSyncMutation(
+  date: string,
+  revision: string,
+  datasetId = LEGACY_LOCAL_DATASET_ID,
+): Promise<void> {
+  await db.transaction("rw", db.syncQueueV3, async () => {
+    const key: [string, string] = [datasetId, date];
+    const current = await db.syncQueueV3.get(key);
+    if (current?.revision === revision) await db.syncQueueV3.delete(key);
   });
 }
 
-export async function applyRemoteEntry(entry: CycleEntry): Promise<boolean> {
+export async function applyRemoteEntry(entry: CycleEntry, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<boolean> {
   const normalized = normalizeEntry(entry);
-  return db.transaction("rw", db.entries, db.syncQueue, async () => {
-    if (await db.syncQueue.get(normalized.date)) return false;
-    const local = await db.entries.get(normalized.date);
+  await ensureDataset(datasetId);
+  return db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    const key: [string, string] = [datasetId, normalized.date];
+    if (await db.syncQueueV3.get(key)) return false;
+    const local = await db.cycleEntries.get(key);
     if (local && Date.parse(local.updatedAt) >= Date.parse(normalized.updatedAt)) return false;
-    await db.entries.put(normalized);
+    await db.cycleEntries.put(toStoredEntry(normalized, datasetId));
     return true;
   });
 }
 
-export async function applyRemoteDelete(date: string): Promise<boolean> {
-  return db.transaction("rw", db.entries, db.syncQueue, async () => {
-    if (await db.syncQueue.get(date)) return false;
-    await db.entries.delete(date);
+export async function applyRemoteDelete(date: string, datasetId = LEGACY_LOCAL_DATASET_ID): Promise<boolean> {
+  await ensureDataset(datasetId);
+  return db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    const key: [string, string] = [datasetId, date];
+    if (await db.syncQueueV3.get(key)) return false;
+    await db.cycleEntries.delete(key);
     return true;
   });
 }
 
-export async function replaceEntries(entries: CycleEntry[]): Promise<void> {
-  await db.transaction("rw", db.entries, async () => {
-    await db.entries.clear();
-    await db.entries.bulkPut(entries);
+export async function replaceEntries(entries: CycleEntry[], datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
+  await ensureDataset(datasetId);
+  const storedEntries = entries.map((entry) => toStoredEntry(entry, datasetId));
+  await db.transaction("rw", db.cycleEntries, async () => {
+    await db.cycleEntries.where("datasetId").equals(datasetId).delete();
+    if (storedEntries.length > 0) await db.cycleEntries.bulkPut(storedEntries);
   });
 }
 
-export async function clearEntries(): Promise<void> {
-  await db.transaction("rw", db.entries, db.syncQueue, async () => {
-    await db.entries.clear();
-    await db.syncQueue.clear();
+export async function clearEntries(datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
+  await db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    await db.cycleEntries.where("datasetId").equals(datasetId).delete();
+    await db.syncQueueV3.where("datasetId").equals(datasetId).delete();
   });
+}
+
+export async function bindDatasetToSubject(datasetId: string, subjectId: string): Promise<void> {
+  const current = await db.datasets.get(datasetId);
+  await db.datasets.put({
+    id: datasetId,
+    kind: "subject",
+    subjectId,
+    createdAt: current?.createdAt ?? new Date().toISOString(),
+    migratedAt: current?.migratedAt,
+  });
+}
+
+export async function getDataset(datasetId = LEGACY_LOCAL_DATASET_ID): Promise<LocalDataset | undefined> {
+  return db.datasets.get(datasetId);
 }
 
 export function buildExport(entries: CycleEntry[]): ExportPayload {
@@ -127,6 +212,24 @@ export function parseImport(raw: string): CycleEntry[] {
   }
 
   return payload.entries.map(normalizeEntry);
+}
+
+async function ensureDataset(datasetId: string): Promise<void> {
+  if (await db.datasets.get(datasetId)) return;
+  await db.datasets.put({
+    id: datasetId,
+    kind: "legacy",
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function toStoredEntry(entry: Partial<CycleEntry>, datasetId: string): StoredCycleEntry {
+  return { ...normalizeEntry(entry), datasetId };
+}
+
+function toCycleEntry(entry: StoredCycleEntry): CycleEntry {
+  const { datasetId: _datasetId, ...cycleEntry } = entry;
+  return normalizeEntry(cycleEntry);
 }
 
 function normalizeEntry(entry: Partial<CycleEntry>): CycleEntry {
