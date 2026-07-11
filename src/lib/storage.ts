@@ -168,9 +168,20 @@ export async function applyRemoteDelete(date: string, datasetId = LEGACY_LOCAL_D
 export async function replaceEntries(entries: CycleEntry[], datasetId = LEGACY_LOCAL_DATASET_ID): Promise<void> {
   await ensureDataset(datasetId);
   const storedEntries = entries.map((entry) => toStoredEntry(entry, datasetId));
-  await db.transaction("rw", db.cycleEntries, async () => {
+  await db.transaction("rw", db.cycleEntries, db.syncQueueV3, async () => {
+    const pending = await db.syncQueueV3.where("datasetId").equals(datasetId).toArray();
     await db.cycleEntries.where("datasetId").equals(datasetId).delete();
     if (storedEntries.length > 0) await db.cycleEntries.bulkPut(storedEntries);
+
+    // A pull or restore must not erase local intent that has not reached Supabase yet.
+    for (const mutation of pending) {
+      const key: [string, string] = [datasetId, mutation.date];
+      if (mutation.type === "delete") {
+        await db.cycleEntries.delete(key);
+      } else if (mutation.entry) {
+        await db.cycleEntries.put(toStoredEntry(mutation.entry, datasetId));
+      }
+    }
   });
 }
 

@@ -215,6 +215,8 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
+  const [importPreview, setImportPreview] = useState<{ fileName: string; entries: CycleEntry[] } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
   const [isInitialCloudSyncSettling, setIsInitialCloudSyncSettling] = useState(() => isSupabaseConfigured());
@@ -1013,15 +1015,29 @@ export default function App() {
     if (!file) return;
     try {
       const imported = parseImport(await file.text());
-      safeLocalSet("alba-demo-mode", "false");
-      setIsDemoMode(false);
-      await replaceEntries(imported);
-      setEntries(await getAllEntries());
-      setStatus(`Importados ${imported.length} registros.`);
+      setImportPreview({ fileName: file.name, entries: imported });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo importar el archivo.");
     } finally {
       if (importInput.current) importInput.current.value = "";
+    }
+  }
+
+  async function confirmImportData() {
+    if (!importPreview) return;
+    setIsImporting(true);
+    try {
+      safeLocalSet("alba-demo-mode", "false");
+      setIsDemoMode(false);
+      await replaceEntries(importPreview.entries);
+      const restoredEntries = await getAllEntries();
+      setEntries(restoredEntries);
+      setImportPreview(null);
+      setStatus(`Importados ${restoredEntries.length} registros; los cambios locales pendientes fueron preservados.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo importar el archivo.");
+    } finally {
+      setIsImporting(false);
     }
   }
 
@@ -1134,6 +1150,7 @@ export default function App() {
         </div>
       ) : null}
       {syncPreview ? renderSyncPreviewModal() : null}
+      {importPreview ? renderImportPreviewModal() : null}
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -1237,6 +1254,49 @@ export default function App() {
             <button className="primary-button" type="button" onClick={() => syncCloudData()} disabled={isSyncing}>
               <Database aria-hidden="true" size={17} />
               {isSyncing ? "Sincronizando..." : "Confirmar sync"}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  function renderImportPreviewModal() {
+    if (!importPreview) return null;
+    const sortedDates = importPreview.entries.map((entry) => entry.date).sort();
+    const firstDate = sortedDates.at(0);
+    const lastDate = sortedDates.at(-1);
+
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="import-preview-title">
+        <section className="modal-panel sync-preview-panel">
+          <div>
+            <p className="eyebrow">Restaurar respaldo</p>
+            <h2 id="import-preview-title">Revisar antes de importar</h2>
+            <p>
+              Archivo: <strong>{importPreview.fileName}</strong>. Alba reemplazará los registros visibles de este dispositivo con el
+              respaldo, pero conservará y volverá a aplicar cualquier cambio local que todavía esté pendiente de sincronización.
+            </p>
+          </div>
+
+          <div className="sync-preview-grid">
+            <SyncPreviewStat label="Registros actuales" value={entries.length} />
+            <SyncPreviewStat label="Registros del respaldo" value={importPreview.entries.length} />
+          </div>
+
+          <div className="info-box">
+            {firstDate && lastDate
+              ? `El respaldo cubre desde ${displayDate(firstDate)} hasta ${displayDate(lastDate)}.`
+              : "El respaldo no contiene registros."}{" "}
+            Exporta una copia actual antes de confirmar si quieres conservar un punto de retorno manual.
+          </div>
+
+          <div className="modal-actions">
+            <button className="secondary-button" type="button" onClick={() => setImportPreview(null)} disabled={isImporting}>
+              Cancelar
+            </button>
+            <button className="primary-button" type="button" onClick={confirmImportData} disabled={isImporting}>
+              {isImporting ? "Importando..." : "Confirmar importación"}
             </button>
           </div>
         </section>

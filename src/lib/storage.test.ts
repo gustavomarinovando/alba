@@ -82,3 +82,22 @@ test("remote changes cannot overwrite a pending local revision", async () => {
   expect(await storage.applyRemoteEntry(remoteEntry)).toBe(false);
   expect((await storage.getAllEntries())[0].note).toBe("preserve me");
 });
+
+test("replacement replays pending upserts and deletes", async () => {
+  const storage = await import("./storage");
+  const pendingUpsert = { ...legacyEntry, note: "pending wins" };
+  const pendingDelete = { ...legacyEntry, date: "2026-07-09", note: "delete me" };
+  await storage.saveEntryForSync(pendingUpsert);
+  await storage.saveEntryForSync(pendingDelete);
+  await storage.deleteEntryForSync(pendingDelete.date);
+
+  await storage.replaceEntries([
+    { ...legacyEntry, note: "imported version" },
+    { ...pendingDelete, note: "import resurrected delete" },
+  ]);
+
+  const entries = await storage.getAllEntries();
+  expect(entries).toHaveLength(1);
+  expect(entries[0].note).toBe("pending wins");
+  expect(await storage.getPendingSyncMutations()).toHaveLength(2);
+});
