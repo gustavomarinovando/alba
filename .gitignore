@@ -6,3 +6,8 @@ dist/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# Local handover and private chat exports. Never publish these files.
+handover.md
+public/instagram/
+public/whatsapp/
