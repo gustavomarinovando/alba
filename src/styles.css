@@ -1493,11 +1493,83 @@ textarea {
     stroke: #d9d2c8;
   }
 
-  .side-walking-cat .side-eye {
+  .side-walking-cat .side-far {
+    filter: brightness(0.82);
+  }
+
+  .side-walking-cat .side-body,
+  .side-walking-cat .side-head,
+  .side-walking-cat .side-limb,
+  .side-walking-cat .side-paw,
+  .side-walking-cat .side-chest,
+  .side-walking-cat .side-mask,
+  .side-walking-cat .side-tail,
+  .side-walking-cat .side-tuxedo-chest,
+  .side-walking-cat .side-tuxedo-face {
+    stroke-width: 0;
+  }
+
+  .side-walking-cat .side-limb,
+  .side-walking-cat .side-paw {
+    fill: #f29a2e;
+  }
+
+  .side-walking-cat.black .side-limb,
+  .side-walking-cat.black .side-paw {
+    fill: #242426;
+  }
+
+  .side-walking-cat.siamese .side-limb {
+    fill: #d7c0a4;
+  }
+
+  .side-walking-cat.siamese .side-paw,
+  .side-walking-cat.siamese .side-ear-front,
+  .side-walking-cat.siamese .side-ear-back,
+  .side-walking-cat.siamese .side-tail {
+    fill: #4b3a2f;
+    stroke: #4b3a2f;
+  }
+
+  .side-walking-cat.tuxedo .side-limb {
+    fill: #17191c;
+  }
+
+  .side-walking-cat.tuxedo .side-paw {
+    fill: #f4f1e9;
+  }
+
+  .side-walking-cat .side-inner-ear {
+    fill: #d99a8f;
+  }
+
+  .side-walking-cat.black .side-inner-ear,
+  .side-walking-cat.tuxedo .side-inner-ear {
+    fill: #4a4a4d;
+  }
+
+  .side-walking-cat.siamese .side-inner-ear {
+    fill: #8a6a55;
+  }
+
+  .side-walking-cat .side-pupil {
     fill: #141414;
+  }
+
+  .side-walking-cat .side-eye-shine {
+    fill: #ffffff;
+    opacity: 0.85;
+  }
+
+  .side-walking-cat .side-eye {
+    fill: #b5892f;
     transform-box: fill-box;
     transform-origin: center;
     animation: cat-blink 4.6s infinite;
+  }
+
+  .side-walking-cat.black .side-eye {
+    fill: #f2c94c;
   }
 
   .side-walking-cat.siamese .side-eye {
@@ -1512,9 +1584,9 @@ textarea {
     fill: #ef8f86;
   }
 
-  .side-walking-cat .side-tail {
+  .side-walking-cat .side-tail-group {
     transform-box: fill-box;
-    transform-origin: right center;
+    transform-origin: left center;
     animation: side-tail-sway 1.4s ease-in-out infinite;
   }
 
@@ -2809,11 +2881,11 @@ button:active:not(:disabled),
 @keyframes side-leg-step {
   0%,
   100% {
-    transform: rotate(-12deg) translateX(0) translateY(0);
+    transform: rotate(-7deg) translateX(0) translateY(0);
   }
 
   50% {
-    transform: rotate(14deg) translateX(4px) translateY(-2px);
+    transform: rotate(8deg) translateX(3px) translateY(-1px);
   }
 }
 
