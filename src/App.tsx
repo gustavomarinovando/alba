@@ -222,7 +222,14 @@ export default function App() {
   const [accountContext, setAccountContext] = useState<AlbaAccountContext | null>(null);
   const [authenticatedEmail, setAuthenticatedEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [createdInvite, setCreatedInvite] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [createdInvite, setCreatedInvite] = useState<{ code: string; expiresAt: string } | null>(() => {
+    try {
+      const stored = safeLocalGet("alba-partner-invite");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as { code: string; expiresAt: string };
+      return new Date(parsed.expiresAt).getTime() > Date.now() ? parsed : null;
+    } catch { return null; }
+  });
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authEmail, setAuthEmail] = useState("saritcarrillofuentes@gmail.com");
@@ -1123,6 +1130,7 @@ export default function App() {
     try {
       const invite = await createPartnerInvite();
       setCreatedInvite(invite);
+      safeLocalSet("alba-partner-invite", JSON.stringify(invite));
       setStatus("Invitación creada. Compártela de forma privada.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
