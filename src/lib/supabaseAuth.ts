@@ -13,7 +13,7 @@ export async function createPartnerInvite(): Promise<{ code: string; expiresAt: 
   const { data, error } = await getSupabaseClient().rpc("create_partner_invite");
   if (error) throw error;
   const invite = Array.isArray(data) ? data[0] : data;
-  if (!invite) throw new Error("No se pudo crear la invitación.");
+  if (!invite) throw new Error("Supabase no devolvió el código. Ejecuta la migración 008 y vuelve a intentarlo.");
   return { code: invite.invite_code, expiresAt: invite.expires_at };
 }
 
