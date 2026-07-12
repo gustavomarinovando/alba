@@ -29,6 +29,18 @@ export async function getPartnerEmail(): Promise<string | null> {
   return row?.partner_email ?? null;
 }
 
+export async function getPendingInviteStatus(): Promise<{ expiresAt: string } | null> {
+  try {
+    const { data, error } = await getSupabaseClient().rpc("get_pending_invite_status");
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row?.expires_at ? { expiresAt: row.expires_at } : null;
+  } catch {
+    // Older databases without migration 011 keep the previous behaviour.
+    return null;
+  }
+}
+
 export async function leaveCouple(): Promise<void> {
   const { error } = await getSupabaseClient().rpc("leave_couple");
   if (error) throw error;

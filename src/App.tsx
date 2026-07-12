@@ -6,6 +6,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  Clipboard,
+  ClipboardCheck,
   ClipboardList,
   Database,
   Download,
@@ -41,7 +43,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerEmail, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerEmail, getPendingInviteStatus, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -233,6 +235,8 @@ export default function App() {
     } catch { return null; }
   });
   const [partnerEmail, setPartnerEmail] = useState<string | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<{ expiresAt: string } | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [inviteJustAccepted, setInviteJustAccepted] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -429,6 +433,9 @@ export default function App() {
   useEffect(() => {
     if (!accountContext) return;
     void getPartnerEmail().then(setPartnerEmail).catch(() => setPartnerEmail(null));
+    if (accountContext.role === "owner") {
+      void getPendingInviteStatus().then(setPendingInvite).catch(() => setPendingInvite(null));
+    }
   }, [accountContext?.coupleId, accountContext?.role]);
 
   useEffect(() => {
@@ -1159,11 +1166,24 @@ export default function App() {
         new Promise((resolve) => window.setTimeout(resolve, 1200)),
       ]);
       setCreatedInvite(invite);
+      setPendingInvite({ expiresAt: invite.expiresAt });
+      setInviteCopied(false);
       safeLocalSet("alba-partner-invite", JSON.stringify(invite));
       setStatus("Invitación creada. Compártela de forma privada.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
     } finally { setIsAuthenticating(false); setIsGeneratingInvite(false); }
+  }
+
+  async function copyInviteCode() {
+    if (!createdInvite) return;
+    try {
+      await navigator.clipboard.writeText(createdInvite.code);
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 2200);
+    } catch {
+      setStatus(`No se pudo copiar automáticamente. El código es ${createdInvite.code}.`);
+    }
   }
 
   async function endRelationship(asOwner: boolean) {
@@ -1175,6 +1195,7 @@ export default function App() {
       if (asOwner) {
         setPartnerEmail(null);
         setCreatedInvite(null);
+        setPendingInvite(null);
         safeLocalSet("alba-partner-invite", "");
         setStatus("La pareja fue retirada. Puedes crear una nueva invitación cuando quieras.");
       } else {
@@ -1421,6 +1442,7 @@ export default function App() {
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <CatPlayground activeTab={activeTab} missingKind={wanderingKind ?? undefined} />
+        {wanderingKind ? <WanderingCat activeTab={activeTab} kind={wanderingKind} /> : null}
         <div className="tab-scene" key={activeTab}>
           {activeTab === "today" ? renderToday() : null}
           {activeTab === "calendar" ? renderCalendar() : null}
@@ -2022,9 +2044,20 @@ export default function App() {
           )}
           {accountContext?.role === "owner" ? (
             <div className="invite-card">
-              <div><strong>{partnerEmail ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerEmail ? `${partnerEmail} tiene acceso a los registros compartidos.` : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
-              {partnerEmail ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : "Crear invitación"}</button>}
-              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerEmail ? <div className="invite-code revealed"><code>{createdInvite.code}</code><small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small></div> : null}
+              <div><strong>{partnerEmail ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerEmail ? `${partnerEmail} tiene acceso a los registros compartidos.` : pendingInvite && !createdInvite ? "Hay una invitación activa. Por seguridad, el código solo se muestra en el dispositivo donde se creó; puedes generar uno nuevo (reemplaza al anterior)." : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
+              {partnerEmail ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
+              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerEmail ? (
+                <div className="invite-code revealed">
+                  <code>{createdInvite.code}</code>
+                  <small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small>
+                  <button className="secondary-button invite-copy" type="button" onClick={copyInviteCode}>
+                    {inviteCopied ? <ClipboardCheck aria-hidden="true" size={16} /> : <Clipboard aria-hidden="true" size={16} />}
+                    {inviteCopied ? "¡Copiado!" : "Copiar código"}
+                  </button>
+                </div>
+              ) : pendingInvite && !partnerEmail ? (
+                <div className="invite-code pending"><code>••••••••••••</code><small>Invitación activa, vence: {new Date(pendingInvite.expiresAt).toLocaleString("es")}</small></div>
+              ) : null}
             </div>
           ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => endRelationship(false)} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
         </section>
@@ -3112,7 +3145,6 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
           />
         ))}
         {showLove ? <span className="playground-love" aria-hidden="true">💕</span> : null}
-        {missingKind ? <WanderingCat activeTab={activeTab} kind={missingKind} /> : null}
       </div>
     </section>
   );

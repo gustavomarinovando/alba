@@ -3535,3 +3535,84 @@ button:active:not(:disabled),
     animation: none;
   }
 }
+
+/* Copy button inside the invite code card (both UI themes). */
+.invite-code .invite-copy { justify-self: center; margin-top: .35rem; height: 2.4rem; padding: 0 .9rem; }
+
+/* --- Liquid glass, second pass: nav, settings, calendar, mascots ---------- */
+
+.ui-liquid .app-nav {
+  border-bottom-color: color-mix(in srgb, var(--color-outline) 70%, rgba(255, 255, 255, 0.35));
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(24, 19, 14, 0.08);
+}
+
+.ui-liquid .tab-button,
+.ui-liquid .icon-button,
+.ui-liquid .secondary-button {
+  backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px rgba(24, 19, 14, 0.06);
+}
+
+.ui-liquid .tab-button.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 12px 34px color-mix(in srgb, var(--color-moss) 22%, transparent);
+}
+
+.ui-liquid .settings-section,
+.ui-liquid .invite-card,
+.ui-liquid .sync-preview-dates,
+.ui-liquid .account-summary .account-avatar {
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+}
+
+.ui-liquid .settings-section,
+.ui-liquid .invite-card {
+  border-color: color-mix(in srgb, var(--color-outline) 65%, rgba(255, 255, 255, 0.35));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 12px 34px rgba(24, 19, 14, 0.08);
+}
+
+.ui-liquid.dark .settings-section,
+.ui-liquid.dark .invite-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 38px rgba(0, 0, 0, 0.3);
+}
+
+.ui-liquid .invite-code {
+  border: 1px solid color-mix(in srgb, var(--color-outline) 70%, transparent);
+  background: color-mix(in srgb, var(--color-background) 78%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ui-liquid .calendar-day {
+  backdrop-filter: blur(10px) saturate(1.25);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.ui-liquid .cat-playground {
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 14px 40px rgba(24, 19, 14, 0.09);
+}
+
+.ui-liquid.dark .cat-playground {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 16px 44px rgba(0, 0, 0, 0.3);
+}
+
+.ui-liquid .modal-backdrop {
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
