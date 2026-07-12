@@ -22,6 +22,23 @@ export async function acceptPartnerInvite(code: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function getPartnerEmail(): Promise<string | null> {
+  const { data, error } = await getSupabaseClient().rpc("get_partner_status");
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.partner_email ?? null;
+}
+
+export async function leaveCouple(): Promise<void> {
+  const { error } = await getSupabaseClient().rpc("leave_couple");
+  if (error) throw error;
+}
+
+export async function removePartner(): Promise<void> {
+  const { error } = await getSupabaseClient().rpc("remove_partner");
+  if (error) throw error;
+}
+
 let sharedClient: SupabaseClient<any> | null = null;
 
 export function isSupabaseConfigured(): boolean {

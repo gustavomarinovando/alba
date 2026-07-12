@@ -50,7 +50,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerEmail, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -230,6 +230,9 @@ export default function App() {
       return new Date(parsed.expiresAt).getTime() > Date.now() ? parsed : null;
     } catch { return null; }
   });
+  const [partnerEmail, setPartnerEmail] = useState<string | null>(null);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+  const [inviteJustAccepted, setInviteJustAccepted] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authEmail, setAuthEmail] = useState("saritcarrillofuentes@gmail.com");
@@ -409,6 +412,11 @@ export default function App() {
     if (!isAuthReady || !accountContext || isDemoMode) return;
     void syncCloudData({ quiet: true, initial: true });
   }, [isAuthReady, accountContext?.subjectId]);
+
+  useEffect(() => {
+    if (!accountContext) return;
+    void getPartnerEmail().then(setPartnerEmail).catch(() => setPartnerEmail(null));
+  }, [accountContext?.coupleId, accountContext?.role]);
 
   useEffect(() => {
     const revealItems = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
@@ -1119,6 +1127,7 @@ export default function App() {
       await bindDatasetToSubject("legacy-local", context.subjectId);
       setAccountContext(context);
       setInviteCode("");
+      setInviteJustAccepted(true);
       setStatus("Invitación aceptada. Ya tienes acceso como pareja.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo aceptar la invitación.");
@@ -1127,14 +1136,37 @@ export default function App() {
 
   async function generatePartnerInvite() {
     setIsAuthenticating(true);
+    setIsGeneratingInvite(true);
     try {
-      const invite = await createPartnerInvite();
+      const [invite] = await Promise.all([
+        createPartnerInvite(),
+        new Promise((resolve) => window.setTimeout(resolve, 1200)),
+      ]);
       setCreatedInvite(invite);
       safeLocalSet("alba-partner-invite", JSON.stringify(invite));
       setStatus("Invitación creada. Compártela de forma privada.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
-    } finally { setIsAuthenticating(false); }
+    } finally { setIsAuthenticating(false); setIsGeneratingInvite(false); }
+  }
+
+  async function endRelationship(asOwner: boolean) {
+    const message = asOwner ? "¿Retirar a tu pareja? Perderá acceso a estos registros." : "¿Salir de esta pareja? Perderás acceso a los registros compartidos.";
+    if (!window.confirm(message)) return;
+    setIsAuthenticating(true);
+    try {
+      if (asOwner) await removePartner(); else await leaveCouple();
+      if (asOwner) {
+        setPartnerEmail(null);
+        setCreatedInvite(null);
+        safeLocalSet("alba-partner-invite", "");
+        setStatus("La pareja fue retirada. Puedes crear una nueva invitación cuando quieras.");
+      } else {
+        setAccountContext(null);
+        setStatus("Saliste de la pareja correctamente.");
+      }
+    } catch (error) { setStatus(error instanceof Error ? error.message : "No se pudo actualizar la pareja."); }
+    finally { setIsAuthenticating(false); }
   }
 
   async function resendConfirmation() {
@@ -1282,6 +1314,7 @@ export default function App() {
 
   return (
     <main className={isMonthlyAnniversary ? "anniversary-day min-h-screen overflow-x-hidden bg-surface text-ink" : "min-h-screen overflow-x-hidden bg-surface text-ink"} onPointerMove={addAnniversarySparkle}>
+      {inviteJustAccepted ? <div className="relationship-success" role="status"><span>♡</span><div><strong>¡Ya están conectados!</strong><p>La invitación se usó correctamente y los registros compartidos ya están disponibles.</p></div><button type="button" onClick={() => setInviteJustAccepted(false)} aria-label="Cerrar">×</button></div> : null}
       {showChatCelebration ? <ChatCelebration onClose={closeChatCelebration} /> : null}
       {!showChatCelebration && showAnniversaryIntro ? <AnniversaryIntro onClose={closeAnniversaryIntro} /> : null}
       {isMonthlyAnniversary ? <AnniversaryDayDecor activeTab={activeTab} /> : null}
@@ -1979,11 +2012,11 @@ export default function App() {
           )}
           {accountContext?.role === "owner" ? (
             <div className="invite-card">
-              <div><strong>Invitar a tu pareja</strong><p>Crea un código privado, válido durante 7 días y para un solo uso.</p></div>
-              <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>Crear invitación</button>
-              {createdInvite ? <div className="invite-code"><code>{createdInvite.code}</code><small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small></div> : null}
+              <div><strong>{partnerEmail ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerEmail ? `${partnerEmail} tiene acceso a los registros compartidos.` : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
+              {partnerEmail ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : "Crear invitación"}</button>}
+              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerEmail ? <div className="invite-code revealed"><code>{createdInvite.code}</code><small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small></div> : null}
             </div>
-          ) : accountContext ? <div className="invite-card"><strong>Acceso de pareja</strong><p>Estás vinculado a {accountContext.subjectName}. No necesitas la contraseña de la dueña.</p></div> : null}
+          ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => endRelationship(false)} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
