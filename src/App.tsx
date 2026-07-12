@@ -129,6 +129,7 @@ type ChatWrappedStats = {
 };
 
 const THEME_STORAGE_KEY = "alba-theme";
+const UI_THEME_STORAGE_KEY = "alba-ui-theme";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
 const CUSTOM_DATE_ACTIVATIONS_KEY = "alba-custom-date-activations";
@@ -263,6 +264,7 @@ export default function App() {
     }
     return "dark";
   });
+  const [uiTheme, setUiTheme] = useState<"liquid" | "legacy">(() => (safeLocalGet(UI_THEME_STORAGE_KEY) === "legacy" ? "legacy" : "liquid"));
   const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationPermission>(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
     return Notification.permission;
@@ -305,6 +307,11 @@ export default function App() {
     }
     safeLocalSet(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("ui-liquid", uiTheme === "liquid");
+    safeLocalSet(UI_THEME_STORAGE_KEY, uiTheme);
+  }, [uiTheme]);
 
   const toggleTheme = (event: React.MouseEvent) => {
     const isDark = theme === "dark";
@@ -1297,7 +1304,14 @@ export default function App() {
 
   if (isAuthReady && !accountContext) {
     return (
-      <main className="auth-shell min-h-screen px-4 py-10 text-ink">
+      <main className={`auth-shell${uiTheme === "liquid" ? " liquid" : ""} min-h-screen px-4 py-10 text-ink`}>
+        {uiTheme === "liquid" ? (
+          <div className="auth-aurora" aria-hidden="true">
+            <span className="auth-orb orb-moss" />
+            <span className="auth-orb orb-marigold" />
+            <span className="auth-orb orb-coral" />
+          </div>
+        ) : null}
         <section className="auth-card mx-auto max-w-md">
           <div className="auth-brand" aria-label="Alba">
             <span className="auth-brand-mark">A</span>
@@ -2013,6 +2027,14 @@ export default function App() {
               {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerEmail ? <div className="invite-code revealed"><code>{createdInvite.code}</code><small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small></div> : null}
             </div>
           ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => endRelationship(false)} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
+        </section>
+        <section className="settings-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Apariencia</span><h3>Tema de interfaz</h3></div><span className="settings-status-dot">{uiTheme === "liquid" ? "Líquida" : "Clásica"}</span></div>
+          <p className="settings-section-copy">La interfaz líquida añade fondo aurora, paneles de vidrio y animaciones suaves. La clásica conserva el diseño anterior. Se guarda en este dispositivo.</p>
+          <div className="settings-action-grid">
+            <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
+            <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
+          </div>
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
