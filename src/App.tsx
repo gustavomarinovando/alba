@@ -1392,7 +1392,6 @@ export default function App() {
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <CatPlayground activeTab={activeTab} missingKind={wanderingKind ?? undefined} />
-        {wanderingKind ? <WanderingCat activeTab={activeTab} kind={wanderingKind} /> : null}
         <div className="tab-scene" key={activeTab}>
           {activeTab === "today" ? renderToday() : null}
           {activeTab === "calendar" ? renderCalendar() : null}
@@ -3032,14 +3031,24 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
     { kind: "orange" as const, label: "Mandarino", className: "playground-orange" },
     { kind: "tuxedo" as const, label: "Gatito esmoquin", className: "playground-tuxedo" },
   ];
+  const tabMoments: Record<AppTab, { eyebrow: string; message: string }> = {
+    today: { eyebrow: "Compañía tranquila", message: "La patrulla descansa mientras registras tu día." },
+    calendar: { eyebrow: "Guardianes del calendario", message: "Mandarino y compañía cuidan cada recuerdo." },
+    chart: { eyebrow: "Curiosos de los patrones", message: "La patrulla observa tus ritmos desde un lugar seguro." },
+    map: { eyebrow: "Exploradores del ciclo", message: "Un paseo suave por cada etapa de tu ciclo." },
+    ai: { eyebrow: "Ayudantes de Alba", message: "Cuatro asistentes atentos para pensar contigo." },
+    settings: { eyebrow: "Rincón de la patrulla", message: "Los gatitos esperan aquí, lejos de tus controles." },
+  };
+  const moment = tabMoments[activeTab];
 
   return (
     <section className={`cat-playground tab-${activeTab}`} aria-label="Patrulla de gatitos de Alba">
       <div className="cat-playground-copy">
-        <span>Patrulla</span>
-        <strong>
-          {soundHint === "single" ? "1 toque 🔊" : "2 toques 🔊"}
-        </strong>
+        <div>
+          <span>{moment.eyebrow}</span>
+          <p>{moment.message}</p>
+        </div>
+        <strong>{soundHint === "single" ? "Toca para saludar" : "Doble toque: miau"}</strong>
       </div>
       <div className="cat-playground-track">
         {cats.filter((cat) => cat.kind !== missingKind).map((cat) => (
@@ -3052,6 +3061,7 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
           />
         ))}
         {showLove ? <span className="playground-love" aria-hidden="true">💕</span> : null}
+        {missingKind ? <WanderingCat activeTab={activeTab} kind={missingKind} /> : null}
       </div>
     </section>
   );
@@ -3449,6 +3459,7 @@ function BrandLab({
   theme: "light" | "dark";
   onToggleTheme: (event: React.MouseEvent) => void;
 }) {
+  const [mascotTab, setMascotTab] = useState<AppTab>("today");
   const alternatives = [
     {
       name: "Serif suave",
@@ -3510,6 +3521,16 @@ function BrandLab({
         <div className="mt-5 rounded border border-outline bg-surfaceVariant p-4 text-sm leading-6 text-ink/70">
           Para volver a la app usa <strong>/</strong>. Esta pantalla es solo para comparar dirección visual.
         </div>
+        <section className="mt-8" aria-label="Pruebas de mascotas por pestaña">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button className={mascotTab === tab.id ? "secondary-button active-demo" : "secondary-button"} key={tab.id} type="button" onClick={() => setMascotTab(tab.id)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <CatPlayground activeTab={mascotTab} missingKind="orange" />
+        </section>
       </div>
     </main>
   );
