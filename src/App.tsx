@@ -27,7 +27,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
 import {
   CartesianGrid,
@@ -89,6 +89,12 @@ const tabs = [
 ] as const;
 type AppTab = (typeof tabs)[number]["id"];
 type AnniversaryCatKind = "orange" | "black" | "siamese" | "tuxedo";
+type MascotPreviewModule = ComponentType<{
+  AnniversaryCat: typeof AnniversaryCat;
+  SideWalkingCat: typeof SideWalkingCat;
+  CatPlayground: typeof CatPlayground;
+  WanderingCat: typeof WanderingCat;
+}>;
 type BrowserNotificationPermission = NotificationPermission | "unsupported";
 type TemperatureFlyer = {
   id: number;
@@ -206,6 +212,8 @@ function emptyEntry(date: string): CycleEntry {
 }
 
 export default function App() {
+  const isMascotPreview = import.meta.env.DEV && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mascot-preview") === "1";
+  const [MascotPreview, setMascotPreview] = useState<MascotPreviewModule | null>(null);
   const [entries, setEntries] = useState<CycleEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(isoDate(new Date()));
   const [visibleMonth, setVisibleMonth] = useState(new Date());
@@ -278,6 +286,11 @@ export default function App() {
     const today = isoDate(new Date());
     return today === "2026-06-06" && safeSessionGet(`alba-anniversary-${today}`) !== "seen";
   });
+
+  useEffect(() => {
+    if (!isMascotPreview) return;
+    void import("./MascotPreview").then((module) => setMascotPreview(() => module.default));
+  }, [isMascotPreview]);
   const [showChatCelebration, setShowChatCelebration] = useState(() => {
     const today = isoDate(new Date());
     return new Date().getDate() === 7 && loadCustomDateActivations()["first-kiss-monthiversary"] && safeSessionGet(`alba-chat-celebration-${today}`) !== "seen";
@@ -1281,6 +1294,12 @@ export default function App() {
     }, 900);
   }
 
+  if (isMascotPreview) {
+    return MascotPreview ? (
+      <MascotPreview AnniversaryCat={AnniversaryCat} SideWalkingCat={SideWalkingCat} CatPlayground={CatPlayground} WanderingCat={WanderingCat} />
+    ) : <main className="mascot-preview-loading">Preparando la patrulla…</main>;
+  }
+
   if (showBrandLab) {
     return <BrandLab theme={theme} onToggleTheme={toggleTheme} />;
   }
@@ -1397,7 +1416,6 @@ export default function App() {
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <CatPlayground activeTab={activeTab} missingKind={wanderingKind ?? undefined} />
-        {wanderingKind ? <WanderingCat activeTab={activeTab} kind={wanderingKind} /> : null}
         <div className="tab-scene" key={activeTab}>
           {activeTab === "today" ? renderToday() : null}
           {activeTab === "calendar" ? renderCalendar() : null}
@@ -2997,56 +3015,71 @@ function SideWalkingCat({
         triggerCatReaction("meow");
       }}
     >
-      <path className="side-tail" d="M51 73C21 70 14 39 34 32c18-6 31 9 18 25" fill="none" strokeWidth="12" strokeLinecap="round" />
+      <path className="side-tail" d="M64 88C40 84 24 62 30 44c2-7 11-8 13-1 4 13 13 22 25 26Z" />
       <g className="side-back-legs" fill="none" strokeWidth="10" strokeLinecap="round">
-        <path className="side-leg leg-back-a" d="M80 92c-3 17-11 25-24 28" />
-        <path className="side-leg leg-back-b" d="M104 94c2 16 9 23 23 26" />
+        <path className="side-leg leg-back-a" d="M64 96c-2 9-3 15-5 22" />
+        <path className="side-leg leg-back-b" d="M86 100c1 8 2 13 3 19" />
       </g>
-      <ellipse className="side-body" cx="104" cy="72" rx="61" ry="30" />
-      {kind === "siamese" ? <ellipse className="side-chest" cx="135" cy="77" rx="18" ry="22" /> : null}
-      {kind === "tuxedo" ? <path className="side-tuxedo-chest" d="M119 51c6 18 7 36 1 53 15-2 28-10 35-25-6-16-19-25-36-28Z" /> : null}
-      <g className="side-front-legs" fill="none" strokeWidth="10" strokeLinecap="round">
-        <path className="side-leg leg-front-a" d="M126 93c-4 18-14 25-28 27" />
-        <path className="side-leg leg-front-b" d="M151 90c4 18 13 25 27 26" />
-      </g>
-      <path className="side-ear side-ear-back" d="M155 33 151 8l19 16Z" />
-      <path className="side-ear side-ear-front" d="M181 32 190 9l10 28Z" />
-      <circle className="side-head" cx="171" cy="53" r="29" />
-      {kind === "siamese" ? (
-        <>
-          <path className="side-mask" d="M154 44c9-15 33-15 43 0 9 14 2 35-16 39-23 5-41-18-27-39Z" />
-          <g className="side-stripes" fill="none" strokeWidth="3" strokeLinecap="round">
-            <path d="m164 30 2 12" />
-            <path d="m180 27-3 14" />
-            <path d="m193 37-10 7" />
-            <path d="M75 58c18 4 31 5 46 2" />
-            <path d="M68 74c20 6 37 7 56 2" />
-          </g>
-        </>
-      ) : null}
+      <path className="side-body" d="M134 55c-22-9-58-8-77 4-17 11-19 33-4 43 18 12 60 13 81 4 14-6 16-25 10-36-3-6-6-12-10-15Z" />
+      {kind === "siamese" ? <ellipse className="side-chest" cx="122" cy="94" rx="20" ry="17" /> : null}
+      {kind === "tuxedo" ? <path className="side-tuxedo-chest" d="M116 62c8 14 9 30 3 44 13-3 24-11 27-24-5-11-17-18-30-20Z" /> : null}
       {kind === "orange" ? (
-        <g className="side-stripes" fill="none" strokeWidth="4" strokeLinecap="round">
-          <path d="m159 28 5 13" />
-          <path d="m178 26-2 14" />
-          <path d="m195 38-12 6" />
-          <path d="M67 58c17 4 31 5 45 1" />
-          <path d="M78 80c17 5 33 5 48 1" />
+        <g className="side-stripes" fill="none" strokeWidth="5" strokeLinecap="round">
+          <path d="M68 63c14-4 28-4 42-1" />
+          <path d="M60 78c17-5 36-5 53-1" />
+          <path d="M64 92c15 4 31 5 46 2" />
         </g>
       ) : null}
-      {kind === "tuxedo" ? (
-        <>
-          <path className="side-tuxedo-face" d="M165 27c-4 11-5 23-1 33l8 9 8-9c4-10 2-22-2-33l-7 12Z" />
-          <ellipse className="side-tuxedo-muzzle" cx="177" cy="66" rx="18" ry="13" />
-        </>
+      {kind === "siamese" ? (
+        <g className="side-stripes" fill="none" strokeWidth="3.5" strokeLinecap="round">
+          <path d="M70 64c13-4 26-4 39-1" />
+          <path d="M62 79c16-5 33-5 49-1" />
+        </g>
       ) : null}
-      <ellipse className="side-eye" cx="183" cy="50" rx="5" ry="7" />
-      <path className="side-nose" d="m198 62 5 3-5 4-4-4Z" />
-      <path className="side-mouth" d="M196 68c-3 5-8 5-11 1" fill="none" strokeWidth="2.5" strokeLinecap="round" />
-      <g className="side-whiskers" fill="none" strokeWidth="2" strokeLinecap="round">
-        <path d="m191 62 25-5" />
-        <path d="m191 68 25 1" />
+      <g className="side-front-legs" fill="none" strokeWidth="10" strokeLinecap="round">
+        <path className="side-leg leg-front-a" d="M112 100c-1 8-2 13-3 19" />
+        <path className="side-leg leg-front-b" d="M130 97c2 9 4 15 6 21" />
       </g>
-      <text className={`cat-tap-paw ${kind}`} x="172" y="20" textAnchor="middle" aria-hidden="true">🐾</text>
+      <g className="side-head-group" transform="translate(99 19) scale(0.62)">
+        <path className="side-head" d="M48 71 42 29l30 19a58 58 0 0 1 39 0l29-19-6 43c5 10 7 20 5 31-4 25-25 40-50 39-25 0-45-16-48-40-2-11 1-22 7-31Z" />
+        {kind === "tuxedo" ? (
+          <>
+            <path className="side-tuxedo-face" d="M85 47c-5 13-7 27-3 40l10 13 10-13c4-13 2-27-3-40l-7 14Z" />
+            <ellipse className="side-tuxedo-muzzle" cx="92" cy="108" rx="27" ry="20" />
+          </>
+        ) : null}
+        {kind === "siamese" ? (
+          <>
+            <path className="side-mask" d="M49 65 45 36l23 15Zm83 0 4-29-23 15Z" />
+            <path className="side-mask" d="M62 67c15-17 46-17 61 0 9 11 10 32 2 45-11 18-51 18-64 0-9-13-8-34 1-45Z" />
+            <g className="side-stripes" fill="none" strokeWidth="4" strokeLinecap="round">
+              <path d="m74 55 6 13" />
+              <path d="m92 51 1 16" />
+              <path d="m110 55-6 13" />
+              <path d="m59 78 16 5" />
+              <path d="m125 78-16 5" />
+            </g>
+          </>
+        ) : null}
+        {kind === "orange" ? (
+          <g className="side-stripes" fill="none" strokeWidth="6" strokeLinecap="round">
+            <path d="m72 48 5 15" />
+            <path d="m92 43 1 17" />
+            <path d="m113 49-5 14" />
+          </g>
+        ) : null}
+        <ellipse className="side-eye" cx="74" cy="89" rx="6" ry="8" />
+        <ellipse className="side-eye" cx="109" cy="89" rx="6" ry="8" />
+        <path className="side-nose" d="m87 105 5 4 5-4-5-4Z" />
+        <path className="side-mouth" d="M92 109c-1 8-9 9-13 5m13-5c1 8 9 9 13 5" fill="none" strokeWidth="3" strokeLinecap="round" />
+        <g className="side-whiskers" fill="none" strokeWidth="3" strokeLinecap="round">
+          <path d="M73 108 40 101" />
+          <path d="M73 115 38 117" />
+          <path d="m110 108 34-7" />
+          <path d="m110 115 35 2" />
+        </g>
+      </g>
+      <text className={`cat-tap-paw ${kind}`} x="152" y="30" textAnchor="middle" aria-hidden="true">🐾</text>
     </svg>
   );
 }
@@ -3060,14 +3093,24 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
     { kind: "orange" as const, label: "Mandarino", className: "playground-orange" },
     { kind: "tuxedo" as const, label: "Gatito esmoquin", className: "playground-tuxedo" },
   ];
+  const tabMoments: Record<AppTab, { eyebrow: string; message: string }> = {
+    today: { eyebrow: "Compañía tranquila", message: "La patrulla descansa mientras registras tu día." },
+    calendar: { eyebrow: "Guardianes del calendario", message: "Mandarino y compañía cuidan cada recuerdo." },
+    chart: { eyebrow: "Curiosos de los patrones", message: "La patrulla observa tus ritmos desde un lugar seguro." },
+    map: { eyebrow: "Exploradores del ciclo", message: "Un paseo suave por cada etapa de tu ciclo." },
+    ai: { eyebrow: "Ayudantes de Alba", message: "Cuatro asistentes atentos para pensar contigo." },
+    settings: { eyebrow: "Rincón de la patrulla", message: "Los gatitos esperan aquí, lejos de tus controles." },
+  };
+  const moment = tabMoments[activeTab];
 
   return (
     <section className={`cat-playground tab-${activeTab}`} aria-label="Patrulla de gatitos de Alba">
       <div className="cat-playground-copy">
-        <span>Patrulla</span>
-        <strong>
-          {soundHint === "single" ? "1 toque 🔊" : "2 toques 🔊"}
-        </strong>
+        <div>
+          <span>{moment.eyebrow}</span>
+          <p>{moment.message}</p>
+        </div>
+        <strong>{soundHint === "single" ? "Toca para saludar" : "Doble toque: miau"}</strong>
       </div>
       <div className="cat-playground-track">
         {cats.filter((cat) => cat.kind !== missingKind).map((cat) => (
@@ -3080,6 +3123,7 @@ function CatPlayground({ activeTab, missingKind }: { activeTab: AppTab; missingK
           />
         ))}
         {showLove ? <span className="playground-love" aria-hidden="true">💕</span> : null}
+        {missingKind ? <WanderingCat activeTab={activeTab} kind={missingKind} /> : null}
       </div>
     </section>
   );
@@ -3477,6 +3521,7 @@ function BrandLab({
   theme: "light" | "dark";
   onToggleTheme: (event: React.MouseEvent) => void;
 }) {
+  const [mascotTab, setMascotTab] = useState<AppTab>("today");
   const alternatives = [
     {
       name: "Serif suave",
@@ -3538,6 +3583,16 @@ function BrandLab({
         <div className="mt-5 rounded border border-outline bg-surfaceVariant p-4 text-sm leading-6 text-ink/70">
           Para volver a la app usa <strong>/</strong>. Esta pantalla es solo para comparar dirección visual.
         </div>
+        <section className="mt-8" aria-label="Pruebas de mascotas por pestaña">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button className={mascotTab === tab.id ? "secondary-button active-demo" : "secondary-button"} key={tab.id} type="button" onClick={() => setMascotTab(tab.id)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <CatPlayground activeTab={mascotTab} missingKind="orange" />
+        </section>
       </div>
     </main>
   );
