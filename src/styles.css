@@ -3125,3 +3125,137 @@ button:active:not(:disabled),
 @keyframes invite-roulette { 0% { transform: translateY(-2px); filter: blur(0); } 50% { transform: translateY(2px); filter: blur(1px); } }
 @keyframes invite-reveal { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .invite-code.generating code, .invite-code.revealed, .relationship-success { animation: none; } }
+
+/* ---------------------------------------------------------------------------
+   Liquid glass pass: material only. No layout, spacing, typography or DOM
+   order changes — surfaces gain light (specular edge, saturated blur, hover
+   sheen) and controls gain tactile press/focus states.
+--------------------------------------------------------------------------- */
+
+body {
+  background:
+    radial-gradient(52rem 36rem at 85% -8%, rgba(255, 209, 102, 0.12), transparent 62%),
+    radial-gradient(46rem 34rem at -12% 22%, rgba(143, 185, 173, 0.2), transparent 60%),
+    radial-gradient(38rem 30rem at 72% 96%, rgba(216, 155, 139, 0.1), transparent 64%),
+    linear-gradient(135deg, var(--color-paper) 0%, var(--color-paper) 100%);
+  background-attachment: fixed;
+}
+
+.panel,
+.modal-panel,
+.info-box,
+.brand-test-card,
+.sync-preview-stat,
+.toggle-row {
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 14px 40px rgba(24, 19, 14, 0.1);
+}
+
+.dark .panel,
+.dark .modal-panel,
+.dark .info-box,
+.dark .brand-test-card,
+.dark .sync-preview-stat,
+.dark .toggle-row {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 16px 44px rgba(0, 0, 0, 0.32);
+}
+
+/* Specular sheen that sweeps across panels on hover. The pseudo-element
+   inherits the radius so no overflow clipping is needed (cat peekers and
+   other absolutely-positioned children stay untouched). */
+.panel {
+  position: relative;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.16) 47%,
+    rgba(255, 255, 255, 0.05) 54%,
+    transparent 66%
+  );
+  background-size: 300% 100%;
+  background-position: 110% 0;
+  opacity: 0;
+  transition: background-position 900ms cubic-bezier(0.22, 1, 0.36, 1), opacity 320ms ease;
+}
+
+.panel:hover::before {
+  background-position: -60% 0;
+  opacity: 1;
+}
+
+.panel:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 24px 60px rgba(24, 19, 14, 0.14);
+}
+
+.dark .panel:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 28px 70px rgba(0, 0, 0, 0.42);
+}
+
+/* Tactile press for every interactive control, preserving existing hovers. */
+.primary-button:active:not(:disabled),
+.secondary-button:active:not(:disabled),
+.icon-button:active:not(:disabled),
+.tab-button:active:not(:disabled),
+.text-button:active:not(:disabled),
+.calendar-day:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 90ms;
+}
+
+/* Inputs: glass focus halo without changing their geometry. */
+.input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-moss) 22%, transparent);
+}
+
+/* Chart tooltip joins the same material. */
+.recharts-default-tooltip {
+  border: 1px solid var(--color-outline) !important;
+  border-radius: 0.75rem !important;
+  background: var(--color-surface) !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 14px 34px rgba(0, 0, 0, 0.18);
+  color: var(--color-ink) !important;
+}
+
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: var(--color-ink) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel::before {
+    display: none;
+  }
+
+  .panel:hover,
+  .primary-button:active:not(:disabled),
+  .secondary-button:active:not(:disabled),
+  .icon-button:active:not(:disabled),
+  .tab-button:active:not(:disabled),
+  .text-button:active:not(:disabled),
+  .calendar-day:active {
+    transform: none;
+  }
+}
