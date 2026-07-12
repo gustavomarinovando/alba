@@ -2990,19 +2990,19 @@ function SideWalkingCat({
       <g className="side-cat-rig">
         {/* Tail: filled taper, relaxed S-hook, thick at rump */}
         <g className="side-tail-group">
-          <path className="side-tail" d="M216 78c16 1 26-5 33-17 6-11 15-18 26-17 6 1 8-6 2-8-14-4-27 4-34 16-6 11-14 16-27 15-8-1-9 10 0 11Z" />
+          <path className="side-tail" transform="translate(-6 5)" d="M216 78c16 1 26-5 33-17 6-11 15-18 26-17 6 1 8-6 2-8-14-4-27 4-34 16-6 11-14 16-27 15-8-1-9 10 0 11Z" />
         </g>
         {/* Far legs (painted behind the body, slightly darkened) */}
         <g className="side-leg leg-front-b side-far">
-          <path className="side-limb" d="M112 100c-2 16-2 34-4 48-1 10-1 20-1 28h14c0-10 1-24 4-38 2-12 4-26 3-36Z" />
-          <path className="side-paw" d="M104 171c-5 3-6 9-1 11 5 2 14 2 18 0 4-2 3-8-1-11-5-2-11-2-16 0Z" />
+          <path className="side-limb" d="M110 102c-2 16-2 34-3 48-1 10-1 18-1 25h14c0-9 1-23 4-37 2-12 4-26 3-36Z" />
+          <path className="side-paw" d="M105 169c-5 3-6 9-1 11 5 2 13 2 17 0 4-2 3-8-1-11-5-2-10-2-15 0Z" />
         </g>
         <g className="side-leg leg-back-b side-far">
-          <path className="side-limb" d="M222 104c8 12 16 24 22 36 6 10 10 24 12 34l12-4c-4-12-10-26-18-38-8-12-14-22-16-30Z" />
-          <path className="side-paw" d="M250 168c-5 3-6 9-1 11 5 2 14 2 18 0 4-2 3-8-1-11-5-2-11-2-16 0Z" />
+          <path className="side-limb" d="M220 102c8 12 16 24 22 36 6 10 10 22 12 32l12-4c-3-12-9-25-17-37-8-12-16-21-18-29Z" />
+          <path className="side-paw" d="M249 164c-5 3-6 9-1 11 5 2 13 2 17 0 4-2 3-8-1-11-5-2-10-2-15 0Z" />
         </g>
-        {/* Body: arched spine, deep chest, tucked belly, neck into shoulders */}
-        <path className="side-body" d="M96 68c30-12 80-12 114 0 18 7 26 20 22 36-3 9-11 13-22 11-12-2-26-2-38 0-24 4-42 8-58 15-10 4-18-1-20-12-3-14-4-35 2-50Z" />
+        {/* Body: one smooth arched topline, deep chest, tucked belly, neck into shoulders */}
+        <path className="side-body" d="M80 68c16-12 52-18 86-14 32 3 56 14 61 34 3 14-4 26-17 24-14-4-30-4-48 0-22 4-40 10-58 10-12 0-20-10-22-22-2-10-4-22-2-32Z" />
         {kind === "tuxedo" ? <path className="side-tuxedo-chest" d="M96 78c-6 14-7 32-2 46 4 10 12 14 20 12 6-14 4-34-4-48-4-7-9-11-14-10Z" /> : null}
         {kind === "orange" ? (
           <g className="side-stripes" fill="none" strokeWidth="5" strokeLinecap="round">
@@ -3021,39 +3021,39 @@ function SideWalkingCat({
         ) : null}
         {/* Near legs: thigh, lower leg with joint, distinct paw */}
         <g className="side-leg leg-front-a">
-          <path className="side-limb" d="M100 96c-8 16-12 30-16 42-4 12-12 22-22 30l8 10c10-8 20-20 24-32 4-12 12-28 22-42Z" />
-          <path className="side-paw" d="M56 170c-6 2-8 8-3 11 5 3 14 3 19 1 4-2 4-8 0-11-5-2-11-3-16-1Z" />
+          <path className="side-limb" d="M96 100c-8 15-12 28-16 40-4 11-11 21-20 28l8 10c9-8 18-19 22-30 4-12 12-27 21-40Z" />
+          <path className="side-paw" d="M60 168c-6 2-8 8-3 11 5 3 13 3 18 1 4-2 4-8 0-11-5-2-10-3-15-1Z" />
         </g>
         <g className="side-leg leg-back-a">
-          <path className="side-limb" d="M228 106c-14 6-22 18-22 32 0 12 4 20 2 28-1 5-3 9-6 12l12 4c4-8 6-18 4-28-2-12 4-26 14-36Z" />
-          <path className="side-paw" d="M202 172c-6 2-8 8-3 11 5 3 14 3 19 1 4-2 4-8 0-11-5-2-11-3-16-1Z" />
+          <path className="side-limb" d="M224 104c-13 6-21 17-21 30 0 11 4 19 2 27-1 5-3 9-6 12l12 4c4-8 6-17 4-27-2-11 4-24 13-33Z" />
+          <path className="side-paw" d="M202 168c-6 2-8 8-3 11 5 3 13 3 18 1 4-2 4-8 0-11-5-2-10-3-15-1Z" />
         </g>
         {/* Head: continuous path — forehead, nose bridge, muzzle, chin, jaw */}
         <g className="side-head-group">
-          <path className="side-head side-ear-back" d="M84 52c-2-10 0-20 6-27 6 5 11 13 12 21Z" />
-          <path className="side-inner-ear" d="M87 48c-1-6 0-12 3-17 4 4 7 9 8 14Z" />
-          <path className="side-head" d="M90 50c-8-2-17-1-24 4-6 4-10 10-13 16-2 5-5 9-9 13-3 3-5 6-5 9 0 2 2 4 5 4 2 0 4 2 4 4 1 4 4 7 9 8 7 2 15 3 22 1 9-2 15-8 18-16 3-9 3-19 0-28-2-6-4-11-7-15Z" />
-          <path className="side-head side-ear-front" d="M62 55c-4-9-4-19 0-27 7 3 13 10 16 18-5 2-11 5-16 9Z" />
-          <path className="side-inner-ear" d="M64 50c-2-6-2-12 0-17 4 3 8 7 10 12-3 1-7 3-10 5Z" />
-          {kind === "siamese" ? <path className="side-mask" d="M53 67c-4 6-8 12-13 17-3 3-1 7 4 8 3 1 4 3 5 5 2 4 7 6 13 6 4 0 7-1 10-2 2-8 0-18-5-26-4-6-10-9-14-8Z" /> : null}
-          {kind === "tuxedo" ? <path className="side-tuxedo-face" d="M52 72c-2 4-4 7-7 10 4 8 6 17 5 26 4 1 9 1 13 1 3-9 2-19-2-27-3-5-6-9-9-10Z" /> : null}
+          <path className="side-head side-ear-back" d="M76 58c-1-10 2-19 8-25 6 6 10 14 11 22-6 0-13 1-19 3Z" />
+          <path className="side-inner-ear" d="M80 54c0-6 2-11 5-15 3 4 6 9 7 13-4 0-8 1-12 2Z" />
+          <path className="side-head" d="M87 57c-9-4-19-4-27 1-6 4-10 9-13 15-2 5-5 9-8 12-3 3-5 6-4 9 0 2 2 3 5 4 2 0 4 2 4 4 1 4 5 7 10 8 7 2 14 2 21 0 8-3 14-9 16-17 2-8 2-17-1-25-1-4-2-8-3-11Z" />
+          <path className="side-head side-ear-front" d="M56 63c-4-9-4-18 0-26 7 3 12 9 15 17-5 2-10 5-15 9Z" />
+          <path className="side-inner-ear" d="M58 58c-2-6-1-11 1-16 4 3 7 7 9 11-3 1-7 3-10 5Z" />
+          {kind === "siamese" ? <path className="side-mask" d="M50 73c-4 6-8 12-13 17-3 3-1 7 4 8 3 1 4 3 5 5 2 4 7 6 13 6 4 0 7-1 10-2 2-8 0-18-5-26-4-6-10-9-14-8Z" /> : null}
+          {kind === "tuxedo" ? <path className="side-tuxedo-face" d="M49 78c-2 4-4 7-7 10 4 8 6 17 5 26 4 1 9 1 13 1 3-9 2-19-2-27-3-5-6-9-9-10Z" /> : null}
           {kind === "orange" ? (
             <g className="side-stripes" fill="none" strokeWidth="3" strokeLinecap="round">
-              <path d="M74 52c-2 5-3 10-3 15" />
-              <path d="M86 54c-1 5-2 11-1 16" />
+              <path d="M70 60c-2 5-3 10-3 15" />
+              <path d="M81 61c-1 5-2 11-1 16" />
             </g>
           ) : null}
           {/* Eye: almond, pupil, highlight */}
-          <path className="side-eye" d="M49 74c3-4 9-5 13-2-2 4-8 6-13 2Z" />
-          <ellipse className="side-pupil" cx="55" cy="73.5" rx="2" ry="2.6" />
-          <circle className="side-eye-shine" cx="53.6" cy="72.4" r="0.9" />
+          <path className="side-eye" d="M45 79c3-4 9-5 12-2-2 4-8 6-12 2Z" />
+          <ellipse className="side-pupil" cx="51" cy="78.5" rx="2" ry="2.6" />
+          <circle className="side-eye-shine" cx="49.6" cy="77.4" r="0.9" />
           {/* Nose, mouth, whiskers */}
-          <path className="side-nose" d="M39 86l6-2 1 6-6-1Z" />
-          <path className="side-mouth" d="M44 90c0 4 3 7 8 7m-8-7c-2 3-4 4-6 4" fill="none" strokeWidth="2" strokeLinecap="round" />
+          <path className="side-nose" d="M36 91l6-2 1 6-6-1Z" />
+          <path className="side-mouth" d="M41 95c0 4 3 7 8 7m-8-7c-2 3-4 4-6 4" fill="none" strokeWidth="2" strokeLinecap="round" />
           <g className="side-whiskers" fill="none" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M46 88c-9-3-17-4-26-3" />
-            <path d="M47 92c-9 0-17 1-25 4" />
-            <path d="M48 95c-7 2-13 5-19 9" />
+            <path d="M43 93c-8-3-15-4-23-3" />
+            <path d="M44 97c-8 0-15 1-22 4" />
+            <path d="M45 100c-6 2-11 4-16 8" />
           </g>
         </g>
       </g>
