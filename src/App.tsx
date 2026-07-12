@@ -1206,25 +1206,29 @@ export default function App() {
 
   if (isAuthReady && !accountContext) {
     return (
-      <main className="min-h-screen bg-background px-4 py-10 text-ink">
-        <section className="modal-panel mx-auto max-w-md gap-5">
-          <div>
-            <p className="eyebrow">Alba privada</p>
+      <main className="auth-shell min-h-screen px-4 py-10 text-ink">
+        <section className="auth-card mx-auto max-w-md">
+          <div className="auth-brand" aria-label="Alba">
+            <span className="auth-brand-mark">A</span>
+            <div><strong>Alba</strong><small>Tu espacio privado</small></div>
+          </div>
+          <div className="auth-heading">
+            <p className="eyebrow">Cuidado, claridad y compañía</p>
             <h1>{authMode === "register" ? "Crea tu cuenta de Alba" : "Bienvenida de vuelta"}</h1>
             <p>{authMode === "register" ? "Esta cuenta protegerá tus registros y los vinculará contigo." : "Entra para ver tus registros privados."}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Acceso a Alba">
-            <button className={authMode === "register" ? "primary-button" : "secondary-button"} type="button" onClick={() => setAuthMode("register")}>Crear cuenta</button>
-            <button className={authMode === "login" ? "primary-button" : "secondary-button"} type="button" onClick={() => setAuthMode("login")}>Iniciar sesión</button>
+          <div className="auth-tabs" role="tablist" aria-label="Acceso a Alba">
+            <button className={authMode === "register" ? "active" : ""} type="button" onClick={() => setAuthMode("register")}>Crear cuenta</button>
+            <button className={authMode === "login" ? "active" : ""} type="button" onClick={() => setAuthMode("login")}>Iniciar sesión</button>
           </div>
-          <form className="grid gap-3" onSubmit={logInToAlba}>
-            <label className="grid gap-1">Correo<input className="rounded border border-outline bg-surface px-3 py-2" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} /></label>
-            <label className="grid gap-1">Contraseña<input className="rounded border border-outline bg-surface px-3 py-2" type="password" minLength={8} autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} /></label>
+          <form className="auth-form" onSubmit={logInToAlba}>
+            <label>Correo<input type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="tu@email.com" /></label>
+            <label>Contraseña<input type="password" minLength={8} autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Mínimo 8 caracteres" /></label>
             <button className="primary-button" type="submit" disabled={isAuthenticating || authPassword.length < 8}>{isAuthenticating ? "Procesando..." : authMode === "register" ? "Registrarme" : "Entrar"}</button>
           </form>
-          {authMode === "login" ? <button className="secondary-button" type="button" onClick={resendConfirmation} disabled={isAuthenticating || !authEmail}>Reenviar confirmación</button> : null}
+          {authMode === "login" ? <button className="auth-link" type="button" onClick={resendConfirmation} disabled={isAuthenticating || !authEmail}>¿No llegó la confirmación? Reenviar correo</button> : null}
           {status ? <div className="info-box">{status}</div> : null}
-          <p className="text-xs text-ink/60">Cerrar sesión oculta la información sin borrar la copia local segura.</p>
+          <div className="auth-trust"><span>✓</span><p><strong>Tus datos siguen siendo tuyos.</strong> Cerrar sesión oculta la información sin borrar la copia local segura.</p></div>
         </section>
       </main>
     );
@@ -1895,22 +1899,21 @@ export default function App() {
 
   function renderSettings() {
     return (
-      <Panel>
-        <div className="mb-4 flex items-center gap-2">
-          <Database className="h-5 w-5 text-moss" aria-hidden="true" />
-          <h2 className="text-lg font-semibold">Ajustes</h2>
+      <Panel className="settings-panel">
+        <div className="settings-hero">
+          <div className="settings-hero-icon"><Database aria-hidden="true" size={22} /></div>
+          <div><span className="eyebrow">Tu espacio</span><h2>Ajustes</h2><p>Cuenta, privacidad, recordatorios y experiencias de Alba.</p></div>
         </div>
-        <div className="input-card mb-4">
-          <span className="eyebrow">Cuenta Alba</span>
+        <section className="settings-section account-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Identidad</span><h3>Cuenta Alba</h3></div><span className="settings-status-dot">Protegida</span></div>
           {accountContext ? (
-            <div className="mt-2 grid gap-3">
-              <div>
-                <strong>{accountContext.email}</strong>
-                <p>Ciclo de {accountContext.subjectName}. Sync autenticado activo.</p>
+            <div className="account-summary">
+              <div className="account-avatar">{accountContext.subjectName.slice(0, 1).toUpperCase()}</div>
+              <div className="account-copy">
+                <strong>{accountContext.subjectName}</strong><span>{accountContext.email}</span>
+                <small>Sincronización privada activa</small>
               </div>
-              <button className="secondary-button" type="button" onClick={logOutOfAlba} disabled={isAuthenticating}>
-                Cerrar sesión
-              </button>
+              <button className="secondary-button compact-action" type="button" onClick={logOutOfAlba} disabled={isAuthenticating}>Cerrar sesión</button>
             </div>
           ) : (
             <form className="mt-2 grid gap-3" onSubmit={logInToAlba}>
@@ -1928,8 +1931,11 @@ export default function App() {
               <p className="text-xs text-ink/60">Iniciar o cerrar sesión nunca borra IndexedDB.</p>
             </form>
           )}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
+        </section>
+        <section className="settings-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
+          <p className="settings-section-copy">Exporta una copia, restaura un respaldo o revisa la sincronización.</p>
+        <div className="settings-action-grid">
           <button className={isDemoMode ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={isDemoMode ? exitDemoMode : loadDemoData}>
             <Database aria-hidden="true" size={17} />
             {isDemoMode ? "Salir demo" : "Demo"}
@@ -1955,7 +1961,8 @@ export default function App() {
             {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : isPreparingSyncPreview ? "Preparando..." : "Sincronizar nube"}
           </button>
         </div>
-        <div className="input-card mt-4">
+        </section>
+        <section className="settings-section">
           <div className="mb-3 flex items-start gap-3">
             <Bell className="mt-0.5 h-5 w-5 text-marigold" aria-hidden="true" />
             <div>
@@ -1994,7 +2001,9 @@ export default function App() {
           <p className="mt-2 text-xs text-ink/60">
             Estado: {notificationPermission === "unsupported" ? "no soportado" : notificationPermission === "granted" ? "permitidas" : notificationPermission === "denied" ? "bloqueadas" : "sin decidir"}.
           </p>
-        </div>
+        </section>
+        <section className="settings-section experience-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Momentos compartidos</span><h3>Experiencias</h3></div></div>
         <div className="anniversary-countdown mt-3">
           <span>Próximo mesario</span>
           <strong>{daysUntilNextMonthiversary()} días</strong>
@@ -2033,6 +2042,8 @@ export default function App() {
             </article>
           ))}
         </div>
+        </section>
+        <section className="settings-section avatar-section">
         <div className="avatar-setup-card mt-3">
           <div>
             <span className="eyebrow">Avatares</span>
@@ -2045,6 +2056,7 @@ export default function App() {
             ))}
           </div>
         </div>
+        </section>
         <div className="info-box mt-3">
           Sync de ciclo: <strong>{accountContext ? `cuenta de ${accountContext.subjectName}` : "requiere iniciar sesión"}</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
           <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.

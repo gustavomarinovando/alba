@@ -2141,6 +2141,29 @@ button:active:not(:disabled),
     box-shadow 320ms ease;
 }
 
+/* Auth and settings information architecture */
+.auth-shell {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--color-marigold) 20%, transparent), transparent 32rem),
+    radial-gradient(circle at 90% 85%, color-mix(in srgb, var(--color-moss) 18%, transparent), transparent 28rem),
+    var(--color-background);
+}
+.auth-card { display: grid; gap: 1.25rem; width: 100%; padding: 1.5rem; border: 1px solid var(--color-outline); border-radius: 1.75rem; background: color-mix(in srgb, var(--color-surface) 94%, transparent); box-shadow: 0 24px 70px rgb(31 28 23 / 14%); }
+.auth-brand { display: flex; align-items: center; gap: .75rem; }
+.auth-brand-mark { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 1rem; background: var(--color-ink); color: var(--color-surface); font-family: Georgia, serif; font-size: 1.45rem; }
+.auth-brand div { display: grid; line-height: 1.1; }.auth-brand strong { font-size: 1.2rem; }.auth-brand small { margin-top: .25rem; color: color-mix(in srgb, var(--color-ink) 58%, transparent); }
+.auth-heading h1 { margin-top: .35rem; font-family: Georgia, serif; font-size: clamp(1.8rem, 8vw, 2.5rem); line-height: 1.05; }.auth-heading > p:last-child { margin-top: .65rem; color: color-mix(in srgb, var(--color-ink) 68%, transparent); }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; padding: .3rem; border-radius: 1rem; background: color-mix(in srgb, var(--color-outline) 45%, transparent); }
+.auth-tabs button { min-height: 2.7rem; border-radius: .75rem; color: color-mix(in srgb, var(--color-ink) 62%, transparent); font-weight: 750; }.auth-tabs button.active { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 3px 12px rgb(0 0 0 / 8%); }
+.auth-form { display: grid; gap: .9rem; }.auth-form label { display: grid; gap: .4rem; font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.auth-form input { min-height: 3rem; border: 1px solid var(--color-outline); border-radius: .9rem; background: var(--color-surface); padding: 0 .9rem; color: var(--color-ink); font-size: 1rem; font-weight: 500; text-transform: none; letter-spacing: normal; }.auth-form input:focus { outline: 2px solid color-mix(in srgb, var(--color-moss) 48%, transparent); outline-offset: 2px; }
+.auth-link { justify-self: center; color: var(--color-moss); font-size: .82rem; font-weight: 750; }.auth-trust { display: flex; gap: .7rem; align-items: flex-start; border-top: 1px solid var(--color-outline); padding-top: 1rem; }.auth-trust span { display: grid; place-items: center; flex: 0 0 1.4rem; height: 1.4rem; border-radius: 50%; background: color-mix(in srgb, var(--color-moss) 18%, transparent); color: var(--color-moss); font-weight: 900; }.auth-trust p { color: color-mix(in srgb, var(--color-ink) 62%, transparent); font-size: .76rem; line-height: 1.5; }
+.settings-panel { display: grid; gap: 1rem; }.settings-hero { display: flex; gap: .85rem; align-items: center; padding: .25rem 0 .5rem; }.settings-hero-icon { display: grid; place-items: center; width: 3rem; height: 3rem; flex: 0 0 3rem; border-radius: 1rem; background: color-mix(in srgb, var(--color-moss) 16%, transparent); color: var(--color-moss); }.settings-hero h2 { font-size: 1.45rem; }.settings-hero p { margin-top: .2rem; color: color-mix(in srgb, var(--color-ink) 60%, transparent); font-size: .82rem; }
+.settings-section { border: 1px solid var(--color-outline); border-radius: 1.25rem; background: color-mix(in srgb, var(--color-surface) 92%, transparent); padding: 1rem; }.settings-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }.settings-section-heading h3 { margin-top: .15rem; font-size: 1.05rem; }.settings-section-copy { margin: .45rem 0 .85rem; color: color-mix(in srgb, var(--color-ink) 60%, transparent); font-size: .8rem; }.settings-status-dot { border-radius: 999px; background: color-mix(in srgb, var(--color-moss) 16%, transparent); padding: .35rem .6rem; color: var(--color-moss); font-size: .68rem; font-weight: 850; }
+.account-summary { display: grid; grid-template-columns: auto minmax(0,1fr); gap: .8rem; align-items: center; margin-top: .85rem; }.account-avatar { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border-radius: 50%; background: var(--color-ink); color: var(--color-surface); font-weight: 900; }.account-copy { display: grid; min-width: 0; }.account-copy span { overflow: hidden; color: color-mix(in srgb, var(--color-ink) 64%, transparent); font-size: .76rem; text-overflow: ellipsis; }.account-copy small { margin-top: .2rem; color: var(--color-moss); font-size: .68rem; font-weight: 750; }.account-summary button { grid-column: 1 / -1; }.settings-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }.settings-action-grid .col-span-2 { grid-column: 1 / -1; }
+@media (min-width: 640px) { .auth-card { padding: 2rem; }.account-summary { grid-template-columns: auto minmax(0,1fr) auto; }.account-summary button { grid-column: auto; } }
+
 @media (hover: hover) and (pointer: fine) {
   .input-card:hover,
   .info-box:hover,
