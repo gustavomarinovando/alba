@@ -3073,3 +3073,8 @@ button:active:not(:disabled),
     display: none;
   }
 }
+/* Partner invitations */
+.invite-card { display: grid; gap: .75rem; margin-top: 1rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--color-outline) 72%, transparent); border-radius: 1rem; background: color-mix(in srgb, var(--color-surface) 82%, transparent); }
+.invite-card p { margin: .25rem 0 0; color: color-mix(in srgb, var(--color-ink) 68%, transparent); font-size: .875rem; }
+.invite-code { display: grid; gap: .3rem; padding: .8rem; border-radius: .75rem; background: var(--color-background); text-align: center; }
+.invite-code code { font-size: 1.15rem; font-weight: 800; letter-spacing: .12em; }

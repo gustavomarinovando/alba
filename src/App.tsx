@@ -50,7 +50,7 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { getCurrentSession, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -220,6 +220,9 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [accountContext, setAccountContext] = useState<AlbaAccountContext | null>(null);
+  const [authenticatedEmail, setAuthenticatedEmail] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [createdInvite, setCreatedInvite] = useState<{ code: string; expiresAt: string } | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authEmail, setAuthEmail] = useState("saritcarrillofuentes@gmail.com");
@@ -342,6 +345,7 @@ export default function App() {
           if (active) setIsInitialCloudSyncSettling(false);
           return;
         }
+        if (active) setAuthenticatedEmail(session.user.email ?? "");
         const context = await resolveAccountContext(session);
         await bindDatasetToSubject("legacy-local", context.subjectId);
         if (active) setAccountContext(context);
@@ -419,7 +423,7 @@ export default function App() {
 
     revealItems.forEach((item) => observer.observe(item));
     return () => observer.disconnect();
-  }, [activeTab]);
+  }, [activeTab, accountContext?.subjectId]);
 
   useEffect(() => {
     if (isDemoMode || !accountContext) return;
@@ -1066,9 +1070,11 @@ export default function App() {
         setAuthMode("login");
         return;
       }
+      setAuthenticatedEmail(session.user.email ?? "");
       const context = await resolveAccountContext(session);
       await bindDatasetToSubject("legacy-local", context.subjectId);
       setAccountContext(context);
+      setAuthenticatedEmail(session.user.email ?? "");
       setAuthPassword("");
       setStatus(`Sesión iniciada como ${context.email}. Tus datos locales siguen intactos.`);
     } catch (error) {
@@ -1084,6 +1090,7 @@ export default function App() {
     try {
       await signOut();
       setAccountContext(null);
+      setAuthenticatedEmail("");
       setLiveSyncState("off");
       setStatus("Sesión cerrada. Los datos locales permanecen en este dispositivo.");
     } catch (error) {
@@ -1091,6 +1098,35 @@ export default function App() {
     } finally {
       setIsAuthenticating(false);
     }
+  }
+
+  async function joinWithInvite(event: React.FormEvent) {
+    event.preventDefault();
+    if (!inviteCode.trim()) return;
+    setIsAuthenticating(true);
+    try {
+      await acceptPartnerInvite(inviteCode);
+      const session = await getCurrentSession();
+      if (!session) throw new Error("La sesión expiró. Inicia sesión de nuevo.");
+      const context = await resolveAccountContext(session);
+      await bindDatasetToSubject("legacy-local", context.subjectId);
+      setAccountContext(context);
+      setInviteCode("");
+      setStatus("Invitación aceptada. Ya tienes acceso como pareja.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo aceptar la invitación.");
+    } finally { setIsAuthenticating(false); }
+  }
+
+  async function generatePartnerInvite() {
+    setIsAuthenticating(true);
+    try {
+      const invite = await createPartnerInvite();
+      setCreatedInvite(invite);
+      setStatus("Invitación creada. Compártela de forma privada.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo crear la invitación.");
+    } finally { setIsAuthenticating(false); }
   }
 
   async function resendConfirmation() {
@@ -1214,9 +1250,10 @@ export default function App() {
           </div>
           <div className="auth-heading">
             <p className="eyebrow">Cuidado, claridad y compañía</p>
-            <h1>{authMode === "register" ? "Crea tu cuenta de Alba" : "Bienvenida de vuelta"}</h1>
-            <p>{authMode === "register" ? "Esta cuenta protegerá tus registros y los vinculará contigo." : "Entra para ver tus registros privados."}</p>
+            <h1>{authenticatedEmail ? "Únete a tu pareja" : authMode === "register" ? "Crea tu cuenta de Alba" : "Bienvenida de vuelta"}</h1>
+            <p>{authenticatedEmail ? `Sesión iniciada como ${authenticatedEmail}. Introduce la invitación de la dueña del ciclo.` : authMode === "register" ? "Esta cuenta protegerá tus registros y los vinculará contigo." : "Entra para ver tus registros privados."}</p>
           </div>
+          {authenticatedEmail ? <form className="auth-form" onSubmit={joinWithInvite}><label>Código de invitación<input value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} placeholder="Ej. A1B2C3D4E5F6" autoCapitalize="characters" /></label><button className="primary-button" type="submit" disabled={isAuthenticating || !inviteCode.trim()}>Unirme como pareja</button><button className="auth-link" type="button" onClick={logOutOfAlba}>Usar otra cuenta</button></form> : <>
           <div className="auth-tabs" role="tablist" aria-label="Acceso a Alba">
             <button className={authMode === "register" ? "active" : ""} type="button" onClick={() => setAuthMode("register")}>Crear cuenta</button>
             <button className={authMode === "login" ? "active" : ""} type="button" onClick={() => setAuthMode("login")}>Iniciar sesión</button>
@@ -1229,6 +1266,7 @@ export default function App() {
           {authMode === "login" ? <button className="auth-link" type="button" onClick={resendConfirmation} disabled={isAuthenticating || !authEmail}>¿No llegó la confirmación? Reenviar correo</button> : null}
           {status ? <div className="info-box">{status}</div> : null}
           <div className="auth-trust"><span>✓</span><p><strong>Tus datos siguen siendo tuyos.</strong> Cerrar sesión oculta la información sin borrar la copia local segura.</p></div>
+          </>}
         </section>
       </main>
     );
@@ -1931,6 +1969,13 @@ export default function App() {
               <p className="text-xs text-ink/60">Iniciar o cerrar sesión nunca borra IndexedDB.</p>
             </form>
           )}
+          {accountContext?.role === "owner" ? (
+            <div className="invite-card">
+              <div><strong>Invitar a tu pareja</strong><p>Crea un código privado, válido durante 7 días y para un solo uso.</p></div>
+              <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>Crear invitación</button>
+              {createdInvite ? <div className="invite-code"><code>{createdInvite.code}</code><small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small></div> : null}
+            </div>
+          ) : accountContext ? <div className="invite-card"><strong>Acceso de pareja</strong><p>Estás vinculado a {accountContext.subjectName}. No necesitas la contraseña de la dueña.</p></div> : null}
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>

@@ -6,6 +6,20 @@ export interface AlbaAccountContext {
   coupleId: string;
   subjectId: string;
   subjectName: string;
+  role: "owner" | "member";
+}
+
+export async function createPartnerInvite(): Promise<{ code: string; expiresAt: string }> {
+  const { data, error } = await getSupabaseClient().rpc("create_partner_invite");
+  if (error) throw error;
+  const invite = Array.isArray(data) ? data[0] : data;
+  if (!invite) throw new Error("No se pudo crear la invitación.");
+  return { code: invite.invite_code, expiresAt: invite.expires_at };
+}
+
+export async function acceptPartnerInvite(code: string): Promise<void> {
+  const { error } = await getSupabaseClient().rpc("accept_partner_invite", { invite_code: code.trim() });
+  if (error) throw error;
 }
 
 let sharedClient: SupabaseClient<any> | null = null;
@@ -70,7 +84,7 @@ export async function resolveAccountContext(session: Session): Promise<AlbaAccou
   const client = getSupabaseClient();
   const { data: membership, error: membershipError } = await client
     .from("couple_members")
-    .select("couple_id")
+    .select("couple_id, role")
     .eq("user_id", session.user.id)
     .eq("status", "active")
     .limit(1)
@@ -99,5 +113,6 @@ export async function resolveAccountContext(session: Session): Promise<AlbaAccou
     coupleId: membership.couple_id,
     subjectId: subject.id,
     subjectName: subject.display_name,
+    role: membership.role,
   };
 }
