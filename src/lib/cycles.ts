@@ -1,8 +1,9 @@
 import { addDays, parseISO } from "date-fns";
-import type { CycleEntry, CycleStats } from "../types";
+import type { CycleEntry, CycleObservationStreak, CycleStats } from "../types";
 import { dayDiff, isoDate } from "./date";
+import { hasMeaningfulEntry } from "./temperature";
 
-export function calculateStats(entries: CycleEntry[]): CycleStats {
+export function calculateStats(entries: CycleEntry[], today = isoDate(new Date())): CycleStats {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   const periodStarts = getPeriodStarts(sorted);
   const periodLengths = periodStarts.map((start) => countPeriodLength(sorted, start));
@@ -25,6 +26,58 @@ export function calculateStats(entries: CycleEntry[]): CycleStats {
     averagePeriodLength,
     lastPeriodStart,
     predictedNextPeriod,
+    observationStreak: calculateObservationStreak(sorted, today),
+  };
+}
+
+export function calculateObservationStreak(entries: CycleEntry[], today = isoDate(new Date())): CycleObservationStreak {
+  const meaningfulDates = Array.from(
+    new Set(
+      entries
+        .filter(hasMeaningfulEntry)
+        .map((entry) => entry.date)
+        .filter((date) => date <= today),
+    ),
+  ).sort();
+
+  if (meaningfulDates.length === 0) {
+    return { current: 0, longest: 0 };
+  }
+
+  let runStart = meaningfulDates[0];
+  let runEnd = meaningfulDates[0];
+  let runLength = 1;
+  let longestStartDate = runStart;
+  let longestEndDate = runEnd;
+  let longest = runLength;
+
+  for (const date of meaningfulDates.slice(1)) {
+    if (dayDiff(runEnd, date) === 1) {
+      runEnd = date;
+      runLength += 1;
+    } else {
+      runStart = date;
+      runEnd = date;
+      runLength = 1;
+    }
+
+    if (runLength > longest) {
+      longest = runLength;
+      longestStartDate = runStart;
+      longestEndDate = runEnd;
+    }
+  }
+
+  const currentEndDate = runEnd;
+  const isCurrentStillActive = dayDiff(currentEndDate, today) <= 1;
+
+  return {
+    current: isCurrentStillActive ? runLength : 0,
+    longest,
+    currentStartDate: isCurrentStillActive ? runStart : undefined,
+    currentEndDate: isCurrentStillActive ? currentEndDate : undefined,
+    longestStartDate,
+    longestEndDate,
   };
 }
 

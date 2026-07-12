@@ -452,6 +452,44 @@ textarea {
     @apply mt-3 rounded border border-outline bg-surfaceVariant p-3 text-sm leading-6 text-ink;
   }
 
+  .streak-card {
+    @apply mt-3 rounded border border-moss bg-mossLight p-3 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
+  }
+
+  .streak-main {
+    @apply flex items-center gap-3;
+  }
+
+  .streak-icon {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-full border border-moss bg-surfaceVariant text-moss;
+  }
+
+  .streak-main strong {
+    @apply block text-2xl font-semibold leading-tight text-ink;
+  }
+
+  .streak-card p {
+    @apply my-3 text-sm leading-6;
+    color: color-mix(in srgb, var(--color-ink) 72%, transparent);
+  }
+
+  .streak-best {
+    @apply flex items-center gap-2 rounded border border-outline bg-surface px-3 py-2 text-sm text-ink;
+  }
+
+  .streak-best svg {
+    @apply text-marigold;
+  }
+
+  .streak-best span {
+    @apply font-medium;
+    color: color-mix(in srgb, var(--color-ink) 68%, transparent);
+  }
+
+  .streak-best strong {
+    @apply ml-auto font-semibold text-ink;
+  }
+
   .period-card.attention {
     @apply border-marigold bg-marigoldLight;
   }

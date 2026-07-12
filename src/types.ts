@@ -40,6 +40,16 @@ export interface CycleStats {
   averagePeriodLength?: number;
   lastPeriodStart?: string;
   predictedNextPeriod?: string;
+  observationStreak: CycleObservationStreak;
+}
+
+export interface CycleObservationStreak {
+  current: number;
+  longest: number;
+  currentStartDate?: string;
+  currentEndDate?: string;
+  longestStartDate?: string;
+  longestEndDate?: string;
 }
 
 export interface ExportPayload {

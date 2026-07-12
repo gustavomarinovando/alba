@@ -11,6 +11,7 @@ import {
   Download,
   Eraser,
   FileUp,
+  Flame,
   HeartPulse,
   Info,
   Loader2,
@@ -21,6 +22,7 @@ import {
   Sparkles,
   Sun,
   Thermometer,
+  Trophy,
   Trash2,
   ZoomIn,
   ZoomOut,
@@ -497,7 +499,8 @@ export default function App() {
   }, [isDemoMode, accountContext?.subjectId]);
 
   const entryByDate = useMemo(() => new Map(entries.map((entry) => [entry.date, entry])), [entries]);
-  const stats = useMemo(() => calculateStats(entries), [entries]);
+  const todayIso = isoDate(new Date());
+  const stats = useMemo(() => calculateStats(entries, todayIso), [entries, todayIso]);
   const recentEntries = useMemo(() => getRecentEntries(entries, 92), [entries]);
   const phaseByDate = useMemo(() => buildPhaseMap(entries), [entries]);
   const selectedPhase = phaseByDate.get(selectedDate);
@@ -514,6 +517,8 @@ export default function App() {
   const activeCycle = cycleWindows[activeCycleIndex];
   const mapSelectedDay = mapSelectedDate ? activeCycle?.days.find((day) => day.date === mapSelectedDate) : undefined;
   const mapSelectedEntry = mapSelectedDay ? entryByDate.get(mapSelectedDay.date) : undefined;
+  const observationStreak = stats.observationStreak;
+  const currentStreakNeedsToday = observationStreak.current > 0 && observationStreak.currentEndDate !== todayIso;
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
@@ -1637,6 +1642,29 @@ export default function App() {
           </div>
           <div className="phase-human-note" style={selectedPhase ? { borderColor: phaseMeta[selectedPhase.phase].color } : undefined}>
             {phaseHumanText(selectedPhase)}
+          </div>
+          <div className="streak-card" aria-label="Rachas de observaciones">
+            <div className="streak-main">
+              <span className="streak-icon" aria-hidden="true">
+                <Flame size={21} />
+              </span>
+              <div>
+                <span className="eyebrow">Racha actual</span>
+                <strong>{observationStreak.current} {observationStreak.current === 1 ? "día" : "días"}</strong>
+              </div>
+            </div>
+            <p>
+              {observationStreak.current === 0
+                ? "Empieza con una temperatura, periodo, señal cervical o nota de hoy."
+                : currentStreakNeedsToday
+                  ? "Añade una observación hoy para mantenerla viva."
+                  : "Hoy ya suma: cada señal pequeña ayuda a leer mejor el ciclo."}
+            </p>
+            <div className="streak-best">
+              <Trophy size={16} aria-hidden="true" />
+              <span>Mejor racha</span>
+              <strong>{observationStreak.longest} {observationStreak.longest === 1 ? "día" : "días"}</strong>
+            </div>
           </div>
         </Panel>
 
