@@ -7,6 +7,7 @@ import {
   loadProviderPreference,
   loadStoredChat,
   needsSummarization,
+  prewarmChat,
   runChatTurn,
   saveStoredChat,
   summarizeOlderMessages,
@@ -39,6 +40,10 @@ const PARTNER_CHIPS = ["¿Cómo apoyarla hoy?", "Explícame su fase actual", "Id
 
 const PROVIDER_LABEL: Record<string, string> = { gemini: "Gemini", nvidia: "NVIDIA", openai: "OpenAI" };
 
+// Module-level so it survives the panel unmounting/remounting as the user
+// switches tabs, and only fires once per page load.
+let hasPrewarmed = false;
+
 export default function AiChatPanel({ entries, stats, phaseByDate, observationStreak, streakRewards, accountContext }: AiChatPanelProps) {
   const [chat, setChat] = useState<StoredChat>(() => loadStoredChat());
   const [input, setInput] = useState("");
@@ -47,6 +52,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   const [error, setError] = useState("");
   const [meta, setMeta] = useState<AiChatMeta | null>(null);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
+  const rootRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pendingDeltaRef = useRef<string | null>(null);
@@ -72,6 +78,21 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   useEffect(() => {
     saveStoredChat(chat);
   }, [chat]);
+
+  // This panel is lazy-loaded behind Suspense, so it mounts after the app's
+  // one-shot IntersectionObserver scan already ran; without this it stays at
+  // opacity 0 (".motion-reveal" default) until some unrelated tab switch
+  // happens to re-run that scan.
+  useEffect(() => {
+    rootRef.current?.classList.add("is-revealed");
+  }, []);
+
+  useEffect(() => {
+    if (hasPrewarmed) return;
+    hasPrewarmed = true;
+    void prewarmChat(context, providerOverride);
+    // Intentionally runs once per page load only, with whatever context/provider are available then.
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: isSending ? "auto" : "smooth" });
@@ -156,7 +177,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   }
 
   return (
-    <section data-reveal className="panel motion-reveal ai-chat-panel rounded border border-outline bg-surface p-4 shadow-soft sm:p-5">
+    <section ref={rootRef} data-reveal className="panel motion-reveal ai-chat-panel rounded border border-outline bg-surface p-4 shadow-soft sm:p-5">
       <div className="ai-chat-header">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-marigold" aria-hidden="true" />
@@ -201,7 +222,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
           ))
         )}
         {isSending ? (
-          <div className="ai-chat-bubble ai-chat-bubble-assistant ai-chat-bubble-typing">
+          <div className={`ai-chat-bubble ai-chat-bubble-assistant${streamingText ? "" : " ai-chat-bubble-typing"}`}>
             {streamingText ? renderMarkdown(streamingText) : <Loader2 className="animate-spin" aria-hidden="true" size={15} />}
           </div>
         ) : null}

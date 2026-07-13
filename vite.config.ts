@@ -129,7 +129,7 @@ export default defineConfig(({ mode }) => {
                   tools: Array.isArray(body.tools) && body.tools.length > 0 ? body.tools : undefined,
                   tool_choice: body.tools && body.tools.length > 0 ? "auto" : undefined,
                   stream: true,
-                  temperature: typeof body.temperature === "number" ? body.temperature : 0.6,
+                  temperature: typeof body.temperature === "number" ? body.temperature : undefined,
                 }),
               });
 
@@ -138,7 +138,8 @@ export default defineConfig(({ mode }) => {
                 let message: string | undefined;
                 try {
                   const parsed = JSON.parse(text);
-                  message = parsed?.error?.message ?? (typeof parsed?.error === "string" ? parsed.error : undefined);
+                  const errorObject = Array.isArray(parsed) ? parsed[0]?.error : parsed?.error;
+                  message = errorObject?.message ?? (typeof errorObject === "string" ? errorObject : undefined);
                 } catch {
                   // Non-JSON error body from upstream; fall back to the generic message below.
                 }

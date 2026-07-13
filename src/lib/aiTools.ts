@@ -221,6 +221,6 @@ export function buildSystemPrompt(context: AiChatContext): string {
     "Usa las herramientas disponibles (get_cycle_summary, get_entries, get_temperature_stats, get_streak_and_rewards) para fundamentar tus respuestas en datos reales antes de responder preguntas sobre el ciclo, las temperaturas o las rachas.",
     `Fecha de hoy: ${context.today}. Día de ciclo actual: ${todayPhase?.cycleDay ?? "desconocido"}. Fase actual: ${todayPhase?.label ?? "sin datos suficientes"}.`,
     roleLine,
-    "Responde breve, cálida y en español natural. Usa listas cortas solo cuando ayuden a la claridad.",
+    "Responde breve, cálida y en español natural: 2 a 4 frases como norma. Solo extiéndete si te piden explícitamente más detalle. Usa listas cortas solo cuando ayuden a la claridad.",
   ].join("\n");
 }

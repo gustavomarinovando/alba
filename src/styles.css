@@ -3858,6 +3858,7 @@ button:active:not(:disabled),
   min-height: 16rem;
   max-height: 26rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: .25rem .1rem;
   scroll-behavior: smooth;
 }
@@ -3889,6 +3890,11 @@ button:active:not(:disabled),
   padding: .05rem .3rem;
   font-size: .84em;
 }
+.ai-chat-bubble .ai-chat-table-wrap { max-width: 100%; margin: 0 0 .5rem; overflow-x: auto; }
+.ai-chat-bubble .ai-chat-table-wrap:last-child { margin-bottom: 0; }
+.ai-chat-table { border-collapse: collapse; font-size: .82rem; }
+.ai-chat-table th, .ai-chat-table td { border: 1px solid color-mix(in srgb, var(--color-outline) 80%, transparent); padding: .3rem .55rem; text-align: left; }
+.ai-chat-table th { font-weight: 750; background: color-mix(in srgb, var(--color-ink) 6%, transparent); }
 .ai-chat-bubble-user {
   align-self: flex-end;
   background-color: color-mix(in srgb, var(--color-marigold) 20%, var(--color-surface));

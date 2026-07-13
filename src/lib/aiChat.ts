@@ -224,6 +224,21 @@ async function streamChatOnce(
   };
 }
 
+/**
+ * Fire a minimal, invisible request so the serverless function and the
+ * provider connection are already warm by the time the user sends a real
+ * message. Best-effort only: failures here must never surface to the user.
+ */
+export async function prewarmChat(context: AiChatContext, provider: AiProvider | null): Promise<void> {
+  try {
+    const systemMessage: AiChatMessage = { role: "system", content: buildSystemPrompt(context) };
+    const pingMessage: AiChatMessage = { role: "user", content: "ping" };
+    await streamChatOnce([systemMessage, pingMessage], [], { provider });
+  } catch {
+    // Ignore: this is only meant to shave latency off the first real message.
+  }
+}
+
 export async function summarizeOlderMessages(
   older: AiChatMessage[],
   existingSynopsis: string | undefined,

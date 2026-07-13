@@ -15,12 +15,49 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     });
 }
 
-/** Minimal, dependency-free markdown: bold/italic/code, bullet & numbered lists, headings, paragraphs. */
+function splitTableRow(line: string): string[] {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function isTableSeparatorRow(line: string): boolean {
+  const cells = splitTableRow(line);
+  return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell));
+}
+
+/** Minimal, dependency-free markdown: bold/italic/code, bullet & numbered lists, tables, headings, paragraphs. */
 export function renderMarkdown(content: string): ReactNode {
   const blocks = content.split(/\n{2,}/).filter((block) => block.trim().length > 0);
 
   return blocks.map((block, blockIndex) => {
     const lines = block.split("\n").filter((line) => line.trim().length > 0);
+
+    if (lines.length >= 2 && lines[0].includes("|") && isTableSeparatorRow(lines[1])) {
+      const headerCells = splitTableRow(lines[0]);
+      const bodyRows = lines.slice(2).map(splitTableRow);
+      return (
+        <div key={blockIndex} className="ai-chat-table-wrap">
+          <table className="ai-chat-table">
+            <thead>
+              <tr>
+                {headerCells.map((cell, cellIndex) => (
+                  <th key={cellIndex}>{renderInline(cell, `${blockIndex}-th-${cellIndex}`)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex}>{renderInline(cell, `${blockIndex}-td-${rowIndex}-${cellIndex}`)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
 
     if (lines.length > 0 && lines.every((line) => /^[-*]\s+/.test(line))) {
       return (

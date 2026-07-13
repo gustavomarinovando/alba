@@ -71,7 +71,9 @@ export default async function handler(request, response) {
         tools: Array.isArray(body.tools) && body.tools.length > 0 ? body.tools : undefined,
         tool_choice: body.tools && body.tools.length > 0 ? "auto" : undefined,
         stream: true,
-        temperature: typeof body.temperature === "number" ? body.temperature : 0.6,
+        // Left unset unless the caller opts in: some models (e.g. gpt-5-nano) only
+        // accept their default temperature and error out on any explicit value.
+        temperature: typeof body.temperature === "number" ? body.temperature : undefined,
       }),
     });
 
@@ -129,8 +131,10 @@ async function safeReadText(res) {
 function parseUpstreamError(text) {
   if (!text) return undefined;
   try {
+    // Gemini wraps its error body in an array; OpenAI/NVIDIA return a bare object.
     const parsed = JSON.parse(text);
-    return parsed?.error?.message ?? (typeof parsed?.error === "string" ? parsed.error : undefined);
+    const errorObject = Array.isArray(parsed) ? parsed[0]?.error : parsed?.error;
+    return errorObject?.message ?? (typeof errorObject === "string" ? errorObject : undefined);
   } catch {
     return undefined;
   }
