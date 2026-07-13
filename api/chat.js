@@ -3,7 +3,7 @@ const PROVIDERS = {
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     keyEnv: "GEMINI_API_KEY",
     modelEnv: "GEMINI_MODEL",
-    defaultModel: "gemini-flash-latest",
+    defaultModel: "gemini-3.1-flash-lite",
     label: "Gemini",
   },
   nvidia: {

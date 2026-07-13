@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
             }
 
             const providers: Record<string, { baseUrl: string; keyEnv: string; modelEnv: string; defaultModel: string; label: string }> = {
-              gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyEnv: "GEMINI_API_KEY", modelEnv: "GEMINI_MODEL", defaultModel: "gemini-flash-latest", label: "Gemini" },
+              gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyEnv: "GEMINI_API_KEY", modelEnv: "GEMINI_MODEL", defaultModel: "gemini-3.1-flash-lite", label: "Gemini" },
               nvidia: { baseUrl: "https://integrate.api.nvidia.com/v1", keyEnv: "NVIDIA_API_KEY", modelEnv: "NVIDIA_MODEL", defaultModel: "z-ai/glm-5.2", label: "NVIDIA" },
               openai: { baseUrl: "https://api.openai.com/v1", keyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", defaultModel: "gpt-4o-mini", label: "OpenAI" },
             };

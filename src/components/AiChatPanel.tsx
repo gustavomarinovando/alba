@@ -17,6 +17,7 @@ import {
 } from "../lib/aiChat";
 import type { AiChatContext } from "../lib/aiTools";
 import { isoDate } from "../lib/date";
+import { renderMarkdown } from "../lib/markdown";
 import type { PhaseDay } from "../lib/phases";
 import type { AlbaAccountContext } from "../lib/supabaseAuth";
 import type { StreakReward } from "../lib/streakRewards";
@@ -45,6 +46,8 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   const [meta, setMeta] = useState<AiChatMeta | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pendingDeltaRef = useRef<string | null>(null);
+  const deltaFrameRef = useRef<number | null>(null);
 
   const isPartnerRole = accountContext?.role === "member";
   const chips = isPartnerRole ? PARTNER_CHIPS : OWNER_CHIPS;
@@ -68,10 +71,27 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   }, [chat]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [chat.messages.length, streamingText]);
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: isSending ? "auto" : "smooth" });
+  }, [chat.messages.length, streamingText, isSending]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      if (deltaFrameRef.current != null) cancelAnimationFrame(deltaFrameRef.current);
+    },
+    [],
+  );
+
+  // Streaming chunks can arrive faster than the display can usefully repaint;
+  // batch them to one state update per animation frame instead of one per chunk.
+  function scheduleStreamingUpdate(text: string) {
+    pendingDeltaRef.current = text;
+    if (deltaFrameRef.current != null) return;
+    deltaFrameRef.current = requestAnimationFrame(() => {
+      deltaFrameRef.current = null;
+      if (pendingDeltaRef.current != null) setStreamingText(pendingDeltaRef.current);
+    });
+  }
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -102,7 +122,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       const reply = await runChatTurn(history, synopsis, context, {
         provider,
         signal: controller.signal,
-        onDelta: setStreamingText,
+        onDelta: scheduleStreamingUpdate,
         onMeta: setMeta,
       });
 
@@ -157,13 +177,13 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
         ) : (
           chat.messages.map((message, index) => (
             <div key={index} className={`ai-chat-bubble ${message.role === "user" ? "ai-chat-bubble-user" : "ai-chat-bubble-assistant"}`}>
-              {message.content}
+              {message.role === "assistant" ? renderMarkdown(message.content) : message.content}
             </div>
           ))
         )}
         {isSending ? (
           <div className="ai-chat-bubble ai-chat-bubble-assistant ai-chat-bubble-typing">
-            {streamingText || <Loader2 className="animate-spin" aria-hidden="true" size={15} />}
+            {streamingText ? renderMarkdown(streamingText) : <Loader2 className="animate-spin" aria-hidden="true" size={15} />}
           </div>
         ) : null}
       </div>
