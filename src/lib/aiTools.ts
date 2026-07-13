@@ -4,7 +4,7 @@ import type { CycleEntry, CycleObservationStreak, CycleStats } from "../types";
 import type { PhaseDay } from "./phases";
 import type { StreakReward } from "./streakRewards";
 
-export type AiTone = "alegre" | "suave" | "directo";
+export type AiTone = "alegre" | "suave" | "directo" | "tecnico";
 
 export interface AiChatContext {
   today: string;
@@ -237,6 +237,7 @@ const TONE_LINES: Record<AiTone, string> = {
   alegre: "Tono: alegre y entusiasta. Usa emojis con naturalidad (1-4 por respuesta) para dar calidez, nunca en exceso ni en cada frase.",
   suave: "Tono: suave, sereno y contenedor. Emojis opcionales y discretos (0-2 por respuesta), prioriza la calidez tranquila sobre la efusividad.",
   directo: "Tono: directo y eficiente. Ve al grano, sin relleno ni emojis salvo que aporten claridad real.",
+  tecnico: "Tono: técnico y detallado. Explica el mecanismo fisiológico detrás de lo que preguntan (hormonas, fases, fundamento de la estimación), con precisión y vocabulario clínico correcto, sin dejar de ser accesible. Emojis mínimos o ninguno.",
 };
 
 /**

@@ -95,7 +95,7 @@ export function saveProviderPreference(provider: AiProvider | null): void {
 export function loadTonePreference(): AiTone {
   try {
     const stored = localStorage.getItem(TONE_STORAGE_KEY);
-    return stored === "alegre" || stored === "suave" || stored === "directo" ? stored : "alegre";
+    return stored === "alegre" || stored === "suave" || stored === "directo" || stored === "tecnico" ? stored : "alegre";
   } catch {
     return "alegre";
   }

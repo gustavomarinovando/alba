@@ -176,6 +176,7 @@ function trackAppOpenStreak(): OpenStreak {
   }
   return streak;
 }
+const AI_TAB_SEEN_KEY = "alba-ai-tab-seen";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
 const CUSTOM_DATE_ACTIVATIONS_KEY = "alba-custom-date-activations";
@@ -302,6 +303,8 @@ export default function App() {
   const [chartWindow, setChartWindow] = useState(14);
   const [chartEndIndex, setChartEndIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
+  const [hasSeenAiTab, setHasSeenAiTab] = useState(() => safeLocalGet(AI_TAB_SEEN_KEY) === "true");
+  const aiTabButtonRef = useRef<HTMLButtonElement | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isNavCompact, setIsNavCompact] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -477,6 +480,23 @@ export default function App() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "ai" && !hasSeenAiTab) {
+      safeLocalSet(AI_TAB_SEEN_KEY, "true");
+      setHasSeenAiTab(true);
+    }
+  }, [activeTab, hasSeenAiTab]);
+
+  useEffect(() => {
+    if (hasSeenAiTab) return;
+    // The tab bar scrolls horizontally on narrow screens; nudge the new IA tab
+    // into view so people notice it instead of having to discover it by scrolling.
+    const timeout = window.setTimeout(() => {
+      aiTabButtonRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [hasSeenAiTab]);
 
   useEffect(() => {
     if (!isAuthReady || !accountContext || isDemoMode) return;
@@ -1529,9 +1549,19 @@ export default function App() {
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const isAiTab = tab.id === "ai";
             return (
-              <button key={tab.id} className={activeTab === tab.id ? "tab-button active" : "tab-button"} type="button" onClick={() => setActiveTab(tab.id)}>
-                <Icon aria-hidden="true" size={18} />
+              <button
+                key={tab.id}
+                ref={isAiTab ? aiTabButtonRef : undefined}
+                className={activeTab === tab.id ? "tab-button active" : "tab-button"}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="tab-icon-wrap">
+                  <Icon aria-hidden="true" size={18} />
+                  {isAiTab && !hasSeenAiTab ? <span className="tab-new-dot" aria-label="Novedad" /> : null}
+                </span>
                 <span className="tab-label">{tab.label}</span>
               </button>
             );

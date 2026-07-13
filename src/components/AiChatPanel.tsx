@@ -242,6 +242,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
             <option value="alegre">Alegre</option>
             <option value="suave">Suave</option>
             <option value="directo">Directo</option>
+            <option value="tecnico">Técnico</option>
           </select>
           <select
             className="ai-chat-provider-select"
