@@ -3819,3 +3819,7 @@ button:active:not(:disabled),
 @media (prefers-reduced-motion: reduce) {
   .prize-ticket.unlocked, .prize-ticket.unlocked .prize-ticket-emoji, .prize-ticket.unlocked::after, .prize-cat, .prize-stamp, .prize-builder { animation: none; }
 }
+
+/* Temperature chart: horizontal drag pans days; vertical touch still scrolls the page. */
+.temperature-plot { touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+.temperature-plot:active { cursor: grabbing; }

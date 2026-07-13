@@ -137,6 +137,27 @@ const OPEN_STREAK_KEY = "alba-open-streak";
 
 type OpenStreak = { current: number; longest: number; lastDate: string };
 
+// Classic FAM "3 over 6" rule: the coverline is the highest of the six valid
+// readings before three consecutive readings that all exceed it. The most
+// recent detection wins, which approximates the current cycle.
+function computeChartCoverline(
+  data: Array<{ date: string; temperature?: number }>,
+): { value: number; startDate: string } | null {
+  const valid = data.filter((item): item is { date: string; temperature: number } => typeof item.temperature === "number");
+  let result: { value: number; startDate: string } | null = null;
+  for (let index = 6; index + 2 < valid.length; index++) {
+    const coverValue = Math.max(...valid.slice(index - 6, index).map((item) => item.temperature));
+    if (
+      valid[index].temperature > coverValue &&
+      valid[index + 1].temperature > coverValue &&
+      valid[index + 2].temperature > coverValue
+    ) {
+      result = { value: coverValue, startDate: valid[index].date };
+    }
+  }
+  return result;
+}
+
 // The partner does not record measurements; their streak counts consecutive
 // days simply opening Alba. Tracked per device.
 function trackAppOpenStreak(): OpenStreak {
@@ -716,15 +737,23 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [draft]);
 
-  const allChartData = recentEntries.map((entry, index) => ({
-    day: index + 1,
-    date: entry.date,
-    label: displayDate(entry.date, "d MMM"),
-    tickLabel: index % 7 === 0 ? displayDate(entry.date, "d MMM") : "",
-    temperature: getOralTemperature(entry)?.value,
-    period: entry.isPeriod,
-    questionable: getOralTemperature(entry)?.isResting === false,
-  }));
+  const allChartData = recentEntries.map((entry, index) => {
+    const phaseDay = phaseByDate.get(entry.date);
+    return {
+      day: index + 1,
+      date: entry.date,
+      label: displayDate(entry.date, "d MMM"),
+      tickLabel: phaseDay?.cycleDay
+        ? (phaseDay.cycleDay === 1 || phaseDay.cycleDay % 5 === 0 ? `CD ${phaseDay.cycleDay}` : "")
+        : (index % 7 === 0 ? displayDate(entry.date, "d MMM") : ""),
+      temperature: getOralTemperature(entry)?.value,
+      period: entry.isPeriod,
+      questionable: getOralTemperature(entry)?.isResting === false,
+      phase: phaseDay?.phase,
+      cycleDay: phaseDay?.cycleDay,
+    };
+  });
+  const chartCoverline = computeChartCoverline(allChartData);
   const chartStartIndex = Math.max(0, chartEndIndex - chartWindow + 1);
   const chartData = allChartData.slice(chartStartIndex, chartEndIndex + 1);
   const chartTemperatures = chartData
@@ -1704,6 +1733,7 @@ export default function App() {
           chartData={chartData}
           chartDomain={chartDomain}
           chartWindow={chartWindow}
+          coverline={chartCoverline}
           selectedDate={selectedDate}
           onChartEndIndexChange={setChartEndIndex}
           onChartWindowChange={setChartWindow}
