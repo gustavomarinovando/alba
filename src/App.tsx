@@ -255,6 +255,7 @@ export default function App() {
   const [MascotPreview, setMascotPreview] = useState<MascotPreviewModule | null>(null);
   const [entries, setEntries] = useState<CycleEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(isoDate(new Date()));
+  const previousSelectedDateRef = useRef(selectedDate);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [draft, setDraft] = useState<CycleEntry>(() => emptyEntry(selectedDate));
   const [status, setStatus] = useState("");
@@ -706,10 +707,23 @@ export default function App() {
   }, [recentEntries.length]);
 
   useEffect(() => {
+    const dateChanged = previousSelectedDateRef.current !== selectedDate;
+    previousSelectedDateRef.current = selectedDate;
+
+    if (dateChanged && saveState === "saving") {
+      // Leaving a day with an edit still in its 650ms debounce window: flush it
+      // now instead of letting it get silently cancelled by the draft reset below.
+      void persistDraft({ quiet: true });
+    } else if (!dateChanged && saveState === "saving") {
+      // A background sync/realtime refresh landed while this day's edit is still
+      // pending; don't let it reset `draft` out from under an unsaved change.
+      return;
+    }
+
     const nextDraft = entryByDate.get(selectedDate) ?? emptyEntry(selectedDate);
     setDraft(nextDraft);
     setShowAdvanced(Boolean(nextDraft.cervicalMucus || nextDraft.cervixHeight || nextDraft.cervixFirmness || nextDraft.cervixOpenness));
-  }, [entryByDate, selectedDate]);
+  }, [entryByDate, selectedDate, saveState]);
 
   useEffect(() => {
     if (draft.temperatureReadings.length > 0) return;

@@ -273,7 +273,9 @@ function mergeEntries(localEntries: CycleEntry[], remoteEntries: CycleEntry[]): 
 
   for (const entry of [...localEntries, ...remoteEntries]) {
     const existing = byDate.get(entry.date);
-    if (!existing || new Date(entry.updatedAt).getTime() >= new Date(existing.updatedAt).getTime()) {
+    // Strict ">" so a tie keeps whichever was seen first (local, since it's spread
+    // first above) — matches applyRemoteEntry's "local wins on tie" rule elsewhere.
+    if (!existing || new Date(entry.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
       byDate.set(entry.date, entry);
     }
   }
