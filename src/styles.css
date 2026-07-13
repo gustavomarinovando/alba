@@ -3828,7 +3828,7 @@ button:active:not(:disabled),
    plain background-color/box-shadow only — no backdrop-filter per bubble. */
 .ai-chat-panel { display: flex; flex-direction: column; gap: .75rem; }
 .ai-chat-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
-.ai-chat-header-actions { display: flex; align-items: center; gap: .5rem; }
+.ai-chat-header-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 .ai-chat-provider-badge {
   border: 1px solid var(--color-outline);
   border-radius: 999px;

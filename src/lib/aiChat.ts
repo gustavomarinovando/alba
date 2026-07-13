@@ -1,4 +1,5 @@
-import { AI_TOOLS, buildSystemPrompt, executeAiTool, type AiChatContext } from "./aiTools";
+import { AI_TOOLS, STYLE_EXAMPLE_TURNS, buildSystemPrompt, executeAiTool, type AiChatContext, type AiTone } from "./aiTools";
+export type { AiTone } from "./aiTools";
 
 export type AiProvider = "gemini" | "nvidia" | "openai";
 
@@ -8,6 +9,8 @@ export interface AiChatMessage {
   tool_call_id?: string;
   name?: string;
   tool_calls?: AiToolCall[];
+  /** Follow-up questions parsed out of the model's trailing suggestions marker. */
+  suggestions?: string[];
 }
 
 export interface AiToolCall {
@@ -29,6 +32,7 @@ export interface AiChatMeta {
 
 const CHAT_STORAGE_KEY = "alba-ai-chat";
 const PROVIDER_STORAGE_KEY = "alba-ai-provider";
+const TONE_STORAGE_KEY = "alba-ai-tone";
 const HISTORY_LIMIT = 20;
 const HISTORY_KEEP_RECENT = 10;
 const MAX_TOOL_LOOPS = 4;
@@ -88,6 +92,23 @@ export function saveProviderPreference(provider: AiProvider | null): void {
   }
 }
 
+export function loadTonePreference(): AiTone {
+  try {
+    const stored = localStorage.getItem(TONE_STORAGE_KEY);
+    return stored === "alegre" || stored === "suave" || stored === "directo" ? stored : "alegre";
+  } catch {
+    return "alegre";
+  }
+}
+
+export function saveTonePreference(tone: AiTone): void {
+  try {
+    localStorage.setItem(TONE_STORAGE_KEY, tone);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 interface RunChatTurnOptions {
   provider: AiProvider | null;
   onDelta?: (textSoFar: string) => void;
@@ -95,18 +116,40 @@ interface RunChatTurnOptions {
   signal?: AbortSignal;
 }
 
+export interface ChatTurnResult {
+  content: string;
+  suggestions: string[];
+}
+
+const SUGGESTIONS_MARKER_PATTERN = /<!--\s*suggestions:\s*([\s\S]*?)-->/i;
+// Weaker models occasionally emit a stray "-->" right before the real marker
+// (as if they'd started, then restarted, the comment); clean that up too.
+const TRAILING_COMMENT_DEBRIS_PATTERN = /(<!--)?\s*-->\s*$/;
+
+function extractSuggestions(content: string): ChatTurnResult {
+  const match = content.match(SUGGESTIONS_MARKER_PATTERN);
+  if (!match) return { content: content.trim(), suggestions: [] };
+  const suggestions = match[1]
+    .split("|")
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const before = content.slice(0, match.index).replace(TRAILING_COMMENT_DEBRIS_PATTERN, "");
+  return { content: before.trim(), suggestions };
+}
+
 export async function runChatTurn(
   history: AiChatMessage[],
   synopsis: string | undefined,
   context: AiChatContext,
   options: RunChatTurnOptions,
-): Promise<string> {
+): Promise<ChatTurnResult> {
   const systemMessage: AiChatMessage = {
     role: "system",
     content: synopsis ? `${buildSystemPrompt(context)}\n\nResumen de la conversación previa:\n${synopsis}` : buildSystemPrompt(context),
   };
 
-  const messages: AiChatMessage[] = [systemMessage, ...history];
+  const messages: AiChatMessage[] = [systemMessage, ...STYLE_EXAMPLE_TURNS.map((turn) => ({ ...turn })), ...history];
   let metaReported = false;
 
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop += 1) {
@@ -121,7 +164,7 @@ export async function runChatTurn(
     messages.push(message);
 
     if (!message.tool_calls || message.tool_calls.length === 0) {
-      return message.content;
+      return extractSuggestions(message.content);
     }
 
     for (const toolCall of message.tool_calls) {
@@ -134,7 +177,7 @@ export async function runChatTurn(
     }
   }
 
-  return "No pude terminar de pensar la respuesta, ¿puedes intentar de nuevo?";
+  return { content: "No pude terminar de pensar la respuesta, ¿puedes intentar de nuevo?", suggestions: [] };
 }
 
 async function streamChatOnce(

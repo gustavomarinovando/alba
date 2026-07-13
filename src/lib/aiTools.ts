@@ -4,9 +4,13 @@ import type { CycleEntry, CycleObservationStreak, CycleStats } from "../types";
 import type { PhaseDay } from "./phases";
 import type { StreakReward } from "./streakRewards";
 
+export type AiTone = "alegre" | "suave" | "directo";
+
 export interface AiChatContext {
   today: string;
   role: "owner" | "member" | null;
+  viewerUserId: string | null;
+  tone: AiTone;
   entries: CycleEntry[];
   stats: CycleStats;
   phaseByDate: Map<string, PhaseDay>;
@@ -71,7 +75,15 @@ export const AI_TOOLS: AiToolDefinition[] = [
     type: "function",
     function: {
       name: "get_streak_and_rewards",
-      description: "Devuelve la racha de observación actual/más larga y el estado de las recompensas de racha (canjeadas y pendientes).",
+      description: "Devuelve la racha de observación actual/más larga y las recompensas (cupones) de racha: quién las creó, si son recientes y si ya fueron canjeadas.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_upcoming_moments",
+      description: "Devuelve cuántos días faltan para el próximo mesario (día 6 de cada mes).",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -94,6 +106,8 @@ export function executeAiTool(name: string, rawArgs: string, context: AiChatCont
       return getTemperatureStats(context, args.cycle === "previous" ? "previous" : "current");
     case "get_streak_and_rewards":
       return getStreakAndRewards(context);
+    case "get_upcoming_moments":
+      return getUpcomingMoments(context);
     default:
       return { error: `Herramienta desconocida: ${name}` };
   }
@@ -184,16 +198,29 @@ function getTemperatureStats(context: AiChatContext, cycle: "current" | "previou
 }
 
 function getStreakAndRewards(context: AiChatContext) {
+  const now = Date.parse(context.today);
   return {
     observationStreak: context.observationStreak,
-    rewards: context.streakRewards.map((reward) => ({
-      title: reward.title,
-      category: reward.category,
-      thresholdDays: reward.thresholdDays,
-      redeemed: Boolean(reward.redeemedAt),
-      redeemedAt: reward.redeemedAt,
-    })),
+    rewards: [...context.streakRewards]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((reward) => ({
+        title: reward.title,
+        description: reward.description,
+        category: reward.category,
+        thresholdDays: reward.thresholdDays,
+        redeemed: Boolean(reward.redeemedAt),
+        redeemedAt: reward.redeemedAt,
+        createdByPartner: context.viewerUserId ? reward.createdBy !== context.viewerUserId : undefined,
+        isRecent: Number.isFinite(now) ? now - new Date(reward.createdAt).getTime() < 5 * 86_400_000 : false,
+      })),
   };
+}
+
+function getUpcomingMoments(context: AiChatContext) {
+  const today = new Date(context.today);
+  const monthiversary = today.getDate() < 6 ? new Date(today.getFullYear(), today.getMonth(), 6) : new Date(today.getFullYear(), today.getMonth() + 1, 6);
+  const daysUntilMonthiversary = Math.max(0, Math.round((monthiversary.getTime() - today.getTime()) / 86_400_000));
+  return { daysUntilMonthiversary };
 }
 
 function dayDiffCap(start: string, end: string): number {
@@ -206,6 +233,27 @@ function offsetDate(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
+const TONE_LINES: Record<AiTone, string> = {
+  alegre: "Tono: alegre y entusiasta. Usa emojis con naturalidad (1-4 por respuesta) para dar calidez, nunca en exceso ni en cada frase.",
+  suave: "Tono: suave, sereno y contenedor. Emojis opcionales y discretos (0-2 por respuesta), prioriza la calidez tranquila sobre la efusividad.",
+  directo: "Tono: directo y eficiente. Ve al grano, sin relleno ni emojis salvo que aporten claridad real.",
+};
+
+/**
+ * A fixed one-shot exemplar prepended to every request (never persisted or
+ * shown). Weaker models follow the desired tone/format far more reliably
+ * with a concrete example than with prose instructions alone.
+ */
+export const STYLE_EXAMPLE_TURNS: Array<{ role: "user" | "assistant"; content: string }> = [
+  { role: "user", content: "¿Cómo viene mi próxima regla?" },
+  {
+    role: "assistant",
+    content:
+      "¡Vamos a ver! 🌙 Según tu patrón, tu próxima regla estimada sería el 2026-09-26. Tu ciclo ha sido bastante regular, lo cual es una gran señal de que tu cuerpo lleva un ritmo estable.\n\n¿Quieres que revisemos si tu temperatura ya mostró algún cambio que lo confirme? 🌡️" +
+      "\n\n<!--suggestions: ¿Reviso mi temperatura reciente? | ¿Qué tan regular ha sido mi ciclo? | Cuéntame de mi racha-->",
+  },
+];
+
 export function buildSystemPrompt(context: AiChatContext): string {
   const todayPhase = context.phaseByDate.get(context.today);
   const roleLine =
@@ -216,12 +264,26 @@ export function buildSystemPrompt(context: AiChatContext): string {
         : "No hay una cuenta identificada; responde con generalidad.";
 
   return [
-    "Eres Alba, una amiga cercana y alegre en español (trato de tú) dentro de una app privada de seguimiento de ciclo menstrual y temperatura basal.",
-    "Tu personalidad: cálida, entusiasta, curiosa y con sentido del humor suave. Usa emojis con naturalidad (1-4 por respuesta) para dar calidez, nunca en exceso ni en cada frase.",
-    "No diagnosticas, no confirmas ovulación con certeza, no das indicaciones anticonceptivas y no sustituyes atención médica. Hablas de patrones observacionales, con humildad cuando falten datos.",
-    "Usa las herramientas disponibles (get_cycle_summary, get_entries, get_temperature_stats, get_streak_and_rewards) para fundamentar tus respuestas en datos reales antes de responder preguntas sobre el ciclo, las temperaturas o las rachas.",
-    `Fecha de hoy: ${context.today}. Día de ciclo actual: ${todayPhase?.cycleDay ?? "desconocido"}. Fase actual: ${todayPhase?.label ?? "sin datos suficientes"}.`,
+    "## Rol",
+    "Eres Alba, una amiga cercana en español (trato de tú) dentro de una app privada de pareja para seguimiento de ciclo menstrual, temperatura basal y su relación (rachas, cupones, mesarios).",
     roleLine,
-    "Sé conversacional, no telegráfica: comenta lo que notas, muestra interés genuino y añade un dato curioso o una pregunta de seguimiento cuando encaje, en vez de limitarte al mínimo posible. Ajusta el largo a la pregunta -una duda simple no necesita un párrafo, pero un tema interesante merece explayarse un poco-. Evita sonar acartonada o de manual; escribe como alguien que realmente disfruta la conversación.",
+    "",
+    "## Personalidad",
+    "Cálida, entusiasta, curiosa y con sentido del humor suave. Conversacional, no telegráfica: comenta lo que notas, muestra interés genuino y añade una pregunta de seguimiento cuando encaje, en vez de limitarte al mínimo posible.",
+    "Ajusta el largo a la pregunta: una duda simple no necesita un párrafo, pero un tema interesante merece explayarse un poco. Evita sonar acartonada o de manual.",
+    TONE_LINES[context.tone],
+    "",
+    "## Reglas médicas",
+    "No diagnosticas, no confirmas ovulación con certeza, no das indicaciones anticonceptivas y no sustituyes atención médica. Hablas de patrones observacionales, con humildad cuando falten datos.",
+    "",
+    "## Herramientas",
+    "Antes de responder cualquier pregunta sobre el ciclo, temperaturas, rachas, cupones o mesarios, llama primero a la herramienta correspondiente (get_cycle_summary, get_entries, get_temperature_stats, get_streak_and_rewards, get_upcoming_moments). Nunca inventes ni asumas valores que una herramienta podría darte.",
+    "",
+    "## Formato",
+    "Fechas: cuando menciones una fecha, escríbela siempre en formato ISO completo AAAA-MM-DD (ej. 2026-09-26), nunca abreviada ni en otro orden; la app la muestra ya formateada para quien lee.",
+    "Sugerencias: termina SIEMPRE tu último mensaje (el que no llama a una herramienta) con una línea aparte, exactamente así: <!--suggestions: pregunta corta 1 | pregunta corta 2 | pregunta corta 3-->. Son 2 o 3 posibles preguntas de seguimiento que la persona podría tocar, en su misma voz (primera persona). Esa línea no se muestra tal cual, así que no la menciones ni la expliques.",
+    "",
+    "## Contexto de hoy",
+    `Fecha: ${context.today}. Día de ciclo actual: ${todayPhase?.cycleDay ?? "desconocido"}. Fase actual: ${todayPhase?.label ?? "sin datos suficientes"}.`,
   ].join("\n");
 }

@@ -6,20 +6,23 @@ import {
   historyToSummarize,
   loadProviderPreference,
   loadStoredChat,
+  loadTonePreference,
   needsSummarization,
   prewarmChat,
   runChatTurn,
   saveStoredChat,
+  saveProviderPreference,
+  saveTonePreference,
   summarizeOlderMessages,
   trimHistoryForModel,
-  saveProviderPreference,
   type AiChatMessage,
   type AiChatMeta,
   type AiProvider,
+  type AiTone,
   type StoredChat,
 } from "../lib/aiChat";
 import type { AiChatContext } from "../lib/aiTools";
-import { isoDate } from "../lib/date";
+import { humanizeIsoDatesInText, isoDate } from "../lib/date";
 import { renderMarkdown } from "../lib/markdown";
 import type { PhaseDay } from "../lib/phases";
 import type { AlbaAccountContext } from "../lib/supabaseAuth";
@@ -40,9 +43,13 @@ const PARTNER_CHIPS = ["¿Cómo apoyarla hoy?", "Explícame su fase actual", "Id
 
 const PROVIDER_LABEL: Record<string, string> = { gemini: "Gemini", nvidia: "NVIDIA", openai: "OpenAI" };
 
-// Module-level so it survives the panel unmounting/remounting as the user
-// switches tabs, and only fires once per page load.
+const GREETING_TRIGGER =
+  "(Mensaje inicial automático generado por el sistema; la persona no escribió esto) Salúdame con calidez y, usando tus herramientas si hace falta, cuéntame proactivamente algo útil o interesante de ahora mismo: mi fase o día de ciclo, mi racha, si mi pareja creó cupones nuevos recientemente, o si se acerca un mesario. Sé breve pero cálida y cierra con una pregunta abierta.";
+
+// Module-level so these survive the panel unmounting/remounting as the user
+// switches tabs, and only fire once per page load.
 let hasPrewarmed = false;
+let hasGreeted = false;
 
 export default function AiChatPanel({ entries, stats, phaseByDate, observationStreak, streakRewards, accountContext }: AiChatPanelProps) {
   const [chat, setChat] = useState<StoredChat>(() => loadStoredChat());
@@ -52,6 +59,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   const [error, setError] = useState("");
   const [meta, setMeta] = useState<AiChatMeta | null>(null);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
+  const [tone, setTone] = useState<AiTone>(() => loadTonePreference());
   const rootRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -66,13 +74,15 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
     () => ({
       today,
       role: accountContext?.role ?? null,
+      viewerUserId: accountContext?.userId ?? null,
+      tone,
       entries,
       stats,
       phaseByDate,
       observationStreak,
       streakRewards,
     }),
-    [today, accountContext?.role, entries, stats, phaseByDate, observationStreak, streakRewards],
+    [today, accountContext?.role, accountContext?.userId, tone, entries, stats, phaseByDate, observationStreak, streakRewards],
   );
 
   useEffect(() => {
@@ -88,10 +98,16 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   }, []);
 
   useEffect(() => {
-    if (hasPrewarmed) return;
-    hasPrewarmed = true;
-    void prewarmChat(context, providerOverride);
-    // Intentionally runs once per page load only, with whatever context/provider are available then.
+    if (chat.messages.length > 0) {
+      if (hasPrewarmed) return;
+      hasPrewarmed = true;
+      void prewarmChat(context, providerOverride);
+      return;
+    }
+    if (hasGreeted) return;
+    hasGreeted = true;
+    void sendGreeting();
+    // Runs at most once per page load, right after mount, using the context available then.
   }, []);
 
   useEffect(() => {
@@ -115,6 +131,30 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       deltaFrameRef.current = null;
       if (pendingDeltaRef.current != null) setStreamingText(pendingDeltaRef.current);
     });
+  }
+
+  async function sendGreeting() {
+    setIsSending(true);
+    setStreamingText("");
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const triggerMessage: AiChatMessage = { role: "user", content: GREETING_TRIGGER };
+      const { content, suggestions } = await runChatTurn([triggerMessage], undefined, context, {
+        provider: providerOverride,
+        signal: controller.signal,
+        onDelta: scheduleStreamingUpdate,
+        onMeta: setMeta,
+      });
+      const assistantMessage: AiChatMessage = { role: "assistant", content, suggestions };
+      setChat((previous) => ({ ...previous, messages: [...previous.messages, assistantMessage] }));
+    } catch {
+      // A failed auto-greeting just leaves the empty-state placeholder showing; no error banner needed.
+    } finally {
+      setIsSending(false);
+      setStreamingText("");
+    }
   }
 
   async function send(text: string) {
@@ -143,14 +183,14 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       }
 
       const { history, synopsis } = trimHistoryForModel(workingChat);
-      const reply = await runChatTurn(history, synopsis, context, {
+      const { content, suggestions } = await runChatTurn(history, synopsis, context, {
         provider,
         signal: controller.signal,
         onDelta: scheduleStreamingUpdate,
         onMeta: setMeta,
       });
 
-      const assistantMessage: AiChatMessage = { role: "assistant", content: reply || "No tengo una respuesta clara ahora mismo." };
+      const assistantMessage: AiChatMessage = { role: "assistant", content: content || "No tengo una respuesta clara ahora mismo.", suggestions };
       const finalChat: StoredChat = { ...workingChat, messages: [...workingChat.messages, assistantMessage] };
       setChat(finalChat);
     } catch (caught) {
@@ -176,6 +216,9 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
     void send(input);
   }
 
+  const lastMessage = chat.messages.at(-1);
+  const lastSuggestions = !isSending && lastMessage?.role === "assistant" ? lastMessage.suggestions ?? [] : [];
+
   return (
     <section ref={rootRef} data-reveal className="panel motion-reveal ai-chat-panel rounded border border-outline bg-surface p-4 shadow-soft sm:p-5">
       <div className="ai-chat-header">
@@ -185,6 +228,21 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
         </div>
         <div className="ai-chat-header-actions">
           {meta ? <span className="ai-chat-provider-badge">{PROVIDER_LABEL[meta.provider] ?? meta.provider} · {meta.model}</span> : null}
+          <select
+            className="ai-chat-provider-select"
+            value={tone}
+            aria-label="Tono de Alba"
+            title="Tono de Alba"
+            onChange={(event) => {
+              const value = event.target.value as AiTone;
+              setTone(value);
+              saveTonePreference(value);
+            }}
+          >
+            <option value="alegre">Alegre</option>
+            <option value="suave">Suave</option>
+            <option value="directo">Directo</option>
+          </select>
           <select
             className="ai-chat-provider-select"
             value={providerOverride ?? "auto"}
@@ -212,18 +270,18 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       </div>
 
       <div ref={scrollRef} className="ai-chat-messages">
-        {chat.messages.length === 0 && !streamingText ? (
+        {chat.messages.length === 0 && !streamingText && !isSending ? (
           <div className="ai-chat-empty">Pregúntale a Alba sobre tu ciclo, tus temperaturas o tu racha.</div>
         ) : (
           chat.messages.map((message, index) => (
             <div key={index} className={`ai-chat-bubble ${message.role === "user" ? "ai-chat-bubble-user" : "ai-chat-bubble-assistant"}`}>
-              {message.role === "assistant" ? renderMarkdown(message.content) : message.content}
+              {message.role === "assistant" ? renderMarkdown(humanizeIsoDatesInText(message.content, today)) : message.content}
             </div>
           ))
         )}
         {isSending ? (
           <div className={`ai-chat-bubble ai-chat-bubble-assistant${streamingText ? "" : " ai-chat-bubble-typing"}`}>
-            {streamingText ? renderMarkdown(streamingText) : <Loader2 className="animate-spin" aria-hidden="true" size={15} />}
+            {streamingText ? renderMarkdown(humanizeIsoDatesInText(streamingText, today)) : <Loader2 className="animate-spin" aria-hidden="true" size={15} />}
           </div>
         ) : null}
       </div>
@@ -231,7 +289,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       {error ? <div className="info-box ai-chat-error">{error}</div> : null}
 
       <div className="ai-chat-chips">
-        {chips.map((chip) => (
+        {(lastSuggestions.length > 0 ? lastSuggestions : chips).map((chip) => (
           <button key={chip} className="ai-chat-chip" type="button" disabled={isSending} onClick={() => void send(chip)}>
             {chip}
           </button>
