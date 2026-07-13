@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
-import { requestCycleInsight } from "./lib/ai";
+import { loadProviderPreference, saveProviderPreference, type AiProvider } from "./lib/aiChat";
 import { calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
 import { calendarDaysForMonth, displayDate, isToday, isoDate } from "./lib/date";
 import {
@@ -59,6 +59,7 @@ import type {
 } from "./types";
 
 const TemperatureChartPanel = lazy(() => import("./components/TemperatureChartPanel"));
+const AiChatPanel = lazy(() => import("./components/AiChatPanel"));
 
 const flowOptions: Array<{ value: FlowLevel; label: string }> = [
   { value: "none", label: "Ninguno" },
@@ -259,8 +260,6 @@ export default function App() {
   const [status, setStatus] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [saveFeedback, setSaveFeedback] = useState<"idle" | "saving" | "saved">("idle");
-  const [insight, setInsight] = useState("");
-  const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
@@ -315,6 +314,7 @@ export default function App() {
     return "dark";
   });
   const [uiTheme, setUiTheme] = useState<"liquid" | "legacy">(() => (safeLocalGet(UI_THEME_STORAGE_KEY) === "legacy" ? "legacy" : "liquid"));
+  const [aiProviderOverride, setAiProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
   const [openStreak] = useState<OpenStreak>(() => trackAppOpenStreak());
   const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationPermission>(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
@@ -1343,21 +1343,6 @@ export default function App() {
     }
   }
 
-  async function generateInsight() {
-    setIsInsightLoading(true);
-    setInsight("");
-
-    try {
-      const result = await requestCycleInsight({ entries, stats, selectedDate });
-      setInsight(result);
-      setStatus("Explicación generada.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo generar la lectura.");
-    } finally {
-      setIsInsightLoading(false);
-    }
-  }
-
   function closeAnniversaryIntro() {
     safeSessionSet(`alba-anniversary-${isoDate(new Date())}`, "seen");
     setShowAnniversaryIntro(false);
@@ -2115,23 +2100,16 @@ export default function App() {
 
   function renderAi() {
     return (
-      <Panel>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-marigold" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Asistente Alba</h2>
-          </div>
-          <button className="icon-button compact" title="Consultar a Alba" onClick={generateInsight} disabled={isInsightLoading || entries.length === 0} type="button">
-            {isInsightLoading ? <Loader2 className="animate-spin" aria-hidden="true" size={17} /> : <Sparkles aria-hidden="true" size={17} />}
-          </button>
-        </div>
-        <div className="info-box warning">
-          Alba revisa tus registros solo cuando presionas este botón. Es orientativa y no diagnostica.
-        </div>
-        <div className="mt-3 min-h-32 whitespace-pre-wrap rounded border border-outline bg-surface/70 p-3 text-sm leading-6 text-ink/86">
-          {insight || (entries.length ? "Consulta a Alba cuando quieras revisar patrones del ciclo." : "Agrega datos para consultar a Alba.")}
-        </div>
-      </Panel>
+      <Suspense fallback={<LazyPanelFallback icon={<Sparkles className="h-5 w-5 text-marigold" aria-hidden="true" />} title="Asistente Alba" text="Preparando el chat..." />}>
+        <AiChatPanel
+          entries={entries}
+          stats={stats}
+          phaseByDate={phaseByDate}
+          observationStreak={observationStreak}
+          streakRewards={streakRewards}
+          accountContext={accountContext}
+        />
+      </Suspense>
     );
   }
 
@@ -2195,6 +2173,24 @@ export default function App() {
             <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
             <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
           </div>
+        </section>
+        <section className="settings-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Inteligencia artificial</span><h3>Modelo de IA</h3></div><span className="settings-status-dot">{aiProviderOverride ? { gemini: "Gemini", nvidia: "NVIDIA", openai: "OpenAI" }[aiProviderOverride] : "Automático"}</span></div>
+          <p className="settings-section-copy">Elige qué proveedor responde en el chat de Alba. Si su clave no está configurada en el servidor, se usa el proveedor por defecto.</p>
+          <select
+            className="rounded border border-outline bg-surface px-3 py-2"
+            value={aiProviderOverride ?? "auto"}
+            onChange={(event) => {
+              const value = event.target.value === "auto" ? null : (event.target.value as AiProvider);
+              setAiProviderOverride(value);
+              saveProviderPreference(value);
+            }}
+          >
+            <option value="auto">Automático (según el servidor)</option>
+            <option value="gemini">Gemini</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="openai">OpenAI</option>
+          </select>
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
