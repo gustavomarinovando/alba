@@ -90,7 +90,15 @@ export async function syncWithSupabase(localEntries: CycleEntry[], context?: Alb
     localEntries.filter((entry) => !isDemoEntry(entry)),
     remoteEntries,
   );
-  await pushRemoteEntries(merged, context);
+  // Push only rows that differ from the server. Uploading untouched rows the
+  // other partner recorded can be rejected by row-level security and, because
+  // the upsert is one atomic statement, used to drag new entries down with it.
+  const remoteByDate = new Map(remoteEntries.map((entry) => [entry.date, entry]));
+  const changed = merged.filter((entry) => {
+    const remote = remoteByDate.get(entry.date);
+    return !remote || new Date(entry.updatedAt).getTime() > new Date(remote.updatedAt).getTime();
+  });
+  await pushRemoteEntries(changed, context);
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 

@@ -43,7 +43,8 @@ import {
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
 import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
-import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerEmail, getPendingInviteStatus, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerStatus, getPendingInviteStatus, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
+import { createStreakReward, deleteStreakReward, listStreakRewards, redeemStreakReward, rewardCategoryMeta, rewardTemplates, type RewardCategory, type StreakReward, type StreakRewardDraft } from "./lib/streakRewards";
 import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
@@ -235,6 +236,8 @@ export default function App() {
     } catch { return null; }
   });
   const [partnerEmail, setPartnerEmail] = useState<string | null>(null);
+  const [partnerConnected, setPartnerConnected] = useState(false);
+  const [streakRewards, setStreakRewards] = useState<StreakReward[]>([]);
   const [pendingInvite, setPendingInvite] = useState<{ expiresAt: string } | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
@@ -432,11 +435,19 @@ export default function App() {
 
   useEffect(() => {
     if (!accountContext) return;
-    void getPartnerEmail().then(setPartnerEmail).catch(() => setPartnerEmail(null));
+    void getPartnerStatus(accountContext).then((statusResult) => {
+      setPartnerConnected(statusResult.connected);
+      setPartnerEmail(statusResult.email);
+    }).catch(() => { setPartnerConnected(false); setPartnerEmail(null); });
     if (accountContext.role === "owner") {
       void getPendingInviteStatus().then(setPendingInvite).catch(() => setPendingInvite(null));
     }
   }, [accountContext?.coupleId, accountContext?.role]);
+
+  useEffect(() => {
+    if (!isAuthReady) return;
+    void listStreakRewards(accountContext).then(setStreakRewards).catch(() => setStreakRewards([]));
+  }, [isAuthReady, accountContext?.coupleId]);
 
   useEffect(() => {
     const revealItems = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
@@ -1175,6 +1186,36 @@ export default function App() {
     } finally { setIsAuthenticating(false); setIsGeneratingInvite(false); }
   }
 
+  async function handleCreateReward(draft: StreakRewardDraft) {
+    try {
+      const { reward, savedToCloud } = await createStreakReward(accountContext, draft);
+      setStreakRewards((prev) => [...prev, reward]);
+      setStatus(savedToCloud ? "Cupón creado. Cada día registrado lo acerca." : "Cupón guardado en este dispositivo; se sincronizará cuando la migración 013 esté aplicada.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo crear el cupón.");
+    }
+  }
+
+  async function handleRedeemReward(id: string) {
+    try {
+      await redeemStreakReward(accountContext, id);
+      setStreakRewards((prev) => prev.map((reward) => (reward.id === id ? { ...reward, redeemedAt: new Date().toISOString() } : reward)));
+      setStatus("¡Cupón canjeado! Ahora toca cumplirlo.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo canjear el cupón.");
+    }
+  }
+
+  async function handleDeleteReward(id: string) {
+    if (!window.confirm("¿Eliminar este cupón?")) return;
+    try {
+      await deleteStreakReward(accountContext, id);
+      setStreakRewards((prev) => prev.filter((reward) => reward.id !== id));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo eliminar el cupón.");
+    }
+  }
+
   async function copyInviteCode() {
     if (!createdInvite) return;
     try {
@@ -1194,6 +1235,7 @@ export default function App() {
       if (asOwner) await removePartner(); else await leaveCouple();
       if (asOwner) {
         setPartnerEmail(null);
+        setPartnerConnected(false);
         setCreatedInvite(null);
         setPendingInvite(null);
         safeLocalSet("alba-partner-invite", "");
@@ -1670,6 +1712,14 @@ export default function App() {
               <strong>{observationStreak.longest} {observationStreak.longest === 1 ? "día" : "días"}</strong>
             </div>
           </div>
+          <StreakPrizes
+            rewards={streakRewards}
+            streakDays={observationStreak.current}
+            currentUserId={accountContext?.userId ?? "local"}
+            onCreate={handleCreateReward}
+            onRedeem={handleRedeemReward}
+            onDelete={handleDeleteReward}
+          />
         </Panel>
 
         <Panel className={shouldPrioritizeEntry ? "order-1" : ""}>
@@ -2044,9 +2094,9 @@ export default function App() {
           )}
           {accountContext?.role === "owner" ? (
             <div className="invite-card">
-              <div><strong>{partnerEmail ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerEmail ? `${partnerEmail} tiene acceso a los registros compartidos.` : pendingInvite && !createdInvite ? "Hay una invitación activa. Por seguridad, el código solo se muestra en el dispositivo donde se creó; puedes generar uno nuevo (reemplaza al anterior)." : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
-              {partnerEmail ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
-              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerEmail ? (
+              <div><strong>{partnerConnected ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerConnected ? `${partnerEmail ?? "Tu pareja"} tiene acceso a los registros compartidos.` : pendingInvite && !createdInvite ? "Hay una invitación activa. Por seguridad, el código solo se muestra en el dispositivo donde se creó; puedes generar uno nuevo (reemplaza al anterior)." : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
+              {partnerConnected ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
+              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerConnected ? (
                 <div className="invite-code revealed">
                   <code>{createdInvite.code}</code>
                   <small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small>
@@ -2055,7 +2105,7 @@ export default function App() {
                     {inviteCopied ? "¡Copiado!" : "Copiar código"}
                   </button>
                 </div>
-              ) : pendingInvite && !partnerEmail ? (
+              ) : pendingInvite && !partnerConnected ? (
                 <div className="invite-code pending"><code>••••••••••••</code><small>Invitación activa, vence: {new Date(pendingInvite.expiresAt).toLocaleString("es")}</small></div>
               ) : null}
             </div>
@@ -3103,6 +3153,142 @@ function SideWalkingCat({
       </g>
       <text className={`cat-tap-paw ${kind}`} x="152" y="30" textAnchor="middle" aria-hidden="true">🐾</text>
     </svg>
+  );
+}
+
+function StreakPrizes({
+  rewards,
+  streakDays,
+  currentUserId,
+  onCreate,
+  onRedeem,
+  onDelete,
+}: {
+  rewards: StreakReward[];
+  streakDays: number;
+  currentUserId: string;
+  onCreate: (draft: StreakRewardDraft) => Promise<void>;
+  onRedeem: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [builderCategory, setBuilderCategory] = useState<Exclude<RewardCategory, "custom">>("comida");
+  const [draft, setDraft] = useState<StreakRewardDraft>({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
+  const [isSaving, setIsSaving] = useState(false);
+  const active = rewards.filter((reward) => !reward.redeemedAt);
+  const redeemed = rewards.filter((reward) => reward.redeemedAt);
+  const hasUnlocked = active.some((reward) => streakDays >= reward.thresholdDays);
+
+  async function submitDraft(event: React.FormEvent) {
+    event.preventDefault();
+    if (!draft.title.trim()) return;
+    setIsSaving(true);
+    try {
+      await onCreate({ ...draft, title: draft.title.trim(), description: draft.description.trim(), emoji: draft.emoji.trim() || "🎁" });
+      setDraft({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
+      setIsBuilderOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section className="prize-shelf" aria-label="Premios por racha">
+      <div className="prize-shelf-heading">
+        <div>
+          <span className="eyebrow">Premios de la racha</span>
+          <p>{active.length === 0 ? "Crea cupones que se desbloquean al mantener la racha." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={() => setIsBuilderOpen((open) => !open)}>
+          {isBuilderOpen ? "Cerrar" : "+ Nuevo cupón"}
+        </button>
+      </div>
+      {hasUnlocked ? <AnniversaryCat kind="orange" label="Mandarino celebra tus premios desbloqueados" className="prize-cat" /> : null}
+
+      {isBuilderOpen ? (
+        <div className="prize-builder">
+          <div className="prize-category-chips" role="tablist" aria-label="Categorías de plantillas">
+            {(Object.keys(rewardTemplates) as Array<Exclude<RewardCategory, "custom">>).map((category) => (
+              <button key={category} className={builderCategory === category ? "active" : ""} type="button" onClick={() => setBuilderCategory(category)}>
+                {rewardCategoryMeta[category].emoji} {rewardCategoryMeta[category].label}
+              </button>
+            ))}
+          </div>
+          <div className="prize-template-grid">
+            {rewardTemplates[builderCategory].map((template) => (
+              <button
+                key={template.id}
+                className="prize-template"
+                type="button"
+                onClick={() => { setDraft({ title: template.title, description: template.description, emoji: template.emoji, category: template.category, thresholdDays: template.thresholdDays }); }}
+              >
+                <span className="prize-template-emoji" aria-hidden="true">{template.emoji}</span>
+                <strong>{template.title}</strong>
+                <small>{template.description}</small>
+                <span className="prize-template-days">{template.thresholdDays} días</span>
+              </button>
+            ))}
+          </div>
+          <form className="prize-custom-form" onSubmit={submitDraft}>
+            <div className="prize-custom-row">
+              <label>Emoji<input value={draft.emoji} maxLength={4} onChange={(event) => setDraft({ ...draft, emoji: event.target.value })} /></label>
+              <label className="prize-title-field">Título<input value={draft.title} maxLength={80} placeholder="Ej. Cena a ciegas" onChange={(event) => setDraft({ ...draft, title: event.target.value, category: draft.category })} required /></label>
+              <label>Días<input type="number" min={1} max={365} value={draft.thresholdDays} onChange={(event) => setDraft({ ...draft, thresholdDays: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })} /></label>
+            </div>
+            <label>Descripción<textarea value={draft.description} maxLength={240} rows={2} placeholder="Las reglas del cupón, con tu estilo." onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
+            <button className="primary-button" type="submit" disabled={isSaving || !draft.title.trim()}>{isSaving ? "Guardando…" : "Crear cupón"}</button>
+          </form>
+        </div>
+      ) : null}
+
+      {active.length > 0 ? (
+        <div className="prize-ticket-list">
+          {active.map((reward) => {
+            const unlocked = streakDays >= reward.thresholdDays;
+            const progress = Math.min(1, streakDays / reward.thresholdDays);
+            return (
+              <article key={reward.id} className={`prize-ticket category-${reward.category}${unlocked ? " unlocked" : " locked"}`}>
+                <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
+                <div className="prize-ticket-body">
+                  <strong>{reward.title}</strong>
+                  {reward.description ? <p>{reward.description}</p> : null}
+                  {unlocked ? (
+                    <span className="prize-unlocked-note">¡Desbloqueado con {reward.thresholdDays} días!</span>
+                  ) : (
+                    <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={reward.thresholdDays} aria-valuenow={Math.min(streakDays, reward.thresholdDays)}>
+                      <div className="prize-progress-track"><div className="prize-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
+                      <span className="prize-progress-label">{Math.min(streakDays, reward.thresholdDays)}/{reward.thresholdDays} días</span>
+                    </div>
+                  )}
+                </div>
+                <div className="prize-ticket-actions">
+                  {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void onRedeem(reward.id)}>Canjear</button> : null}
+                  {reward.createdBy === currentUserId ? <button className="icon-button compact danger" type="button" aria-label={`Eliminar cupón ${reward.title}`} onClick={() => void onDelete(reward.id)}><Trash2 aria-hidden="true" size={15} /></button> : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {redeemed.length > 0 ? (
+        <details className="prize-redeemed-drawer">
+          <summary>Canjeados ({redeemed.length})</summary>
+          <div className="prize-ticket-list">
+            {redeemed.map((reward) => (
+              <article key={reward.id} className={`prize-ticket category-${reward.category} redeemed`}>
+                <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
+                <div className="prize-ticket-body">
+                  <strong>{reward.title}</strong>
+                  <span className="prize-redeemed-date">Canjeado el {new Date(reward.redeemedAt!).toLocaleDateString("es")}</span>
+                </div>
+                <span className="prize-stamp" aria-hidden="true">CANJEADO</span>
+              </article>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

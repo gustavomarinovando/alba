@@ -3616,3 +3616,173 @@ button:active:not(:disabled),
   backdrop-filter: blur(8px) saturate(1.2);
   -webkit-backdrop-filter: blur(8px) saturate(1.2);
 }
+
+/* --- Streak prizes: coupon shelf ------------------------------------------
+   Tickets read like arcade coupons: perforated edge, category gradient,
+   progress toward unlock, shine + wiggle when unlocked, stamp when redeemed. */
+
+.prize-shelf { position: relative; display: grid; gap: .8rem; margin-top: 1rem; border-top: 1px dashed color-mix(in srgb, var(--color-outline) 80%, transparent); padding-top: 1rem; }
+.prize-shelf-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+.prize-shelf-heading p { margin-top: .2rem; color: color-mix(in srgb, var(--color-ink) 62%, transparent); font-size: .8rem; }
+.prize-shelf-heading .secondary-button { flex: none; }
+
+.prize-cat { position: absolute; top: -3.2rem; right: 4.5rem; width: 4.2rem; height: 4.2rem; animation: prize-cat-bounce 2.4s ease-in-out infinite; }
+
+@keyframes prize-cat-bounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+
+.prize-ticket-list { display: grid; gap: .65rem; }
+
+.prize-ticket {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: .8rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-outline) 75%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  padding: .85rem 1rem .85rem 1.15rem;
+  transition: transform 320ms cubic-bezier(.22, 1, .36, 1), box-shadow 320ms ease;
+}
+
+/* Perforated coupon edge. */
+.prize-ticket::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: .45rem;
+  width: 0;
+  border-left: 2px dashed color-mix(in srgb, var(--color-outline) 85%, transparent);
+}
+
+.prize-ticket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at left center, var(--color-background) 0 .45rem, transparent .45rem) left center / 1rem 1.4rem no-repeat,
+    radial-gradient(circle at right center, var(--color-background) 0 .45rem, transparent .45rem) right center / 1rem 1.4rem no-repeat;
+}
+
+.prize-ticket.category-comida { background: linear-gradient(120deg, color-mix(in srgb, #ff9f1c 14%, var(--color-surface)), var(--color-surface)); }
+.prize-ticket.category-citas { background: linear-gradient(120deg, color-mix(in srgb, var(--color-moss) 14%, var(--color-surface)), var(--color-surface)); }
+.prize-ticket.category-picante { background: linear-gradient(120deg, color-mix(in srgb, var(--color-coral) 16%, var(--color-surface)), var(--color-surface)); }
+.prize-ticket.category-mimos { background: linear-gradient(120deg, color-mix(in srgb, #7fb6d9 16%, var(--color-surface)), var(--color-surface)); }
+.prize-ticket.category-custom { background: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)), var(--color-surface)); }
+
+.prize-ticket-emoji { display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border-radius: .9rem; background: color-mix(in srgb, var(--color-background) 72%, transparent); font-size: 1.5rem; }
+.prize-ticket-body { display: grid; gap: .25rem; min-width: 0; }
+.prize-ticket-body strong { font-size: .92rem; line-height: 1.2; }
+.prize-ticket-body p { color: color-mix(in srgb, var(--color-ink) 64%, transparent); font-size: .74rem; line-height: 1.35; }
+.prize-ticket-actions { display: grid; gap: .4rem; justify-items: end; }
+.prize-ticket-actions .prize-redeem { width: auto; height: 2.4rem; padding: 0 1rem; }
+
+.prize-ticket.locked .prize-ticket-emoji { filter: grayscale(.55) opacity(.8); }
+
+.prize-ticket.unlocked {
+  border-color: color-mix(in srgb, #ffd166 65%, var(--color-outline));
+  box-shadow: 0 10px 30px rgba(255, 209, 102, 0.18);
+  animation: prize-wiggle 3.4s ease-in-out infinite;
+}
+
+.prize-ticket.unlocked .prize-ticket-emoji { animation: prize-emoji-pop 3.4s ease-in-out infinite; }
+
+/* Arcade shine sweeping across unlocked tickets. */
+.prize-ticket.unlocked::after {
+  background:
+    linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 48%, transparent 60%) 0 0 / 250% 100%,
+    radial-gradient(circle at left center, var(--color-background) 0 .45rem, transparent .45rem) left center / 1rem 1.4rem no-repeat,
+    radial-gradient(circle at right center, var(--color-background) 0 .45rem, transparent .45rem) right center / 1rem 1.4rem no-repeat;
+  animation: prize-shine 2.8s ease-in-out infinite;
+}
+
+@keyframes prize-shine {
+  0%, 55% { background-position: 130% 0, left center, right center; }
+  100% { background-position: -130% 0, left center, right center; }
+}
+
+@keyframes prize-wiggle {
+  0%, 88%, 100% { transform: rotate(0); }
+  90% { transform: rotate(1.1deg); }
+  94% { transform: rotate(-1.1deg); }
+  97% { transform: rotate(.6deg); }
+}
+
+@keyframes prize-emoji-pop {
+  0%, 86%, 100% { transform: scale(1); }
+  92% { transform: scale(1.18) rotate(-6deg); }
+}
+
+.prize-unlocked-note { color: #a06b00; font-size: .72rem; font-weight: 800; }
+.dark .prize-unlocked-note { color: #ffd166; }
+
+.prize-progress { display: grid; gap: .25rem; }
+.prize-progress-track { overflow: hidden; height: .45rem; border-radius: 999px; background: color-mix(in srgb, var(--color-outline) 55%, transparent); }
+.prize-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--color-moss), #ffd166); transition: width 640ms cubic-bezier(.22, 1, .36, 1); }
+.prize-progress-label { color: color-mix(in srgb, var(--color-ink) 58%, transparent); font-size: .68rem; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.prize-ticket.redeemed { opacity: .78; }
+.prize-ticket.redeemed .prize-ticket-emoji { filter: grayscale(.8); }
+.prize-redeemed-date { color: color-mix(in srgb, var(--color-ink) 55%, transparent); font-size: .7rem; }
+
+.prize-stamp {
+  justify-self: end;
+  border: 2px solid var(--color-coral);
+  border-radius: .4rem;
+  padding: .2rem .45rem;
+  color: var(--color-coral);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  transform: rotate(-8deg);
+  animation: prize-stamp-pop 480ms cubic-bezier(.22, 1.6, .36, 1) both;
+}
+
+@keyframes prize-stamp-pop {
+  0% { opacity: 0; transform: rotate(-8deg) scale(2.2); }
+  60% { opacity: 1; transform: rotate(-8deg) scale(.92); }
+  100% { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+
+.prize-redeemed-drawer summary { cursor: pointer; color: color-mix(in srgb, var(--color-ink) 60%, transparent); font-size: .78rem; font-weight: 700; }
+.prize-redeemed-drawer .prize-ticket-list { margin-top: .6rem; }
+
+/* Builder */
+.prize-builder { display: grid; gap: .8rem; border: 1px dashed color-mix(in srgb, var(--color-moss) 40%, var(--color-outline)); border-radius: 1rem; background: color-mix(in srgb, var(--color-surface) 80%, transparent); padding: .85rem; animation: rise-in 260ms ease both; }
+.prize-category-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.prize-category-chips button { border: 1px solid color-mix(in srgb, var(--color-outline) 80%, transparent); border-radius: 999px; background: transparent; padding: .38rem .7rem; color: color-mix(in srgb, var(--color-ink) 66%, transparent); font-size: .72rem; font-weight: 750; transition: all 200ms ease; }
+.prize-category-chips button.active { border-color: var(--color-moss); background: color-mix(in srgb, var(--color-moss) 14%, transparent); color: var(--color-moss); }
+
+.prize-template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .5rem; }
+.prize-template { display: grid; gap: .25rem; justify-items: start; border: 1px solid color-mix(in srgb, var(--color-outline) 75%, transparent); border-radius: .8rem; background: color-mix(in srgb, var(--color-surface) 92%, transparent); padding: .6rem; text-align: left; transition: transform 220ms cubic-bezier(.22, 1, .36, 1), border-color 220ms ease, box-shadow 220ms ease; }
+.prize-template:hover { border-color: var(--color-moss); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(24, 19, 14, 0.1); }
+.prize-template-emoji { font-size: 1.25rem; }
+.prize-template strong { font-size: .76rem; line-height: 1.2; }
+.prize-template small { color: color-mix(in srgb, var(--color-ink) 58%, transparent); font-size: .64rem; line-height: 1.3; }
+.prize-template-days { border-radius: 999px; background: color-mix(in srgb, var(--color-moss) 15%, transparent); padding: .12rem .45rem; color: var(--color-moss); font-size: .62rem; font-weight: 800; }
+
+.prize-custom-form { display: grid; gap: .6rem; }
+.prize-custom-form label { display: grid; gap: .3rem; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: color-mix(in srgb, var(--color-ink) 62%, transparent); }
+.prize-custom-form input, .prize-custom-form textarea { border: 1px solid var(--color-outline); border-radius: .7rem; background: var(--color-surface); padding: .55rem .7rem; color: var(--color-ink); font-size: .9rem; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.prize-custom-form input:focus, .prize-custom-form textarea:focus { outline: none; border-color: var(--color-moss); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-moss) 20%, transparent); }
+.prize-custom-row { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 4.6rem; gap: .5rem; }
+.prize-custom-form .primary-button { width: auto; justify-self: start; height: 2.6rem; padding: 0 1.2rem; }
+
+.ui-liquid .prize-ticket { backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 22px rgba(24, 19, 14, 0.07); }
+.ui-liquid .prize-builder { backdrop-filter: blur(12px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); }
+
+@media (max-width: 640px) {
+  .prize-cat { top: -2.9rem; right: 3.4rem; width: 3.6rem; height: 3.6rem; }
+  .prize-ticket { grid-template-columns: auto minmax(0, 1fr); }
+  .prize-ticket-actions { grid-column: 1 / -1; grid-auto-flow: column; justify-content: space-between; justify-items: stretch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prize-ticket.unlocked, .prize-ticket.unlocked .prize-ticket-emoji, .prize-ticket.unlocked::after, .prize-cat, .prize-stamp, .prize-builder { animation: none; }
+}

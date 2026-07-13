@@ -29,6 +29,29 @@ export async function getPartnerEmail(): Promise<string | null> {
   return row?.partner_email ?? null;
 }
 
+export interface PartnerStatus {
+  connected: boolean;
+  email: string | null;
+}
+
+export async function getPartnerStatus(context: AlbaAccountContext): Promise<PartnerStatus> {
+  try {
+    const email = await getPartnerEmail();
+    if (email) return { connected: true, email };
+  } catch {
+    // RPC missing (migration 010 pending) — fall back to membership lookup.
+  }
+  const { data, error } = await getSupabaseClient()
+    .from("couple_members")
+    .select("user_id")
+    .eq("couple_id", context.coupleId)
+    .neq("user_id", context.userId)
+    .eq("status", "active")
+    .limit(1);
+  if (error) return { connected: false, email: null };
+  return { connected: (data ?? []).length > 0, email: null };
+}
+
 export async function getPendingInviteStatus(): Promise<{ expiresAt: string } | null> {
   try {
     const { data, error } = await getSupabaseClient().rpc("get_pending_invite_status");
