@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
-import { loadProviderPreference, saveProviderPreference, type AiProvider } from "./lib/aiChat";
 import { calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
 import { calendarDaysForMonth, displayDate, isToday, isoDate } from "./lib/date";
 import {
@@ -314,7 +313,6 @@ export default function App() {
     return "dark";
   });
   const [uiTheme, setUiTheme] = useState<"liquid" | "legacy">(() => (safeLocalGet(UI_THEME_STORAGE_KEY) === "legacy" ? "legacy" : "liquid"));
-  const [aiProviderOverride, setAiProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
   const [openStreak] = useState<OpenStreak>(() => trackAppOpenStreak());
   const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationPermission>(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
@@ -2173,24 +2171,6 @@ export default function App() {
             <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
             <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
           </div>
-        </section>
-        <section className="settings-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Inteligencia artificial</span><h3>Modelo de IA</h3></div><span className="settings-status-dot">{aiProviderOverride ? { gemini: "Gemini", nvidia: "NVIDIA", openai: "OpenAI" }[aiProviderOverride] : "Automático"}</span></div>
-          <p className="settings-section-copy">Elige qué proveedor responde en el chat de Alba. Si su clave no está configurada en el servidor, se usa el proveedor por defecto.</p>
-          <select
-            className="rounded border border-outline bg-surface px-3 py-2"
-            value={aiProviderOverride ?? "auto"}
-            onChange={(event) => {
-              const value = event.target.value === "auto" ? null : (event.target.value as AiProvider);
-              setAiProviderOverride(value);
-              saveProviderPreference(value);
-            }}
-          >
-            <option value="auto">Automático (según el servidor)</option>
-            <option value="gemini">Gemini</option>
-            <option value="nvidia">NVIDIA</option>
-            <option value="openai">OpenAI</option>
-          </select>
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>

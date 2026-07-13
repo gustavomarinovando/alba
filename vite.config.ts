@@ -108,7 +108,7 @@ export default defineConfig(({ mode }) => {
                   ? requestedProvider
                   : fallbackProvider && providers[fallbackProvider]
                     ? fallbackProvider
-                    : "gemini";
+                    : "nvidia";
               const config = providers[provider];
               const apiKey = readEnv(config.keyEnv);
 

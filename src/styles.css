@@ -3840,6 +3840,15 @@ button:active:not(:disabled),
   background: color-mix(in srgb, var(--color-surface) 85%, transparent);
   white-space: nowrap;
 }
+.ai-chat-provider-select {
+  border: 1px solid var(--color-outline);
+  border-radius: .6rem;
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  padding: .25rem .5rem;
+  font-size: .74rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--color-ink) 78%, transparent);
+}
 .ai-chat-trust-note { font-size: .82rem; }
 
 .ai-chat-messages {

@@ -115,7 +115,7 @@ function resolveProvider(requested) {
   }
   const fallback = process.env.AI_PROVIDER;
   if (fallback && PROVIDERS[fallback]) return fallback;
-  return "gemini";
+  return "nvidia";
 }
 
 async function safeReadText(res) {

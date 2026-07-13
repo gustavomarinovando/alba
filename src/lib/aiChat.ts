@@ -14,6 +14,12 @@ export interface AiToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+  /**
+   * Gemini requires its own tool-call thought_signature to be echoed back verbatim
+   * in the next turn's history, or it rejects the request with a 400. Other
+   * providers don't set this, so it's simply absent for them.
+   */
+  extra_content?: unknown;
 }
 
 export interface AiChatMeta {
@@ -199,6 +205,7 @@ async function streamChatOnce(
           if (toolCallDelta.id) existing.id = toolCallDelta.id;
           if (toolCallDelta.function?.name) existing.function.name += toolCallDelta.function.name;
           if (toolCallDelta.function?.arguments) existing.function.arguments += toolCallDelta.function.arguments;
+          if (toolCallDelta.extra_content !== undefined) existing.extra_content = toolCallDelta.extra_content;
           toolCallsByIndex.set(index, existing);
         }
       }

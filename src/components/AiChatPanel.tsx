@@ -11,8 +11,10 @@ import {
   saveStoredChat,
   summarizeOlderMessages,
   trimHistoryForModel,
+  saveProviderPreference,
   type AiChatMessage,
   type AiChatMeta,
+  type AiProvider,
   type StoredChat,
 } from "../lib/aiChat";
 import type { AiChatContext } from "../lib/aiTools";
@@ -44,6 +46,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState("");
   const [meta, setMeta] = useState<AiChatMeta | null>(null);
+  const [providerOverride, setProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pendingDeltaRef = useRef<string | null>(null);
@@ -108,7 +111,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
 
     const controller = new AbortController();
     abortRef.current = controller;
-    const provider = loadProviderPreference();
+    const provider = providerOverride;
 
     try {
       if (needsSummarization(workingChat)) {
@@ -161,6 +164,22 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
         </div>
         <div className="ai-chat-header-actions">
           {meta ? <span className="ai-chat-provider-badge">{PROVIDER_LABEL[meta.provider] ?? meta.provider} · {meta.model}</span> : null}
+          <select
+            className="ai-chat-provider-select"
+            value={providerOverride ?? "auto"}
+            aria-label="Proveedor de IA"
+            title="Proveedor de IA"
+            onChange={(event) => {
+              const value = event.target.value === "auto" ? null : (event.target.value as AiProvider);
+              setProviderOverride(value);
+              saveProviderPreference(value);
+            }}
+          >
+            <option value="auto">Automático</option>
+            <option value="gemini">Gemini</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="openai">OpenAI</option>
+          </select>
           <button className="icon-button compact" title="Nueva conversación" type="button" onClick={startNewConversation}>
             <RotateCcw aria-hidden="true" size={16} />
           </button>
