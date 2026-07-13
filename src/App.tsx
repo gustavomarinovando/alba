@@ -133,6 +133,28 @@ type ChatWrappedStats = {
 
 const THEME_STORAGE_KEY = "alba-theme";
 const UI_THEME_STORAGE_KEY = "alba-ui-theme";
+const OPEN_STREAK_KEY = "alba-open-streak";
+
+type OpenStreak = { current: number; longest: number; lastDate: string };
+
+// The partner does not record measurements; their streak counts consecutive
+// days simply opening Alba. Tracked per device.
+function trackAppOpenStreak(): OpenStreak {
+  const today = isoDate(new Date());
+  const yesterday = isoDate(new Date(Date.now() - 86_400_000));
+  let streak: OpenStreak = { current: 0, longest: 0, lastDate: "" };
+  try {
+    const stored = safeLocalGet(OPEN_STREAK_KEY);
+    if (stored) streak = { ...streak, ...(JSON.parse(stored) as Partial<OpenStreak>) };
+  } catch { /* corrupted value: restart the streak */ }
+  if (streak.lastDate !== today) {
+    streak.current = streak.lastDate === yesterday ? streak.current + 1 : 1;
+    streak.lastDate = today;
+    streak.longest = Math.max(streak.longest, streak.current);
+    safeLocalSet(OPEN_STREAK_KEY, JSON.stringify(streak));
+  }
+  return streak;
+}
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
 const CUSTOM_DATE_ACTIVATIONS_KEY = "alba-custom-date-activations";
@@ -272,6 +294,7 @@ export default function App() {
     return "dark";
   });
   const [uiTheme, setUiTheme] = useState<"liquid" | "legacy">(() => (safeLocalGet(UI_THEME_STORAGE_KEY) === "legacy" ? "legacy" : "liquid"));
+  const [openStreak] = useState<OpenStreak>(() => trackAppOpenStreak());
   const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationPermission>(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
     return Notification.permission;
@@ -375,12 +398,20 @@ export default function App() {
           if (active) setIsInitialCloudSyncSettling(false);
           return;
         }
-        if (active) setAuthenticatedEmail(session.user.email ?? "");
         const context = await resolveAccountContext(session);
         await bindDatasetToSubject("legacy-local", context.subjectId);
-        if (active) setAccountContext(context);
+        if (active) {
+          setAccountContext(context);
+          setAuthenticatedEmail(session.user.email ?? "");
+        }
       } catch (error) {
-        if (active) setStatus(error instanceof Error ? error.message : "No se pudo abrir la cuenta de Alba.");
+        if (active) {
+          // Reveal the join-with-invite screen only once we know this account
+          // has no couple yet — setting it earlier flashed the invite input.
+          const session = await getCurrentSession().catch(() => null);
+          if (session) setAuthenticatedEmail(session.user.email ?? "");
+          setStatus(error instanceof Error ? error.message : "No se pudo abrir la cuenta de Alba.");
+        }
       } finally {
         if (active) setIsAuthReady(true);
       }
@@ -548,6 +579,7 @@ export default function App() {
   const mapSelectedEntry = mapSelectedDay ? entryByDate.get(mapSelectedDay.date) : undefined;
   const observationStreak = stats.observationStreak;
   const currentStreakNeedsToday = observationStreak.current > 0 && observationStreak.currentEndDate !== todayIso;
+  const isPartnerRole = accountContext?.role === "member";
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
@@ -1119,13 +1151,17 @@ export default function App() {
         setAuthMode("login");
         return;
       }
-      setAuthenticatedEmail(session.user.email ?? "");
-      const context = await resolveAccountContext(session);
-      await bindDatasetToSubject("legacy-local", context.subjectId);
-      setAccountContext(context);
-      setAuthenticatedEmail(session.user.email ?? "");
-      setAuthPassword("");
-      setStatus(`Sesión iniciada como ${context.email}. Tus datos locales siguen intactos.`);
+      try {
+        const context = await resolveAccountContext(session);
+        await bindDatasetToSubject("legacy-local", context.subjectId);
+        setAccountContext(context);
+        setStatus(`Sesión iniciada como ${context.email}. Tus datos locales siguen intactos.`);
+      } finally {
+        // Only now: showing the email earlier flashed the invite screen while
+        // the couple lookup was still in flight.
+        setAuthenticatedEmail(session.user.email ?? "");
+        setAuthPassword("");
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
     } finally {
@@ -1363,6 +1399,15 @@ export default function App() {
 
   if (showBrandLab) {
     return <BrandLab theme={theme} onToggleTheme={toggleTheme} />;
+  }
+
+  if (!isAuthReady) {
+    return (
+      <main className="app-splash" aria-label="Abriendo Alba">
+        <span className="auth-brand-mark">A</span>
+        <p>Abriendo tu espacio…</p>
+      </main>
+    );
   }
 
   if (isAuthReady && !accountContext) {
@@ -1689,27 +1734,29 @@ export default function App() {
           <div className="phase-human-note" style={selectedPhase ? { borderColor: phaseMeta[selectedPhase.phase].color } : undefined}>
             {phaseHumanText(selectedPhase)}
           </div>
-          <div className="streak-card" aria-label="Rachas de observaciones">
+          <div className="streak-card" aria-label="Rachas">
             <div className="streak-main">
               <span className="streak-icon" aria-hidden="true">
                 <Flame size={21} />
               </span>
               <div>
-                <span className="eyebrow">Racha actual</span>
-                <strong>{observationStreak.current} {observationStreak.current === 1 ? "día" : "días"}</strong>
+                <span className="eyebrow">{isPartnerRole ? "Racha de compañía" : "Racha actual"}</span>
+                <strong>{(isPartnerRole ? openStreak.current : observationStreak.current)} {(isPartnerRole ? openStreak.current : observationStreak.current) === 1 ? "día" : "días"}</strong>
               </div>
             </div>
             <p>
-              {observationStreak.current === 0
-                ? "Empieza con una temperatura, periodo, señal cervical o nota de hoy."
-                : currentStreakNeedsToday
-                  ? "Añade una observación hoy para mantenerla viva."
-                  : "Hoy ya suma: cada señal pequeña ayuda a leer mejor el ciclo."}
+              {isPartnerRole
+                ? "Abrir Alba cada día también es acompañar. Tu racha crece con cada visita."
+                : observationStreak.current === 0
+                  ? "Empieza con una temperatura, periodo, señal cervical o nota de hoy."
+                  : currentStreakNeedsToday
+                    ? "Añade una observación hoy para mantenerla viva."
+                    : "Hoy ya suma: cada señal pequeña ayuda a leer mejor el ciclo."}
             </p>
             <div className="streak-best">
               <Trophy size={16} aria-hidden="true" />
               <span>Mejor racha</span>
-              <strong>{observationStreak.longest} {observationStreak.longest === 1 ? "día" : "días"}</strong>
+              <strong>{(isPartnerRole ? openStreak.longest : observationStreak.longest)} {(isPartnerRole ? openStreak.longest : observationStreak.longest) === 1 ? "día" : "días"}</strong>
             </div>
           </div>
           <StreakPrizes
