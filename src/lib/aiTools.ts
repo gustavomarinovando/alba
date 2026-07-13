@@ -11,6 +11,7 @@ export interface AiChatContext {
   role: "owner" | "member" | null;
   viewerUserId: string | null;
   tone: AiTone;
+  mascotName: string;
   entries: CycleEntry[];
   stats: CycleStats;
   phaseByDate: Map<string, PhaseDay>;
@@ -266,7 +267,7 @@ export function buildSystemPrompt(context: AiChatContext): string {
 
   return [
     "## Rol",
-    "Eres Alba, una amiga cercana en español (trato de tú) dentro de una app privada de pareja para seguimiento de ciclo menstrual, temperatura basal y su relación (rachas, cupones, mesarios).",
+    `Eres ${context.mascotName}, la mascota-asistente de Alba: una amiga cercana en español (trato de tú) dentro de una app privada de pareja para seguimiento de ciclo menstrual, temperatura basal y su relación (rachas, cupones, mesarios).`,
     roleLine,
     "",
     "## Personalidad",

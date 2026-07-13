@@ -1,4 +1,5 @@
 import { AI_TOOLS, STYLE_EXAMPLE_TURNS, buildSystemPrompt, executeAiTool, type AiChatContext, type AiTone } from "./aiTools";
+import type { AnniversaryCatKind } from "../components/AnniversaryCat";
 export type { AiTone } from "./aiTools";
 
 export type AiProvider = "gemini" | "nvidia" | "openai";
@@ -32,7 +33,8 @@ export interface AiChatMeta {
 
 const CHAT_STORAGE_KEY = "alba-ai-chat";
 const PROVIDER_STORAGE_KEY = "alba-ai-provider";
-const TONE_STORAGE_KEY = "alba-ai-tone";
+const MASCOT_STORAGE_KEY = "alba-active-mascot";
+const MASCOT_TONES_STORAGE_KEY = "alba-mascot-tones";
 const HISTORY_LIMIT = 20;
 const HISTORY_KEEP_RECENT = 10;
 const MAX_TOOL_LOOPS = 4;
@@ -92,18 +94,68 @@ export function saveProviderPreference(provider: AiProvider | null): void {
   }
 }
 
-export function loadTonePreference(): AiTone {
+const MASCOT_KINDS: AnniversaryCatKind[] = ["black", "siamese", "orange", "tuxedo"];
+
+function isMascotKind(value: unknown): value is AnniversaryCatKind {
+  return typeof value === "string" && (MASCOT_KINDS as string[]).includes(value);
+}
+
+function isAiTone(value: unknown): value is AiTone {
+  return value === "alegre" || value === "suave" || value === "directo" || value === "tecnico";
+}
+
+export const MASCOT_NAMES: Record<AnniversaryCatKind, string> = {
+  black: "Noche",
+  siamese: "Luna",
+  orange: "Mandarino",
+  tuxedo: "Frac",
+};
+
+// Each mascot starts with its own personality, but every tone stays fully
+// reassignable per mascot from the chat header.
+const DEFAULT_MASCOT_TONES: Record<AnniversaryCatKind, AiTone> = {
+  black: "suave",
+  siamese: "tecnico",
+  orange: "alegre",
+  tuxedo: "directo",
+};
+
+export function loadActiveMascot(): AnniversaryCatKind {
   try {
-    const stored = localStorage.getItem(TONE_STORAGE_KEY);
-    return stored === "alegre" || stored === "suave" || stored === "directo" || stored === "tecnico" ? stored : "alegre";
+    const stored = localStorage.getItem(MASCOT_STORAGE_KEY);
+    return isMascotKind(stored) ? stored : "black";
   } catch {
-    return "alegre";
+    return "black";
   }
 }
 
-export function saveTonePreference(tone: AiTone): void {
+export function saveActiveMascot(kind: AnniversaryCatKind): void {
   try {
-    localStorage.setItem(TONE_STORAGE_KEY, tone);
+    localStorage.setItem(MASCOT_STORAGE_KEY, kind);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+export function loadMascotTones(): Record<AnniversaryCatKind, AiTone> {
+  const tones = { ...DEFAULT_MASCOT_TONES };
+  try {
+    const raw = localStorage.getItem(MASCOT_TONES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    for (const kind of MASCOT_KINDS) {
+      if (isAiTone(parsed?.[kind])) tones[kind] = parsed[kind];
+    }
+  } catch {
+    // Fall back to the defaults above.
+  }
+  return tones;
+}
+
+export function saveMascotTone(kind: AnniversaryCatKind, tone: AiTone): void {
+  try {
+    const tones = loadMascotTones();
+    tones[kind] = tone;
+    localStorage.setItem(MASCOT_TONES_STORAGE_KEY, JSON.stringify(tones));
   } catch {
     // Ignore storage errors.
   }

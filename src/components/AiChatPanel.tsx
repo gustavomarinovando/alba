@@ -4,15 +4,18 @@ import {
   applySummary,
   clearStoredChat,
   historyToSummarize,
+  loadActiveMascot,
+  loadMascotTones,
   loadProviderPreference,
   loadStoredChat,
-  loadTonePreference,
+  MASCOT_NAMES,
   needsSummarization,
   prewarmChat,
   runChatTurn,
+  saveActiveMascot,
   saveStoredChat,
+  saveMascotTone,
   saveProviderPreference,
-  saveTonePreference,
   summarizeOlderMessages,
   trimHistoryForModel,
   type AiChatMessage,
@@ -22,6 +25,7 @@ import {
   type StoredChat,
 } from "../lib/aiChat";
 import type { AiChatContext } from "../lib/aiTools";
+import { AnniversaryCat, CAT_KINDS, type AnniversaryCatKind } from "./AnniversaryCat";
 import { humanizeIsoDatesInText, isoDate } from "../lib/date";
 import { renderMarkdown } from "../lib/markdown";
 import type { PhaseDay } from "../lib/phases";
@@ -59,7 +63,9 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   const [error, setError] = useState("");
   const [meta, setMeta] = useState<AiChatMeta | null>(null);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(() => loadProviderPreference());
-  const [tone, setTone] = useState<AiTone>(() => loadTonePreference());
+  const [activeMascot, setActiveMascot] = useState<AnniversaryCatKind>(() => loadActiveMascot());
+  const [mascotTones, setMascotTones] = useState<Record<AnniversaryCatKind, AiTone>>(() => loadMascotTones());
+  const tone = mascotTones[activeMascot];
   const rootRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -76,13 +82,14 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       role: accountContext?.role ?? null,
       viewerUserId: accountContext?.userId ?? null,
       tone,
+      mascotName: MASCOT_NAMES[activeMascot],
       entries,
       stats,
       phaseByDate,
       observationStreak,
       streakRewards,
     }),
-    [today, accountContext?.role, accountContext?.userId, tone, entries, stats, phaseByDate, observationStreak, streakRewards],
+    [today, accountContext?.role, accountContext?.userId, tone, activeMascot, entries, stats, phaseByDate, observationStreak, streakRewards],
   );
 
   useEffect(() => {
@@ -202,6 +209,11 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
     }
   }
 
+  function selectMascot(kind: AnniversaryCatKind) {
+    setActiveMascot(kind);
+    saveActiveMascot(kind);
+  }
+
   function startNewConversation() {
     abortRef.current?.abort();
     clearStoredChat();
@@ -224,19 +236,19 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       <div className="ai-chat-header">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-marigold" aria-hidden="true" />
-          <h2 className="text-lg font-semibold">Asistente Alba</h2>
+          <h2 className="text-lg font-semibold">{MASCOT_NAMES[activeMascot]}</h2>
         </div>
         <div className="ai-chat-header-actions">
           {meta ? <span className="ai-chat-provider-badge">{PROVIDER_LABEL[meta.provider] ?? meta.provider} · {meta.model}</span> : null}
           <select
             className="ai-chat-provider-select"
             value={tone}
-            aria-label="Tono de Alba"
-            title="Tono de Alba"
+            aria-label={`Tono de ${MASCOT_NAMES[activeMascot]}`}
+            title={`Tono de ${MASCOT_NAMES[activeMascot]}`}
             onChange={(event) => {
               const value = event.target.value as AiTone;
-              setTone(value);
-              saveTonePreference(value);
+              setMascotTones((previous) => ({ ...previous, [activeMascot]: value }));
+              saveMascotTone(activeMascot, value);
             }}
           >
             <option value="alegre">Alegre</option>
@@ -266,13 +278,28 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
         </div>
       </div>
 
+      <div className="ai-chat-mascot-row" role="radiogroup" aria-label="Elige tu mascota">
+        {CAT_KINDS.map((kind) => (
+          <div
+            key={kind}
+            className={`ai-chat-mascot-button${activeMascot === kind ? " active" : ""}`}
+            role="radio"
+            aria-checked={activeMascot === kind}
+            aria-label={MASCOT_NAMES[kind]}
+            onClick={() => selectMascot(kind)}
+          >
+            <AnniversaryCat kind={kind} label={MASCOT_NAMES[kind]} className="ai-chat-mascot-avatar" />
+          </div>
+        ))}
+      </div>
+
       <div className="info-box warning ai-chat-trust-note">
-        Alba solo lee tus datos cuando envías un mensaje. Es orientativa y no diagnostica.
+        {MASCOT_NAMES[activeMascot]} solo lee tus datos cuando envías un mensaje. Es orientativa y no diagnostica.
       </div>
 
       <div ref={scrollRef} className="ai-chat-messages">
         {chat.messages.length === 0 && !streamingText && !isSending ? (
-          <div className="ai-chat-empty">Pregúntale a Alba sobre tu ciclo, tus temperaturas o tu racha.</div>
+          <div className="ai-chat-empty">Pregúntale a {MASCOT_NAMES[activeMascot]} sobre tu ciclo, tus temperaturas o tu racha.</div>
         ) : (
           chat.messages.map((message, index) => (
             <div key={index} className={`ai-chat-bubble ${message.role === "user" ? "ai-chat-bubble-user" : "ai-chat-bubble-assistant"}`}>
@@ -302,7 +329,7 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
           className="ai-chat-input"
           type="text"
           value={input}
-          placeholder="Escríbele a Alba..."
+          placeholder={`Escríbele a ${MASCOT_NAMES[activeMascot]}...`}
           disabled={isSending}
           onChange={(event) => setInput(event.target.value)}
         />

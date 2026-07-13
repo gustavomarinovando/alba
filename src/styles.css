@@ -3871,6 +3871,22 @@ button:active:not(:disabled),
 }
 .ai-chat-trust-note { font-size: .82rem; }
 
+.ai-chat-mascot-row { display: flex; gap: .4rem; }
+.ai-chat-mascot-button {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  cursor: pointer;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+.ai-chat-mascot-button:hover { transform: translateY(-1px); }
+.ai-chat-mascot-button.active { border-color: var(--color-marigold); }
+.ai-chat-mascot-avatar { width: 1.9rem; height: 1.9rem; }
+
 .ai-chat-messages {
   display: flex;
   flex-direction: column;
