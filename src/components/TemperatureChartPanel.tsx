@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Thermometer, ZoomIn, ZoomOut } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   Area,
   CartesianGrid,
@@ -261,7 +261,13 @@ export default function TemperatureChartPanel({
 }
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section data-reveal className={`panel motion-reveal rounded border border-outline bg-surface p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
+  const ref = useRef<HTMLElement | null>(null);
+  // This mounts after the app's own IntersectionObserver scan already ran (it's lazy-loaded
+  // behind Suspense), so it would otherwise never get ".is-revealed" and stay invisible.
+  useEffect(() => {
+    ref.current?.classList.add("is-revealed");
+  }, []);
+  return <section ref={ref} data-reveal className={`panel motion-reveal rounded border border-outline bg-surface p-4 shadow-soft sm:p-5 ${className}`}>{children}</section>;
 }
 
 function EmptyState({ text }: { text: string }) {
