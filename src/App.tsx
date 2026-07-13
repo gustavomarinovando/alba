@@ -263,6 +263,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
+  const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [importPreview, setImportPreview] = useState<{ fileName: string; entries: CycleEntry[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
@@ -619,6 +620,8 @@ export default function App() {
   const observationStreak = stats.observationStreak;
   const currentStreakNeedsToday = observationStreak.current > 0 && observationStreak.currentEndDate !== todayIso;
   const isPartnerRole = accountContext?.role === "member";
+  const activeStreakDays = isPartnerRole ? openStreak.current : observationStreak.current;
+  const unlockedRewardsCount = streakRewards.filter((reward) => !reward.redeemedAt && activeStreakDays >= reward.thresholdDays).length;
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
@@ -1524,6 +1527,7 @@ export default function App() {
       ) : null}
       {syncPreview ? renderSyncPreviewModal() : null}
       {importPreview ? renderImportPreviewModal() : null}
+      {showPrizeModal ? renderPrizeModal() : null}
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -1687,6 +1691,30 @@ export default function App() {
     );
   }
 
+  function renderPrizeModal() {
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="prize-modal-title">
+        <section className="modal-panel prize-modal-panel">
+          <div className="prize-modal-header">
+            <div>
+              <p className="eyebrow">Racha</p>
+              <h2 id="prize-modal-title">Premios de la racha</h2>
+            </div>
+            <button className="icon-button compact" type="button" onClick={() => setShowPrizeModal(false)} aria-label="Cerrar">×</button>
+          </div>
+          <StreakPrizes
+            rewards={streakRewards}
+            streakDays={activeStreakDays}
+            currentUserId={accountContext?.userId ?? "local"}
+            onCreate={handleCreateReward}
+            onRedeem={handleRedeemReward}
+            onDelete={handleDeleteReward}
+          />
+        </section>
+      </div>
+    );
+  }
+
   function renderCalendar() {
     return (
       <Panel>
@@ -1790,14 +1818,14 @@ export default function App() {
           <div className="phase-human-note" style={selectedPhase ? { borderColor: phaseMeta[selectedPhase.phase].color } : undefined}>
             {phaseHumanText(selectedPhase)}
           </div>
-          <div className="streak-card" aria-label="Rachas">
+          <button type="button" className="streak-card streak-card-button" aria-label="Rachas, toca para ver premios" aria-haspopup="dialog" onClick={() => setShowPrizeModal(true)}>
             <div className="streak-main">
               <span className="streak-icon" aria-hidden="true">
                 <Flame size={21} />
               </span>
               <div>
                 <span className="eyebrow">{isPartnerRole ? "Racha de compañía" : "Racha actual"}</span>
-                <strong>{(isPartnerRole ? openStreak.current : observationStreak.current)} {(isPartnerRole ? openStreak.current : observationStreak.current) === 1 ? "día" : "días"}</strong>
+                <strong>{activeStreakDays} {activeStreakDays === 1 ? "día" : "días"}</strong>
               </div>
             </div>
             <p>
@@ -1814,15 +1842,11 @@ export default function App() {
               <span>Mejor racha</span>
               <strong>{(isPartnerRole ? openStreak.longest : observationStreak.longest)} {(isPartnerRole ? openStreak.longest : observationStreak.longest) === 1 ? "día" : "días"}</strong>
             </div>
-          </div>
-          <StreakPrizes
-            rewards={streakRewards}
-            streakDays={observationStreak.current}
-            currentUserId={accountContext?.userId ?? "local"}
-            onCreate={handleCreateReward}
-            onRedeem={handleRedeemReward}
-            onDelete={handleDeleteReward}
-          />
+            <div className="streak-prize-hint">
+              <span aria-hidden="true">🎁</span>
+              {unlockedRewardsCount > 0 ? `¡${unlockedRewardsCount} ${unlockedRewardsCount === 1 ? "premio listo" : "premios listos"} para canjear!` : "Ver premios de la racha"}
+            </div>
+          </button>
         </Panel>
 
         <Panel className={shouldPrioritizeEntry ? "order-1" : ""}>
@@ -3165,6 +3189,7 @@ function StreakPrizes({
   onRedeem: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const [tab, setTab] = useState<"disponibles" | "mis">("disponibles");
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [builderCategory, setBuilderCategory] = useState<Exclude<RewardCategory, "custom">>("comida");
   const [draft, setDraft] = useState<StreakRewardDraft>({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
@@ -3172,6 +3197,16 @@ function StreakPrizes({
   const active = rewards.filter((reward) => !reward.redeemedAt);
   const redeemed = rewards.filter((reward) => reward.redeemedAt);
   const hasUnlocked = active.some((reward) => streakDays >= reward.thresholdDays);
+  const mine = rewards.filter((reward) => reward.createdBy === currentUserId);
+  const mineActive = mine.filter((reward) => !reward.redeemedAt);
+  const mineRedeemed = mine.filter((reward) => reward.redeemedAt);
+
+  const sortedActive = [...active].sort((a, b) => {
+    const remainingA = a.thresholdDays - streakDays;
+    const remainingB = b.thresholdDays - streakDays;
+    if (remainingA <= 0 !== remainingB <= 0) return remainingA <= 0 ? -1 : 1;
+    return remainingA - remainingB;
+  });
 
   async function submitDraft(event: React.FormEvent) {
     event.preventDefault();
@@ -3186,90 +3221,109 @@ function StreakPrizes({
     }
   }
 
+  function renderActiveTicket(reward: StreakReward) {
+    const unlocked = streakDays >= reward.thresholdDays;
+    const progress = Math.min(1, streakDays / reward.thresholdDays);
+    return (
+      <article key={reward.id} className={`prize-ticket category-${reward.category}${unlocked ? " unlocked" : " locked"}`}>
+        <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
+        <div className="prize-ticket-body">
+          <strong>{reward.title}</strong>
+          {reward.description ? <p>{reward.description}</p> : null}
+          {unlocked ? (
+            <span className="prize-unlocked-note">¡Desbloqueado con {reward.thresholdDays} días!</span>
+          ) : (
+            <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={reward.thresholdDays} aria-valuenow={Math.min(streakDays, reward.thresholdDays)}>
+              <div className="prize-progress-track"><div className="prize-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
+              <span className="prize-progress-label">{Math.min(streakDays, reward.thresholdDays)}/{reward.thresholdDays} días</span>
+            </div>
+          )}
+        </div>
+        <div className="prize-ticket-actions">
+          {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void onRedeem(reward.id)}>Canjear</button> : null}
+          {reward.createdBy === currentUserId ? <button className="icon-button compact danger" type="button" aria-label={`Eliminar cupón ${reward.title}`} onClick={() => void onDelete(reward.id)}><Trash2 aria-hidden="true" size={15} /></button> : null}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <section className="prize-shelf" aria-label="Premios por racha">
       <div className="prize-shelf-heading">
-        <div>
-          <span className="eyebrow">Premios de la racha</span>
-          <p>{active.length === 0 ? "Crea cupones que se desbloquean al mantener la racha." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
-        </div>
-        <button className="secondary-button" type="button" onClick={() => setIsBuilderOpen((open) => !open)}>
-          {isBuilderOpen ? "Cerrar" : "+ Nuevo cupón"}
-        </button>
+        <p>{active.length === 0 ? "Crea cupones que se desbloquean al mantener la racha." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
       </div>
       {hasUnlocked ? <AnniversaryCat kind="orange" label="Mandarino celebra tus premios desbloqueados" className="prize-cat" /> : null}
 
-      {isBuilderOpen ? (
-        <div className="prize-builder">
-          <div className="prize-category-chips" role="tablist" aria-label="Categorías de plantillas">
-            {(Object.keys(rewardTemplates) as Array<Exclude<RewardCategory, "custom">>).map((category) => (
-              <button key={category} className={builderCategory === category ? "active" : ""} type="button" onClick={() => setBuilderCategory(category)}>
-                {rewardCategoryMeta[category].emoji} {rewardCategoryMeta[category].label}
-              </button>
-            ))}
-          </div>
-          <div className="prize-template-grid">
-            {rewardTemplates[builderCategory].map((template) => (
-              <button
-                key={template.id}
-                className="prize-template"
-                type="button"
-                onClick={() => { setDraft({ title: template.title, description: template.description, emoji: template.emoji, category: template.category, thresholdDays: template.thresholdDays }); }}
-              >
-                <span className="prize-template-emoji" aria-hidden="true">{template.emoji}</span>
-                <strong>{template.title}</strong>
-                <small>{template.description}</small>
-                <span className="prize-template-days">{template.thresholdDays} días</span>
-              </button>
-            ))}
-          </div>
-          <form className="prize-custom-form" onSubmit={submitDraft}>
-            <div className="prize-custom-row">
-              <label>Emoji<input value={draft.emoji} maxLength={4} onChange={(event) => setDraft({ ...draft, emoji: event.target.value })} /></label>
-              <label className="prize-title-field">Título<input value={draft.title} maxLength={80} placeholder="Ej. Cena a ciegas" onChange={(event) => setDraft({ ...draft, title: event.target.value, category: draft.category })} required /></label>
-              <label>Días<input type="number" min={1} max={365} value={draft.thresholdDays} onChange={(event) => setDraft({ ...draft, thresholdDays: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })} /></label>
+      <div className="prize-tabs" role="tablist" aria-label="Vista de premios">
+        <button className={tab === "disponibles" ? "active" : ""} type="button" role="tab" aria-selected={tab === "disponibles"} onClick={() => setTab("disponibles")}>
+          Disponibles
+        </button>
+        <button className={tab === "mis" ? "active" : ""} type="button" role="tab" aria-selected={tab === "mis"} onClick={() => setTab("mis")}>
+          Mis cupones
+        </button>
+      </div>
+
+      {tab === "disponibles" ? (
+        sortedActive.length > 0 ? (
+          <div className="prize-ticket-list">{sortedActive.map(renderActiveTicket)}</div>
+        ) : (
+          <p className="prize-empty-note">Todavía no hay cupones disponibles. Crea uno desde “Mis cupones”.</p>
+        )
+      ) : (
+        <>
+          <button className="secondary-button prize-builder-toggle" type="button" onClick={() => setIsBuilderOpen((open) => !open)}>
+            {isBuilderOpen ? "Cerrar" : "+ Nuevo cupón"}
+          </button>
+
+          {isBuilderOpen ? (
+            <div className="prize-builder">
+              <div className="prize-category-chips" role="tablist" aria-label="Categorías de plantillas">
+                {(Object.keys(rewardTemplates) as Array<Exclude<RewardCategory, "custom">>).map((category) => (
+                  <button key={category} className={builderCategory === category ? "active" : ""} type="button" onClick={() => setBuilderCategory(category)}>
+                    {rewardCategoryMeta[category].emoji} {rewardCategoryMeta[category].label}
+                  </button>
+                ))}
+              </div>
+              <div className="prize-template-grid">
+                {rewardTemplates[builderCategory].map((template) => (
+                  <button
+                    key={template.id}
+                    className="prize-template"
+                    type="button"
+                    onClick={() => { setDraft({ title: template.title, description: template.description, emoji: template.emoji, category: template.category, thresholdDays: template.thresholdDays }); }}
+                  >
+                    <span className="prize-template-emoji" aria-hidden="true">{template.emoji}</span>
+                    <strong>{template.title}</strong>
+                    <small>{template.description}</small>
+                    <span className="prize-template-days">{template.thresholdDays} días</span>
+                  </button>
+                ))}
+              </div>
+              <form className="prize-custom-form" onSubmit={submitDraft}>
+                <div className="prize-custom-row">
+                  <label>Emoji<input value={draft.emoji} maxLength={4} onChange={(event) => setDraft({ ...draft, emoji: event.target.value })} /></label>
+                  <label className="prize-title-field">Título<input value={draft.title} maxLength={80} placeholder="Ej. Cena a ciegas" onChange={(event) => setDraft({ ...draft, title: event.target.value, category: draft.category })} required /></label>
+                  <label>Días<input type="number" min={1} max={365} value={draft.thresholdDays} onChange={(event) => setDraft({ ...draft, thresholdDays: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })} /></label>
+                </div>
+                <label>Descripción<textarea value={draft.description} maxLength={240} rows={2} placeholder="Las reglas del cupón, con tu estilo." onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
+                <button className="primary-button" type="submit" disabled={isSaving || !draft.title.trim()}>{isSaving ? "Guardando…" : "Crear cupón"}</button>
+              </form>
             </div>
-            <label>Descripción<textarea value={draft.description} maxLength={240} rows={2} placeholder="Las reglas del cupón, con tu estilo." onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
-            <button className="primary-button" type="submit" disabled={isSaving || !draft.title.trim()}>{isSaving ? "Guardando…" : "Crear cupón"}</button>
-          </form>
-        </div>
-      ) : null}
+          ) : null}
 
-      {active.length > 0 ? (
-        <div className="prize-ticket-list">
-          {active.map((reward) => {
-            const unlocked = streakDays >= reward.thresholdDays;
-            const progress = Math.min(1, streakDays / reward.thresholdDays);
-            return (
-              <article key={reward.id} className={`prize-ticket category-${reward.category}${unlocked ? " unlocked" : " locked"}`}>
-                <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
-                <div className="prize-ticket-body">
-                  <strong>{reward.title}</strong>
-                  {reward.description ? <p>{reward.description}</p> : null}
-                  {unlocked ? (
-                    <span className="prize-unlocked-note">¡Desbloqueado con {reward.thresholdDays} días!</span>
-                  ) : (
-                    <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={reward.thresholdDays} aria-valuenow={Math.min(streakDays, reward.thresholdDays)}>
-                      <div className="prize-progress-track"><div className="prize-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
-                      <span className="prize-progress-label">{Math.min(streakDays, reward.thresholdDays)}/{reward.thresholdDays} días</span>
-                    </div>
-                  )}
-                </div>
-                <div className="prize-ticket-actions">
-                  {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void onRedeem(reward.id)}>Canjear</button> : null}
-                  {reward.createdBy === currentUserId ? <button className="icon-button compact danger" type="button" aria-label={`Eliminar cupón ${reward.title}`} onClick={() => void onDelete(reward.id)}><Trash2 aria-hidden="true" size={15} /></button> : null}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : null}
+          {mineActive.length > 0 ? (
+            <div className="prize-ticket-list">{mineActive.map(renderActiveTicket)}</div>
+          ) : (
+            <p className="prize-empty-note">Aún no has creado ningún cupón.</p>
+          )}
+        </>
+      )}
 
-      {redeemed.length > 0 ? (
+      {tab === "mis" && mineRedeemed.length > 0 ? (
         <details className="prize-redeemed-drawer">
-          <summary>Canjeados ({redeemed.length})</summary>
+          <summary>Canjeados ({mineRedeemed.length})</summary>
           <div className="prize-ticket-list">
-            {redeemed.map((reward) => (
+            {mineRedeemed.map((reward) => (
               <article key={reward.id} className={`prize-ticket category-${reward.category} redeemed`}>
                 <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
                 <div className="prize-ticket-body">

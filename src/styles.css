@@ -456,6 +456,14 @@ textarea {
     @apply mt-3 rounded border border-moss bg-mossLight p-3 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
   }
 
+  .streak-card-button {
+    @apply block w-full cursor-pointer text-left transition-transform duration-200;
+  }
+
+  .streak-card-button:hover {
+    @apply -translate-y-0.5;
+  }
+
   .streak-main {
     @apply flex items-center gap-3;
   }
@@ -3657,6 +3665,35 @@ button:active:not(:disabled),
 
 .prize-shelf { position: relative; display: grid; gap: .8rem; margin-top: 1rem; border-top: 1px dashed color-mix(in srgb, var(--color-outline) 80%, transparent); padding-top: 1rem; }
 .prize-shelf-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+
+.streak-prize-hint {
+  margin-top: .6rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--color-moss);
+}
+
+.prize-modal-panel { max-width: 34rem; }
+.prize-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
+
+.prize-tabs { display: flex; gap: .4rem; border-bottom: 1px solid color-mix(in srgb, var(--color-outline) 80%, transparent); padding-bottom: .5rem; }
+.prize-tabs button {
+  border: none;
+  background: transparent;
+  padding: .35rem .7rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 750;
+  color: color-mix(in srgb, var(--color-ink) 62%, transparent);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+.prize-tabs button.active { background: color-mix(in srgb, var(--color-moss) 16%, transparent); color: var(--color-moss); }
+
+.prize-builder-toggle { margin-bottom: .2rem; }
+.prize-empty-note { font-size: .82rem; color: color-mix(in srgb, var(--color-ink) 58%, transparent); }
 .prize-shelf-heading p { margin-top: .2rem; color: color-mix(in srgb, var(--color-ink) 62%, transparent); font-size: .8rem; }
 .prize-shelf-heading .secondary-button { flex: none; }
 
