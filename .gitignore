@@ -6,6 +6,10 @@ dist/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Local handover and private chat exports. Never publish these files.
 handover.md

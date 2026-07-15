@@ -175,5 +175,10 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    test: {
+      // Playwright owns e2e/ (its own runner, its own test() API); keep vitest scoped to unit
+      // tests only, or it tries to execute those files itself and fails.
+      exclude: ["node_modules/**", "e2e/**"],
+    },
   };
 });
