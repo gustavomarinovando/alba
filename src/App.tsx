@@ -1458,7 +1458,7 @@ export default function App() {
     );
   }
 
-  if (isAuthReady && !accountContext) {
+  if (isAuthReady && !accountContext && !isDemoMode) {
     return (
       <main className={`auth-shell${uiTheme === "liquid" ? " liquid" : ""} min-h-screen px-4 py-10 text-ink`}>
         {uiTheme === "liquid" ? (
@@ -1491,6 +1491,7 @@ export default function App() {
           {authMode === "login" ? <button className="auth-link" type="button" onClick={resendConfirmation} disabled={isAuthenticating || !authEmail}>¿No llegó la confirmación? Reenviar correo</button> : null}
           {status ? <div className="info-box">{status}</div> : null}
           <div className="auth-trust"><span>✓</span><p><strong>Tus datos siguen siendo tuyos.</strong> Cerrar sesión oculta la información sin borrar la copia local segura.</p></div>
+          <button className="auth-link auth-guest-link" type="button" onClick={loadDemoData}>Probar sin cuenta (modo invitado)</button>
           </>}
         </section>
       </main>
@@ -1573,11 +1574,12 @@ export default function App() {
                 ref={isAiTab ? aiTabButtonRef : undefined}
                 className={activeTab === tab.id ? "tab-button active" : "tab-button"}
                 type="button"
+                aria-label={isAiTab && !hasSeenAiTab ? `${tab.label} — novedad disponible` : undefined}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <span className="tab-icon-wrap">
                   <Icon aria-hidden="true" size={18} />
-                  {isAiTab && !hasSeenAiTab ? <span className="tab-new-dot" aria-label="Novedad" /> : null}
+                  {isAiTab && !hasSeenAiTab ? <span className="tab-new-dot" aria-hidden="true" /> : null}
                 </span>
                 <span className="tab-label">{tab.label}</span>
               </button>

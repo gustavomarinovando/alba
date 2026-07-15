@@ -105,15 +105,30 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
   }, []);
 
   useEffect(() => {
+    // React StrictMode (dev only) mounts, cleans up, and remounts every component once to surface
+    // missing-cleanup bugs. Resetting the module flags alone isn't enough — the first mount's
+    // request is already in flight by the time cleanup runs, so without actually cancelling it here
+    // (not just letting its own catch block notice later, which runs too late) both mounts end up
+    // firing a real, concurrent request. Owning the AbortController at this level lets cleanup kill
+    // the synthetic mount's request outright, so only the surviving mount's ever completes.
+    let controller: AbortController | undefined;
+
     if (chat.messages.length > 0) {
-      if (hasPrewarmed) return;
-      hasPrewarmed = true;
-      void prewarmChat(context, providerOverride);
-      return;
+      if (!hasPrewarmed) {
+        hasPrewarmed = true;
+        void prewarmChat(context, providerOverride);
+      }
+    } else if (!hasGreeted) {
+      hasGreeted = true;
+      controller = new AbortController();
+      void sendGreeting(controller);
     }
-    if (hasGreeted) return;
-    hasGreeted = true;
-    void sendGreeting();
+
+    return () => {
+      controller?.abort();
+      hasPrewarmed = false;
+      hasGreeted = false;
+    };
     // Runs at most once per page load, right after mount, using the context available then.
   }, []);
 
@@ -140,10 +155,9 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
     });
   }
 
-  async function sendGreeting() {
+  async function sendGreeting(controller: AbortController) {
     setIsSending(true);
     setStreamingText("");
-    const controller = new AbortController();
     abortRef.current = controller;
 
     try {
@@ -157,7 +171,8 @@ export default function AiChatPanel({ entries, stats, phaseByDate, observationSt
       const assistantMessage: AiChatMessage = { role: "assistant", content, suggestions };
       setChat((previous) => ({ ...previous, messages: [...previous.messages, assistantMessage] }));
     } catch {
-      // A failed auto-greeting just leaves the empty-state placeholder showing; no error banner needed.
+      // Aborted (e.g. the mount that started this got cleaned up — see the effect above) or any
+      // other failure: just leave the empty-state placeholder showing, no error banner needed.
     } finally {
       setIsSending(false);
       setStreamingText("");

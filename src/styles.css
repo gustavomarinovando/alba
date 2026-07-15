@@ -3676,6 +3676,8 @@ button:active:not(:disabled),
   color: var(--color-moss);
 }
 
+.auth-guest-link { margin-top: .4rem; text-decoration: underline; text-underline-offset: 3px; }
+
 .prize-modal-panel { max-width: 34rem; }
 .prize-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
 
