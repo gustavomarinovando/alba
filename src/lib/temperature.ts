@@ -6,14 +6,14 @@ function normalizeSite(site?: string): TemperatureSite {
   return allowedSites.has(site as TemperatureSite) ? (site as TemperatureSite) : "oral";
 }
 
-export function createTemperatureReading(value?: number, site: TemperatureSite = "oral"): TemperatureReading {
+export function createTemperatureReading(value?: number, site: TemperatureSite = "oral", isResting = true): TemperatureReading {
   const now = new Date();
 
   return {
     id: crypto.randomUUID(),
     time: now.toTimeString().slice(0, 5),
     value: value ?? 36.5,
-    isResting: true,
+    isResting,
     site,
     note: "",
   };

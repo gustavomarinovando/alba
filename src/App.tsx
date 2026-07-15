@@ -296,6 +296,7 @@ export default function App() {
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
   const [pendingTemperatureInput, setPendingTemperatureInput] = useState("36.9");
   const [pendingTemperatureSite, setPendingTemperatureSite] = useState<TemperatureSite>("oral");
+  const [pendingTemperatureIsResting, setPendingTemperatureIsResting] = useState(true);
   const [prioritizedEntryDate, setPrioritizedEntryDate] = useState<string | null>(null);
   const [lastTemperatureActionAt, setLastTemperatureActionAt] = useState(0);
   const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
@@ -735,6 +736,7 @@ export default function App() {
     setPendingTemperature(nextValue);
     setPendingTemperatureInput(formatPendingTemperature(nextValue));
     setPendingTemperatureSite(nextSite);
+    setPendingTemperatureIsResting(true);
   }, [draft.date, draft.temperatureReadings.length, entries, selectedDate]);
 
   useEffect(() => {
@@ -1095,14 +1097,15 @@ export default function App() {
     return true;
   }
 
-  function addTemperature(value = pendingTemperature, site = pendingTemperatureSite) {
+  function addTemperature(value = pendingTemperature, site = pendingTemperatureSite, isResting = pendingTemperatureIsResting) {
     setDraft((current) => ({
       ...current,
-      temperatureReadings: [...current.temperatureReadings, createTemperatureReading(value, site)],
+      temperatureReadings: [...current.temperatureReadings, createTemperatureReading(value, site, isResting)],
     }));
     setPendingTemperature(value);
     setPendingTemperatureInput(formatPendingTemperature(value));
     setPendingTemperatureSite(site);
+    setPendingTemperatureIsResting(true);
   }
 
   function saveQuickTemperature() {
@@ -1920,7 +1923,11 @@ export default function App() {
                   ))}
                 </select>
                 <label className="mini-check">
-                  <input type="checkbox" checked readOnly />
+                  <input
+                    type="checkbox"
+                    checked={pendingTemperatureIsResting}
+                    onChange={(event) => setPendingTemperatureIsResting(event.target.checked)}
+                  />
                   Reposo
                 </label>
               </div>

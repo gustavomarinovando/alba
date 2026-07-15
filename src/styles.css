@@ -371,16 +371,18 @@ textarea {
     @apply text-[rgba(8,17,15,0.75)];
   }
 
+  /* Three distinct intensities so light/medium/heavy actually read differently at a glance —
+     previously all three applied the same bg-coralLight and were visually identical. */
   .calendar-day.flow-light {
-    @apply bg-coralLight;
+    background: color-mix(in srgb, var(--color-coral) 14%, transparent);
   }
 
   .calendar-day.flow-medium {
-    @apply bg-coralLight;
+    background: color-mix(in srgb, var(--color-coral) 32%, transparent);
   }
 
   .calendar-day.flow-heavy {
-    @apply bg-coralLight;
+    background: color-mix(in srgb, var(--color-coral) 52%, transparent);
   }
 
   .calendar-day.phase-follicular {
