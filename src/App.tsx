@@ -2230,6 +2230,7 @@ export default function App() {
           <div className="settings-hero-icon"><Database aria-hidden="true" size={22} /></div>
           <div><span className="eyebrow">Tu espacio</span><h2>Ajustes</h2><p>Cuenta, privacidad, recordatorios y experiencias de Alba.</p></div>
         </div>
+        <div className="settings-group-heading"><span className="eyebrow">Cuenta y datos</span></div>
         <section className="settings-section account-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Identidad</span><h3>Cuenta Alba</h3></div><span className="settings-status-dot">Protegida</span></div>
           {accountContext ? (
@@ -2245,11 +2246,11 @@ export default function App() {
             <form className="mt-2 grid gap-3" onSubmit={logInToAlba}>
               <label className="grid gap-1 text-sm">
                 Correo
-                <input className="rounded border border-outline bg-surface px-3 py-2" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
+                <input className="input" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
               </label>
               <label className="grid gap-1 text-sm">
                 Contraseña
-                <input className="rounded border border-outline bg-surface px-3 py-2" type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
+                <input className="input" type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
               </label>
               <button className="primary-button" type="submit" disabled={!isAuthReady || isAuthenticating || !authPassword}>
                 {isAuthenticating ? "Entrando..." : "Iniciar sesión"}
@@ -2277,14 +2278,6 @@ export default function App() {
           ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => setConfirmEndRelationship({ asOwner: false })} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
         </section>
         <section className="settings-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Apariencia</span><h3>Tema de interfaz</h3></div><span className="settings-status-dot">{uiTheme === "liquid" ? "Líquida" : "Clásica"}</span></div>
-          <p className="settings-section-copy">La interfaz líquida añade fondo aurora, paneles de vidrio y animaciones suaves. La clásica conserva el diseño anterior. Se guarda en este dispositivo.</p>
-          <div className="settings-action-grid">
-            <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
-            <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
-          </div>
-        </section>
-        <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
           <p className="settings-section-copy">Exporta una copia, restaura un respaldo o revisa la sincronización.</p>
         <div className="settings-action-grid">
@@ -2300,10 +2293,6 @@ export default function App() {
             <FileUp aria-hidden="true" size={17} />
             Importar
           </button>
-          <button className="secondary-button danger" type="button" onClick={wipeData}>
-            <Eraser aria-hidden="true" size={17} />
-            Borrar
-          </button>
           <button className="secondary-button col-span-2" type="button" onClick={testCloudConnection} disabled={isTestingCloud}>
             <Database aria-hidden="true" size={17} />
             {isTestingCloud ? "Probando..." : "Probar conexion Supabase"}
@@ -2311,6 +2300,13 @@ export default function App() {
           <button className="secondary-button col-span-2" type="button" onClick={prepareCloudSync} disabled={isSyncing || isPreparingSyncPreview || isDemoMode}>
             <Database aria-hidden="true" size={17} />
             {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : isPreparingSyncPreview ? "Preparando..." : "Sincronizar nube"}
+          </button>
+        </div>
+        <div className="settings-danger-zone">
+          <span className="settings-danger-label">Zona de riesgo</span>
+          <button className="secondary-button danger" type="button" onClick={wipeData}>
+            <Eraser aria-hidden="true" size={17} />
+            Borrar todos los datos
           </button>
         </div>
         </section>
@@ -2354,6 +2350,16 @@ export default function App() {
             Estado: {notificationPermission === "unsupported" ? "no soportado" : notificationPermission === "granted" ? "permitidas" : notificationPermission === "denied" ? "bloqueadas" : "sin decidir"}.
           </p>
         </section>
+
+        <div className="settings-group-heading"><span className="eyebrow">Personaliza</span></div>
+        <section className="settings-section">
+          <div className="settings-section-heading"><div><span className="eyebrow">Apariencia</span><h3>Tema de interfaz</h3></div><span className="settings-status-dot">{uiTheme === "liquid" ? "Líquida" : "Clásica"}</span></div>
+          <p className="settings-section-copy">La interfaz líquida añade fondo aurora, paneles de vidrio y animaciones suaves. La clásica conserva el diseño anterior. Se guarda en este dispositivo.</p>
+          <div className="settings-action-grid">
+            <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
+            <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
+          </div>
+        </section>
         <section className="settings-section experience-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Momentos compartidos</span><h3>Experiencias</h3></div></div>
         <div className="anniversary-countdown mt-3">
@@ -2396,10 +2402,9 @@ export default function App() {
         </div>
         </section>
         <section className="settings-section avatar-section">
+        <div className="settings-section-heading"><div><span className="eyebrow">Avatares</span><h3>Vista de paseo</h3></div><span className="settings-status-dot">Próximamente</span></div>
         <div className="avatar-setup-card mt-3">
           <div>
-            <span className="eyebrow">Avatares</span>
-            <h3>Vista de paseo</h3>
             <p>La configuración de avatares también usará esta silueta lateral para previsualizar caminata, accesorios y sonidos.</p>
           </div>
           <div className="avatar-setup-preview" aria-label="Vista lateral de los avatares">
