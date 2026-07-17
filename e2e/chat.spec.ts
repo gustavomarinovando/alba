@@ -40,6 +40,11 @@ async function waitForReplyToFinish(page: import("@playwright/test").Page) {
 }
 
 test.describe("AI chat send + tool-call flow", () => {
+  // The per-test default (30s) is shorter than AI_TIMEOUT above, so a slow-but-not-erroring
+  // upstream response could blow the outer test timeout before the inner wait ever gets to decide
+  // pass/skip/fail. Give these tests enough room for AI_TIMEOUT to actually be the deciding clock.
+  test.describe.configure({ timeout: 60_000 });
+
   test("sending a question the model must ground in real data returns an answer", async ({ page }) => {
     await openFreshChat(page);
 

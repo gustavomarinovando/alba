@@ -264,6 +264,9 @@ export default function App() {
   const [isPreparingSyncPreview, setIsPreparingSyncPreview] = useState(false);
   const [syncPreview, setSyncPreview] = useState<SupabaseSyncPreview | null>(null);
   const [showPrizeModal, setShowPrizeModal] = useState(false);
+  const [showWipeConfirm, setShowWipeConfirm] = useState(false);
+  const [confirmEndRelationship, setConfirmEndRelationship] = useState<{ asOwner: boolean } | null>(null);
+  const [confirmDeleteRewardId, setConfirmDeleteRewardId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<{ fileName: string; entries: CycleEntry[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
@@ -872,7 +875,11 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Esto borrará todos los registros de este dispositivo y de la nube compartida.")) return;
+    setShowWipeConfirm(true);
+  }
+
+  async function performWipeAllData() {
+    setShowWipeConfirm(false);
     try {
       if (accountContext) {
         await deleteAllSupabaseEntries(accountContext);
@@ -1309,7 +1316,11 @@ export default function App() {
   }
 
   async function handleDeleteReward(id: string) {
-    if (!window.confirm("¿Eliminar este cupón?")) return;
+    setConfirmDeleteRewardId(id);
+  }
+
+  async function performDeleteReward(id: string) {
+    setConfirmDeleteRewardId(null);
     try {
       await deleteStreakReward(accountContext, id);
       setStreakRewards((prev) => prev.filter((reward) => reward.id !== id));
@@ -1330,8 +1341,7 @@ export default function App() {
   }
 
   async function endRelationship(asOwner: boolean) {
-    const message = asOwner ? "¿Retirar a tu pareja? Perderá acceso a estos registros." : "¿Salir de esta pareja? Perderás acceso a los registros compartidos.";
-    if (!window.confirm(message)) return;
+    setConfirmEndRelationship(null);
     setIsAuthenticating(true);
     try {
       if (asOwner) await removePartner(); else await leaveCouple();
@@ -1532,6 +1542,46 @@ export default function App() {
       {syncPreview ? renderSyncPreviewModal() : null}
       {importPreview ? renderImportPreviewModal() : null}
       {showPrizeModal ? renderPrizeModal() : null}
+      {showDeleteDayConfirm ? (
+        <ConfirmDialog
+          title="Eliminar registros del día"
+          description={`Esto borrará el periodo, temperaturas, señales y notas de ${displayDate(selectedDate)}.`}
+          confirmLabel="Eliminar día"
+          onConfirm={() => { void removeSelected(); setShowDeleteDayConfirm(false); }}
+          onCancel={() => setShowDeleteDayConfirm(false)}
+        />
+      ) : null}
+      {showWipeConfirm ? (
+        <ConfirmDialog
+          title="Borrar todos los datos"
+          description="Esto borrará todos los registros de este dispositivo y de la nube compartida. No se puede deshacer."
+          confirmLabel="Borrar todo"
+          onConfirm={() => void performWipeAllData()}
+          onCancel={() => setShowWipeConfirm(false)}
+        />
+      ) : null}
+      {confirmDeleteRewardId ? (
+        <ConfirmDialog
+          title="Eliminar cupón"
+          description={`¿Eliminar "${streakRewards.find((reward) => reward.id === confirmDeleteRewardId)?.title ?? "este cupón"}"? No se puede deshacer.`}
+          confirmLabel="Eliminar cupón"
+          onConfirm={() => void performDeleteReward(confirmDeleteRewardId)}
+          onCancel={() => setConfirmDeleteRewardId(null)}
+        />
+      ) : null}
+      {confirmEndRelationship ? (
+        <ConfirmDialog
+          title={confirmEndRelationship.asOwner ? "Retirar acceso de pareja" : "Salir de esta pareja"}
+          description={
+            confirmEndRelationship.asOwner
+              ? "¿Retirar a tu pareja? Perderá acceso a estos registros."
+              : "¿Salir de esta pareja? Perderás acceso a los registros compartidos."
+          }
+          confirmLabel={confirmEndRelationship.asOwner ? "Retirar acceso" : "Salir de la pareja"}
+          onConfirm={() => void endRelationship(confirmEndRelationship.asOwner)}
+          onCancel={() => setConfirmEndRelationship(null)}
+        />
+      ) : null}
       <section className="border-b border-outline bg-surface/95">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -1861,20 +1911,6 @@ export default function App() {
               <Trash2 aria-hidden="true" size={18} />
             </button>
           </div>
-          {showDeleteDayConfirm ? (
-            <div className="confirm-box">
-              <strong>Eliminar registros del día</strong>
-              <span>Esto borrará el periodo, temperaturas, señales y notas de {displayDate(selectedDate)}.</span>
-              <div className="flex gap-2">
-                <button className="secondary-button danger" type="button" onClick={() => { void removeSelected(); setShowDeleteDayConfirm(false); }}>
-                  Eliminar día
-                </button>
-                <button className="secondary-button" type="button" onClick={() => setShowDeleteDayConfirm(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : null}
           <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
             <div className={saveFeedback === "saved" ? "input-card primary-entry-card saved-glow" : "input-card primary-entry-card"}>
               <div className="flex items-start justify-between gap-3">
@@ -2224,7 +2260,7 @@ export default function App() {
           {accountContext?.role === "owner" ? (
             <div className="invite-card">
               <div><strong>{partnerConnected ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerConnected ? `${partnerEmail ?? "Tu pareja"} tiene acceso a los registros compartidos.` : pendingInvite && !createdInvite ? "Hay una invitación activa. Por seguridad, el código solo se muestra en el dispositivo donde se creó; puedes generar uno nuevo (reemplaza al anterior)." : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
-              {partnerConnected ? <button className="secondary-button danger" type="button" onClick={() => endRelationship(true)} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
+              {partnerConnected ? <button className="secondary-button danger" type="button" onClick={() => setConfirmEndRelationship({ asOwner: true })} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
               {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerConnected ? (
                 <div className="invite-code revealed">
                   <code>{createdInvite.code}</code>
@@ -2238,7 +2274,7 @@ export default function App() {
                 <div className="invite-code pending"><code>••••••••••••</code><small>Invitación activa, vence: {new Date(pendingInvite.expiresAt).toLocaleString("es")}</small></div>
               ) : null}
             </div>
-          ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => endRelationship(false)} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
+          ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => setConfirmEndRelationship({ asOwner: false })} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
         </section>
         <section className="settings-section">
           <div className="settings-section-heading"><div><span className="eyebrow">Apariencia</span><h3>Tema de interfaz</h3></div><span className="settings-status-dot">{uiTheme === "liquid" ? "Líquida" : "Clásica"}</span></div>
@@ -2671,6 +2707,37 @@ function AdvancedSelect({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  title,
+  description,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+      <section className="modal-panel">
+        <h2 id="confirm-dialog-title">{title}</h2>
+        <p>{description}</p>
+        <div className="modal-actions">
+          <button className="secondary-button" type="button" onClick={onCancel}>
+            Cancelar
+          </button>
+          <button className="secondary-button danger" type="button" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

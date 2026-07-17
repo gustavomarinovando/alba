@@ -656,18 +656,6 @@ textarea {
     @apply mb-3 mt-1 text-sm leading-6 text-ink;
   }
 
-  .confirm-box {
-    @apply mb-4 space-y-3 rounded border border-coral bg-coralLight p-3 text-sm leading-6 text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.07)];
-  }
-
-  .confirm-box strong {
-    @apply block text-base text-ink;
-  }
-
-  .confirm-box span {
-    @apply block text-ink;
-  }
-
   .cycle-map-layout {
     @apply grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)];
     position: relative;
