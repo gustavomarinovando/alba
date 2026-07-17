@@ -25,9 +25,70 @@ const PROVIDERS = {
 const MAX_MESSAGES = 60;
 const MAX_BODY_LENGTH = 200_000;
 
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_PER_WINDOW = 20;
+const RATE_LIMIT_DAY_MS = 24 * 60 * 60 * 1000;
+const RATE_LIMIT_MAX_PER_DAY = 300;
+
+// Per-IP request timestamps, in memory only. This is a best-effort brake, not a hard guarantee:
+// it resets on a cold start and isn't shared across concurrent serverless instances/regions. It's
+// there to stop an obvious scripted flood from running up the provider bill (there's no auth on
+// this endpoint — guest mode means anyone can reach it) rather than to precisely meter usage. If
+// traffic ever grows enough for multi-instance abuse to matter, move this to a shared store
+// (a Supabase table, since one's already in use elsewhere; or Upstash Redis).
+const requestLog = new Map();
+
+function getClientIp(request) {
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.length > 0) return forwarded.split(",")[0].trim();
+  return request.socket?.remoteAddress || "unknown";
+}
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+
+  // Opportunistic cleanup so the map doesn't grow forever with IPs that stopped requesting.
+  if (Math.random() < 0.01) {
+    for (const [key, times] of requestLog) {
+      const fresh = times.filter((t) => now - t < RATE_LIMIT_DAY_MS);
+      if (fresh.length === 0) requestLog.delete(key);
+      else requestLog.set(key, fresh);
+    }
+  }
+
+  const timestamps = (requestLog.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_DAY_MS);
+
+  if (timestamps.length >= RATE_LIMIT_MAX_PER_DAY) {
+    requestLog.set(ip, timestamps);
+    return { allowed: false, reason: "day", retryAfterSeconds: Math.ceil((timestamps[0] + RATE_LIMIT_DAY_MS - now) / 1000) };
+  }
+
+  const windowCount = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS).length;
+  if (windowCount >= RATE_LIMIT_MAX_PER_WINDOW) {
+    requestLog.set(ip, timestamps);
+    return { allowed: false, reason: "burst", retryAfterSeconds: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) };
+  }
+
+  timestamps.push(now);
+  requestLog.set(ip, timestamps);
+  return { allowed: true };
+}
+
 export default async function handler(request, response) {
   if (request.method !== "POST") {
     response.status(405).json({ error: "Metodo no permitido." });
+    return;
+  }
+
+  const rate = checkRateLimit(getClientIp(request));
+  if (!rate.allowed) {
+    response.setHeader("Retry-After", String(rate.retryAfterSeconds));
+    response.status(429).json({
+      error:
+        rate.reason === "day"
+          ? "Alcanzaste el límite de mensajes con Alba por hoy. Vuelve a intentar mañana."
+          : "Estás enviando mensajes muy rápido. Espera un momento y vuelve a intentar.",
+    });
     return;
   }
 
