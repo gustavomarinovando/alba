@@ -32,7 +32,7 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
 import { AnniversaryCat, CAT_KINDS, playCatAudio, type AnniversaryCatKind } from "./components/AnniversaryCat";
-import { calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
+import { CURRENCY_RATE, calculateCurrencyEarned, calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
 import { calendarDaysForMonth, displayDate, isToday, isoDate } from "./lib/date";
 import {
   cervixFirmnessOptions,
@@ -625,7 +625,18 @@ export default function App() {
   const currentStreakNeedsToday = observationStreak.current > 0 && observationStreak.currentEndDate !== todayIso;
   const isPartnerRole = accountContext?.role === "member";
   const activeStreakDays = isPartnerRole ? openStreak.current : observationStreak.current;
-  const unlockedRewardsCount = streakRewards.filter((reward) => !reward.redeemedAt && activeStreakDays >= reward.thresholdDays).length;
+  const currencyEarned = useMemo(() => calculateCurrencyEarned(entries, todayIso), [entries, todayIso]);
+  const currencySpent = useMemo(
+    () => streakRewards.filter((reward) => reward.price != null && reward.redeemedAt).reduce((sum, reward) => sum + (reward.price ?? 0), 0),
+    [streakRewards],
+  );
+  const currencyBalance = currencyEarned.total - currencySpent;
+  const unlockedRewardsCount = streakRewards.filter(
+    (reward) =>
+      !reward.redeemedAt &&
+      ((reward.thresholdDays != null && activeStreakDays >= reward.thresholdDays) ||
+        (reward.price != null && currencyBalance >= reward.price)),
+  ).length;
   const hasTemperatureToday = draft.temperatureReadings.length > 0;
   const shouldPrioritizeEntry = prioritizedEntryDate === selectedDate;
   const periodNeedsAttention = useMemo(() => shouldSurfacePeriod(entries, selectedDate, draft), [entries, selectedDate, draft]);
@@ -1760,6 +1771,7 @@ export default function App() {
           <StreakPrizes
             rewards={streakRewards}
             streakDays={activeStreakDays}
+            currencyBalance={currencyBalance}
             currentUserId={accountContext?.userId ?? "local"}
             onCreate={handleCreateReward}
             onRedeem={handleRedeemReward}
@@ -1896,6 +1908,11 @@ export default function App() {
               <Trophy size={16} aria-hidden="true" />
               <span>Mejor racha</span>
               <strong>{(isPartnerRole ? openStreak.longest : observationStreak.longest)} {(isPartnerRole ? openStreak.longest : observationStreak.longest) === 1 ? "día" : "días"}</strong>
+            </div>
+            <div className="streak-best">
+              <span aria-hidden="true">🐾</span>
+              <span>Huellitas</span>
+              <strong>{currencyBalance}</strong>
             </div>
             <div className="streak-prize-hint">
               <span aria-hidden="true">🎁</span>
@@ -3258,6 +3275,7 @@ function SideWalkingCat({
 function StreakPrizes({
   rewards,
   streakDays,
+  currencyBalance,
   currentUserId,
   onCreate,
   onRedeem,
@@ -3265,6 +3283,7 @@ function StreakPrizes({
 }: {
   rewards: StreakReward[];
   streakDays: number;
+  currencyBalance: number;
   currentUserId: string;
   onCreate: (draft: StreakRewardDraft) => Promise<void>;
   onRedeem: (id: string) => Promise<void>;
@@ -3273,21 +3292,45 @@ function StreakPrizes({
   const [tab, setTab] = useState<"disponibles" | "mis">("disponibles");
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [builderCategory, setBuilderCategory] = useState<Exclude<RewardCategory, "custom">>("comida");
+  const [unlockMethod, setUnlockMethod] = useState<"streak" | "currency">("streak");
   const [draft, setDraft] = useState<StreakRewardDraft>({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
   const [isSaving, setIsSaving] = useState(false);
+
+  function isUnlocked(reward: StreakReward): boolean {
+    if (reward.thresholdDays != null) return streakDays >= reward.thresholdDays;
+    if (reward.price != null) return currencyBalance >= reward.price;
+    return false;
+  }
+
+  function goalAndCurrent(reward: StreakReward): { goal: number; current: number; isCurrency: boolean } {
+    if (reward.price != null) return { goal: reward.price, current: currencyBalance, isCurrency: true };
+    return { goal: reward.thresholdDays ?? 0, current: streakDays, isCurrency: false };
+  }
+
   const active = rewards.filter((reward) => !reward.redeemedAt);
   const redeemed = rewards.filter((reward) => reward.redeemedAt);
-  const hasUnlocked = active.some((reward) => streakDays >= reward.thresholdDays);
+  const hasUnlocked = active.some(isUnlocked);
   const mine = rewards.filter((reward) => reward.createdBy === currentUserId);
   const mineActive = mine.filter((reward) => !reward.redeemedAt);
   const mineRedeemed = mine.filter((reward) => reward.redeemedAt);
 
   const sortedActive = [...active].sort((a, b) => {
-    const remainingA = a.thresholdDays - streakDays;
-    const remainingB = b.thresholdDays - streakDays;
+    const { goal: goalA, current: currentA } = goalAndCurrent(a);
+    const { goal: goalB, current: currentB } = goalAndCurrent(b);
+    const remainingA = goalA - currentA;
+    const remainingB = goalB - currentB;
     if (remainingA <= 0 !== remainingB <= 0) return remainingA <= 0 ? -1 : 1;
     return remainingA - remainingB;
   });
+
+  function switchUnlockMethod(method: "streak" | "currency") {
+    setUnlockMethod(method);
+    setDraft((current) =>
+      method === "currency"
+        ? { ...current, thresholdDays: undefined, price: current.price ?? 20 }
+        : { ...current, price: undefined, thresholdDays: current.thresholdDays ?? 7 },
+    );
+  }
 
   async function submitDraft(event: React.FormEvent) {
     event.preventDefault();
@@ -3296,6 +3339,7 @@ function StreakPrizes({
     try {
       await onCreate({ ...draft, title: draft.title.trim(), description: draft.description.trim(), emoji: draft.emoji.trim() || "🎁" });
       setDraft({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
+      setUnlockMethod("streak");
       setIsBuilderOpen(false);
     } finally {
       setIsSaving(false);
@@ -3303,8 +3347,10 @@ function StreakPrizes({
   }
 
   function renderActiveTicket(reward: StreakReward) {
-    const unlocked = streakDays >= reward.thresholdDays;
-    const progress = Math.min(1, streakDays / reward.thresholdDays);
+    const unlocked = isUnlocked(reward);
+    const { goal, current, isCurrency } = goalAndCurrent(reward);
+    const progress = goal > 0 ? Math.min(1, current / goal) : 0;
+    const unit = isCurrency ? "🐾" : "días";
     return (
       <article key={reward.id} className={`prize-ticket category-${reward.category}${unlocked ? " unlocked" : " locked"}`}>
         <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
@@ -3312,11 +3358,11 @@ function StreakPrizes({
           <strong>{reward.title}</strong>
           {reward.description ? <p>{reward.description}</p> : null}
           {unlocked ? (
-            <span className="prize-unlocked-note">¡Desbloqueado con {reward.thresholdDays} días!</span>
+            <span className="prize-unlocked-note">¡Desbloqueado con {goal} {unit}!</span>
           ) : (
-            <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={reward.thresholdDays} aria-valuenow={Math.min(streakDays, reward.thresholdDays)}>
+            <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.min(current, goal)}>
               <div className="prize-progress-track"><div className="prize-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
-              <span className="prize-progress-label">{Math.min(streakDays, reward.thresholdDays)}/{reward.thresholdDays} días</span>
+              <span className="prize-progress-label">{Math.min(current, goal)}/{goal} {unit}</span>
             </div>
           )}
         </div>
@@ -3331,7 +3377,10 @@ function StreakPrizes({
   return (
     <section className="prize-shelf" aria-label="Premios por racha">
       <div className="prize-shelf-heading">
-        <p>{active.length === 0 ? "Crea cupones que se desbloquean al mantener la racha." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
+        <p>{active.length === 0 ? "Crea cupones que se desbloquean con racha o con huellitas." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
+        <p className="prize-currency-note">
+          🐾 Tienen <strong>{currencyBalance}</strong> huellitas juntas. Se ganan registrando el día (+{CURRENCY_RATE.observationDay}), con una nota (+{CURRENCY_RATE.noteDay}), cada 7 días seguidos (+{CURRENCY_RATE.streakMilestone}) y en cada mesaniversario (+{CURRENCY_RATE.monthiversary}).
+        </p>
       </div>
       {hasUnlocked ? <AnniversaryCat kind="orange" label="Mandarino celebra tus premios desbloqueados" className="prize-cat" /> : null}
 
@@ -3371,7 +3420,10 @@ function StreakPrizes({
                     key={template.id}
                     className="prize-template"
                     type="button"
-                    onClick={() => { setDraft({ title: template.title, description: template.description, emoji: template.emoji, category: template.category, thresholdDays: template.thresholdDays }); }}
+                    onClick={() => {
+                      setUnlockMethod("streak");
+                      setDraft({ title: template.title, description: template.description, emoji: template.emoji, category: template.category, thresholdDays: template.thresholdDays, price: undefined });
+                    }}
                   >
                     <span className="prize-template-emoji" aria-hidden="true">{template.emoji}</span>
                     <strong>{template.title}</strong>
@@ -3381,10 +3433,22 @@ function StreakPrizes({
                 ))}
               </div>
               <form className="prize-custom-form" onSubmit={submitDraft}>
+                <div className="prize-unlock-toggle" role="tablist" aria-label="Método de desbloqueo">
+                  <button className={unlockMethod === "streak" ? "active" : ""} type="button" role="tab" aria-selected={unlockMethod === "streak"} onClick={() => switchUnlockMethod("streak")}>
+                    Por racha
+                  </button>
+                  <button className={unlockMethod === "currency" ? "active" : ""} type="button" role="tab" aria-selected={unlockMethod === "currency"} onClick={() => switchUnlockMethod("currency")}>
+                    🐾 Por huellitas
+                  </button>
+                </div>
                 <div className="prize-custom-row">
                   <label>Emoji<input value={draft.emoji} maxLength={4} onChange={(event) => setDraft({ ...draft, emoji: event.target.value })} /></label>
                   <label className="prize-title-field">Título<input value={draft.title} maxLength={80} placeholder="Ej. Cena a ciegas" onChange={(event) => setDraft({ ...draft, title: event.target.value, category: draft.category })} required /></label>
-                  <label>Días<input type="number" min={1} max={365} value={draft.thresholdDays} onChange={(event) => setDraft({ ...draft, thresholdDays: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })} /></label>
+                  {unlockMethod === "currency" ? (
+                    <label>Monedas<input type="number" min={1} max={100000} value={draft.price ?? 20} onChange={(event) => setDraft({ ...draft, price: Math.max(1, Math.min(100000, Number(event.target.value) || 1)) })} /></label>
+                  ) : (
+                    <label>Días<input type="number" min={1} max={365} value={draft.thresholdDays ?? 7} onChange={(event) => setDraft({ ...draft, thresholdDays: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })} /></label>
+                  )}
                 </div>
                 <label>Descripción<textarea value={draft.description} maxLength={240} rows={2} placeholder="Las reglas del cupón, con tu estilo." onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
                 <button className="primary-button" type="submit" disabled={isSaving || !draft.title.trim()}>{isSaving ? "Guardando…" : "Crear cupón"}</button>

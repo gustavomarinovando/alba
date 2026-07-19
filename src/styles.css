@@ -3701,6 +3701,22 @@ button:active:not(:disabled),
 .prize-empty-note { font-size: .82rem; color: color-mix(in srgb, var(--color-ink) 58%, transparent); }
 .prize-shelf-heading p { margin-top: .2rem; color: color-mix(in srgb, var(--color-ink) 62%, transparent); font-size: .8rem; }
 .prize-shelf-heading .secondary-button { flex: none; }
+.prize-currency-note { font-size: .74rem !important; line-height: 1.4; }
+.prize-currency-note strong { color: var(--color-moss); }
+
+.prize-unlock-toggle { display: flex; gap: .4rem; }
+.prize-unlock-toggle button {
+  flex: 1;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  padding: .5rem .7rem;
+  border-radius: .7rem;
+  font-size: .78rem;
+  font-weight: 750;
+  color: color-mix(in srgb, var(--color-ink) 62%, transparent);
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+.prize-unlock-toggle button.active { background: color-mix(in srgb, var(--color-moss) 16%, transparent); color: var(--color-moss); border-color: var(--color-moss); }
 
 .prize-cat { position: absolute; top: -3.2rem; right: 4.5rem; width: 4.2rem; height: 4.2rem; animation: prize-cat-bounce 2.4s ease-in-out infinite; }
 
