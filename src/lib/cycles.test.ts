@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { CycleEntry } from "../types";
-import { calculateObservationStreak, calculateStats } from "./cycles";
+import { CURRENCY_RATE, calculateCurrencyEarned, calculateObservationStreak, calculateStats } from "./cycles";
 
 function entry(date: string, overrides: Partial<CycleEntry> = {}): CycleEntry {
   return {
@@ -101,4 +101,62 @@ test("includes observation streaks in cycle stats", () => {
 
   expect(stats.observationStreak.current).toBe(2);
   expect(stats.observationStreak.longest).toBe(2);
+});
+
+test("counts observation days, note days, and totals huellitas earned", () => {
+  const earned = calculateCurrencyEarned(
+    [
+      entry("2026-07-01", { note: "cramps" }),
+      entry("2026-07-02", { cervicalMucus: "creamy" }),
+      entry("2026-07-03", { isPeriod: true, flow: "light" }),
+    ],
+    "2026-07-03",
+  );
+
+  expect(earned.observationDays).toBe(3);
+  expect(earned.noteDays).toBe(1);
+  expect(earned.streakMilestones).toBe(0);
+  expect(earned.monthiversaries).toBe(0);
+  expect(earned.total).toBe(3 * CURRENCY_RATE.observationDay + 1 * CURRENCY_RATE.noteDay);
+});
+
+test("awards a streak milestone for every 7 consecutive observed days", () => {
+  const days = Array.from({ length: 8 }, (_, index) => `2026-07-${String(index + 1).padStart(2, "0")}`);
+  const earned = calculateCurrencyEarned(
+    days.map((date) => entry(date, { note: "log" })),
+    "2026-07-08",
+  );
+
+  expect(earned.streakMilestones).toBe(1);
+});
+
+test("keeps an earned streak milestone even after the streak later breaks", () => {
+  const entries = [
+    ...Array.from({ length: 7 }, (_, index) => entry(`2026-07-${String(index + 1).padStart(2, "0")}`, { note: "log" })),
+    entry("2026-07-10", { note: "log after a gap" }),
+  ];
+
+  const earned = calculateCurrencyEarned(entries, "2026-07-10");
+
+  expect(earned.streakMilestones).toBe(1);
+});
+
+test("counts one monthiversary per elapsed day-6 since the first entry", () => {
+  const earned = calculateCurrencyEarned(
+    [entry("2026-05-10", { note: "start" }), entry("2026-07-10", { note: "later" })],
+    "2026-07-10",
+  );
+
+  // Day 6 crossed for June and July, not May (first entry is after May's day 6).
+  expect(earned.monthiversaries).toBe(2);
+});
+
+test("ignores future-dated entries when computing currency earned", () => {
+  const earned = calculateCurrencyEarned(
+    [entry("2026-07-01", { note: "today" }), entry("2026-07-05", { note: "future" })],
+    "2026-07-01",
+  );
+
+  expect(earned.observationDays).toBe(1);
+  expect(earned.noteDays).toBe(1);
 });
