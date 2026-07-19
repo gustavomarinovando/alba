@@ -2,13 +2,18 @@ import { getSupabaseClient, type AlbaAccountContext } from "./supabaseAuth";
 
 export type RewardCategory = "comida" | "citas" | "picante" | "mimos" | "custom";
 
+export type RewardUnlockMethod = "streak" | "currency";
+
 export interface StreakReward {
   id: string;
   title: string;
   description: string;
   emoji: string;
   category: RewardCategory;
-  thresholdDays: number;
+  /** Set for streak-gated coupons; unset for currency-only ones. Exactly one of thresholdDays/price is set. */
+  thresholdDays?: number;
+  /** Set for currency-gated coupons, in huellitas; unset for streak-only ones. */
+  price?: number;
   createdBy: string;
   redeemedAt: string | null;
   createdAt: string;
@@ -19,7 +24,8 @@ export interface StreakRewardDraft {
   description: string;
   emoji: string;
   category: RewardCategory;
-  thresholdDays: number;
+  thresholdDays?: number;
+  price?: number;
 }
 
 export interface RewardTemplate extends StreakRewardDraft {
@@ -88,7 +94,8 @@ function rowToReward(row: any): StreakReward {
     description: row.description ?? "",
     emoji: row.emoji ?? "🎁",
     category: row.category ?? "custom",
-    thresholdDays: row.threshold_days,
+    thresholdDays: row.threshold_days ?? undefined,
+    price: row.price ?? undefined,
     createdBy: row.created_by,
     redeemedAt: row.redeemed_at ?? null,
     createdAt: row.created_at,
@@ -131,7 +138,11 @@ export async function createStreakReward(context: AlbaAccountContext | null, dra
           description: draft.description,
           emoji: draft.emoji,
           category: draft.category,
-          threshold_days: draft.thresholdDays,
+          // Only send the field that's actually set — a coupon created before migration 014 (which
+          // adds `price` and drops threshold_days' NOT NULL) still round-trips fine as long as we
+          // don't send a column the live schema doesn't have yet.
+          ...(draft.thresholdDays != null ? { threshold_days: draft.thresholdDays } : {}),
+          ...(draft.price != null ? { price: draft.price } : {}),
         })
         .select("*")
         .single();
@@ -150,6 +161,7 @@ export async function createStreakReward(context: AlbaAccountContext | null, dra
     emoji: draft.emoji,
     category: draft.category,
     thresholdDays: draft.thresholdDays,
+    price: draft.price,
     createdBy: context?.userId ?? "local",
     redeemedAt: null,
     createdAt: new Date().toISOString(),

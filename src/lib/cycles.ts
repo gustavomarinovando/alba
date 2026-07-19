@@ -81,6 +81,80 @@ export function calculateObservationStreak(entries: CycleEntry[], today = isoDat
   };
 }
 
+export interface CurrencyBreakdown {
+  observationDays: number;
+  noteDays: number;
+  streakMilestones: number;
+  monthiversaries: number;
+  total: number;
+}
+
+/** How many huellitas each earning source is worth — surfaced in the store UI's "cómo ganar" note. */
+export const CURRENCY_RATE = {
+  observationDay: 1,
+  noteDay: 1,
+  streakMilestone: 5,
+  monthiversary: 15,
+} as const;
+
+/**
+ * Total huellitas ever earned, derived from entries so there's no separate "award" event system to
+ * keep in sync. Deliberately monotonic — every source only ever grows as more days pass, never
+ * shrinks because a streak later broke — so spendable balance (this minus redeemed currency-priced
+ * rewards elsewhere) behaves like a real wallet instead of silently losing value.
+ *
+ * Note: deleting a past day's entry does reduce what it derives from, same tradeoff already accepted
+ * for the observation streak; not solved here either, low risk for a private couple's app.
+ */
+export function calculateCurrencyEarned(entries: CycleEntry[], today = isoDate(new Date())): CurrencyBreakdown {
+  const meaningfulDates = Array.from(
+    new Set(
+      entries
+        .filter(hasMeaningfulEntry)
+        .map((entry) => entry.date)
+        .filter((date) => date <= today),
+    ),
+  ).sort();
+
+  const observationDays = meaningfulDates.length;
+
+  const noteDays = new Set(
+    entries.filter((entry) => entry.note.trim().length > 0 && entry.date <= today).map((entry) => entry.date),
+  ).size;
+
+  // Every 7-day block within any historical run of consecutive observed days, not just the
+  // current run — a milestone already earned stays earned even after the streak breaks.
+  let streakMilestones = 0;
+  let runLength = 0;
+  let previousDate: string | undefined;
+  for (const date of meaningfulDates) {
+    runLength = previousDate && dayDiff(previousDate, date) === 1 ? runLength + 1 : 1;
+    if (runLength % 7 === 0) streakMilestones += 1;
+    previousDate = date;
+  }
+
+  // One bonus for each monthiversary (day 6) that's occurred since the first entry.
+  let monthiversaries = 0;
+  if (meaningfulDates.length > 0) {
+    const start = parseISO(meaningfulDates[0]);
+    const end = parseISO(today);
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 6);
+    if (cursor < start) cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 6);
+    while (cursor <= end) {
+      monthiversaries += 1;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 6);
+    }
+  }
+
+  const total =
+    observationDays * CURRENCY_RATE.observationDay +
+    noteDays * CURRENCY_RATE.noteDay +
+    streakMilestones * CURRENCY_RATE.streakMilestone +
+    monthiversaries * CURRENCY_RATE.monthiversary;
+
+  return { observationDays, noteDays, streakMilestones, monthiversaries, total };
+}
+
 export function getCurrentCycleEntries(entries: CycleEntry[]): CycleEntry[] {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   const starts = getPeriodStarts(sorted);
