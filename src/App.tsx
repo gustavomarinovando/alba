@@ -639,6 +639,7 @@ export default function App() {
   const unlockedRewardsCount = streakRewards.filter(
     (reward) =>
       !reward.redeemedAt &&
+      reward.createdBy !== (accountContext?.userId ?? "local") &&
       ((reward.thresholdDays != null && activeStreakDays >= reward.thresholdDays) ||
         (reward.price != null && currencyBalance >= reward.price)),
   ).length;
@@ -3363,13 +3364,16 @@ function StreakPrizes({
     return { goal: reward.thresholdDays ?? 0, current: streakDays, isCurrency: false };
   }
 
-  const active = rewards.filter((reward) => !reward.redeemedAt);
+  // A coupon is a gift for the other person: you build it, they unlock and redeem it.
+  // "Disponibles" only ever shows coupons the *other* person created — otherwise you could
+  // redeem your own gift to yourself, which is exactly the mix-up that made this confusing.
+  const theirs = rewards.filter((reward) => !reward.redeemedAt && reward.createdBy !== currentUserId);
   const redeemed = rewards.filter((reward) => reward.redeemedAt);
-  const hasUnlocked = active.some(isUnlocked);
+  const hasUnlocked = theirs.some(isUnlocked);
   const mine = rewards.filter((reward) => reward.createdBy === currentUserId);
   const mineActive = mine.filter((reward) => !reward.redeemedAt);
 
-  const sortedActive = [...active].sort((a, b) => {
+  const sortedTheirs = [...theirs].sort((a, b) => {
     const { goal: goalA, current: currentA } = goalAndCurrent(a);
     const { goal: goalB, current: currentB } = goalAndCurrent(b);
     const remainingA = goalA - currentA;
@@ -3401,11 +3405,16 @@ function StreakPrizes({
     }
   }
 
-  function renderActiveTicket(reward: StreakReward) {
-    const unlocked = isUnlocked(reward);
+  function renderActiveTicket(reward: StreakReward, options?: { allowRedeem?: boolean }) {
+    const allowRedeem = options?.allowRedeem ?? true;
     const { goal, current, isCurrency } = goalAndCurrent(reward);
-    const progress = goal > 0 ? Math.min(1, current / goal) : 0;
     const unit = isCurrency ? "🐾" : "días";
+    // Streak progress is per-viewer (each role tracks its own streak locally), so a
+    // creator viewing their own gift has no accurate read on their partner's streak —
+    // only the shared currency balance means the same thing from either side.
+    const canShowProgress = allowRedeem || isCurrency;
+    const unlocked = canShowProgress && isUnlocked(reward);
+    const progress = goal > 0 ? Math.min(1, current / goal) : 0;
     return (
       <article key={reward.id} className={`prize-ticket category-${reward.category}${unlocked ? " unlocked" : " locked"}`}>
         <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
@@ -3413,16 +3422,20 @@ function StreakPrizes({
           <strong>{reward.title}</strong>
           {reward.description ? <p>{reward.description}</p> : null}
           {unlocked ? (
-            <span className="prize-unlocked-note">¡Desbloqueado con {goal} {unit}!</span>
-          ) : (
+            <span className="prize-unlocked-note">
+              {allowRedeem ? `¡Desbloqueado con ${goal} ${unit}!` : `Tu pareja ya puede canjearlo (${goal} ${unit}).`}
+            </span>
+          ) : canShowProgress ? (
             <div className="prize-progress" role="progressbar" aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.min(current, goal)}>
               <div className="prize-progress-track"><div className="prize-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
               <span className="prize-progress-label">{Math.min(current, goal)}/{goal} {unit}</span>
             </div>
+          ) : (
+            <span className="prize-progress-label">Se desbloquea cuando tu pareja llegue a {goal} días de racha.</span>
           )}
         </div>
         <div className="prize-ticket-actions">
-          {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void handleRedeemClick(reward)}>Canjear</button> : null}
+          {unlocked && allowRedeem ? <button className="primary-button prize-redeem" type="button" onClick={() => void handleRedeemClick(reward)}>Canjear</button> : null}
           {reward.createdBy === currentUserId ? <button className="icon-button compact danger" type="button" aria-label={`Eliminar cupón ${reward.title}`} onClick={() => void onDelete(reward.id)}><Trash2 aria-hidden="true" size={15} /></button> : null}
         </div>
       </article>
@@ -3432,7 +3445,7 @@ function StreakPrizes({
   return (
     <section className="prize-shelf" aria-label="Premios por racha">
       <div className="prize-shelf-heading">
-        <p>{active.length === 0 ? "Crea cupones que se desbloquean con racha o con huellitas." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
+        <p>{theirs.length === 0 ? "Los cupones que te cree tu pareja aparecerán aquí." : hasUnlocked ? "¡Hay premios listos para canjear!" : "Cada día registrado acerca el siguiente premio."}</p>
         <p className="prize-currency-note">
           🐾 Tienen <strong>{currencyBalance}</strong> huellitas juntas. Se ganan registrando el día (+{CURRENCY_RATE.observationDay}), con una nota (+{CURRENCY_RATE.noteDay}), cada 7 días seguidos (+{CURRENCY_RATE.streakMilestone}) y en cada mesaniversario (+{CURRENCY_RATE.monthiversary}).
         </p>
@@ -3466,10 +3479,10 @@ function StreakPrizes({
       </div>
 
       {tab === "disponibles" ? (
-        sortedActive.length > 0 ? (
-          <div className="prize-ticket-list">{sortedActive.map(renderActiveTicket)}</div>
+        sortedTheirs.length > 0 ? (
+          <div className="prize-ticket-list">{sortedTheirs.map((reward) => renderActiveTicket(reward))}</div>
         ) : (
-          <p className="prize-empty-note">Todavía no hay cupones disponibles. Crea uno desde “Mis cupones”.</p>
+          <p className="prize-empty-note">Tu pareja todavía no te ha creado ningún cupón. Anímala desde “Mis cupones”.</p>
         )
       ) : null}
 
@@ -3531,9 +3544,9 @@ function StreakPrizes({
           ) : null}
 
           {mineActive.length > 0 ? (
-            <div className="prize-ticket-list">{mineActive.map(renderActiveTicket)}</div>
+            <div className="prize-ticket-list">{mineActive.map((reward) => renderActiveTicket(reward, { allowRedeem: false }))}</div>
           ) : (
-            <p className="prize-empty-note">Aún no has creado ningún cupón.</p>
+            <p className="prize-empty-note">Aún no has creado ningún cupón para tu pareja.</p>
           )}
         </>
       ) : null}
