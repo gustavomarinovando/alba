@@ -83,6 +83,30 @@ test("remote changes cannot overwrite a pending local revision", async () => {
   expect((await storage.getAllEntries())[0].note).toBe("preserve me");
 });
 
+test("binding a dataset to a different subject clears its stale local cache", async () => {
+  const storage = await import("./storage");
+  await storage.saveEntry({ ...legacyEntry, date: "2026-07-15", note: "device leftover" }, "shared-device");
+  await storage.saveEntryForSync({ ...legacyEntry, date: "2026-07-16", note: "queued leftover" }, "shared-device");
+  await storage.bindDatasetToSubject("shared-device", "subject-a");
+
+  await storage.bindDatasetToSubject("shared-device", "subject-b");
+
+  expect(await storage.getAllEntries("shared-device")).toEqual([]);
+  expect(await storage.getPendingSyncMutations("shared-device")).toEqual([]);
+});
+
+test("re-binding a dataset to the same subject preserves local data", async () => {
+  const storage = await import("./storage");
+  await storage.bindDatasetToSubject("same-subject-device", "subject-c");
+  await storage.saveEntry({ ...legacyEntry, date: "2026-07-17", note: "keep me" }, "same-subject-device");
+
+  await storage.bindDatasetToSubject("same-subject-device", "subject-c");
+
+  const entries = await storage.getAllEntries("same-subject-device");
+  expect(entries).toHaveLength(1);
+  expect(entries[0].note).toBe("keep me");
+});
+
 test("replacement replays pending upserts and deletes", async () => {
   const storage = await import("./storage");
   const pendingUpsert = { ...legacyEntry, note: "pending wins" };

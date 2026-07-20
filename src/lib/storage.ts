@@ -194,6 +194,16 @@ export async function clearEntries(datasetId = LEGACY_LOCAL_DATASET_ID): Promise
 
 export async function bindDatasetToSubject(datasetId: string, subjectId: string): Promise<void> {
   const current = await db.datasets.get(datasetId);
+  // A device's local cache must not carry entries across subjects: logging into a
+  // different account/couple on a device previously bound to someone else's subject
+  // (e.g. testing an invite flow, or a shared device) would otherwise leave stale local
+  // rows in place, and the sync merge's "keep the newer updatedAt" rule can then shadow
+  // that other subject's real cloud data indefinitely. Only a true first-time bind
+  // (no prior subject, the original single-account legacy migration) carries local data
+  // forward; any actual subject switch gets a clean slate and re-pulls from the cloud.
+  if (current?.kind === "subject" && current.subjectId && current.subjectId !== subjectId) {
+    await clearEntries(datasetId);
+  }
   await db.datasets.put({
     id: datasetId,
     kind: "subject",
