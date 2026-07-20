@@ -454,6 +454,7 @@ export default function App() {
           const demoEntries = await loadMappedDemoEntries();
           setEntries(demoEntries);
           setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, demoEntries) ? selectedDate : null);
+          if (!shouldPrioritizeDate(isoDate(new Date()), demoEntries)) setActiveTab("map");
           setIsDemoMode(true);
           setIsInitialCloudSyncSettling(false);
           setStatus("Modo demo activo. Estos datos no se sincronizan.");
@@ -468,6 +469,9 @@ export default function App() {
 
         setEntries(realEntries);
         setPrioritizedEntryDate(shouldPrioritizeDate(selectedDate, realEntries) ? selectedDate : null);
+        // Today's temperature is already logged, so "Hoy" has nothing left to prompt — open on the
+        // cycle map instead of a card that's just going to show the reading back.
+        if (!shouldPrioritizeDate(isoDate(new Date()), realEntries)) setActiveTab("map");
 
         if (!isSupabaseConfigured()) setIsInitialCloudSyncSettling(false);
       } catch {
