@@ -110,6 +110,21 @@ export async function pullFromSupabase(localEntries: CycleEntry[], context?: Alb
   ).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Recovery path for when local cache has shadowed real cloud data (a stale entry
+ * whose updatedAt happens to be newer than the genuine remote one — the normal
+ * merge always keeps local on ties/newer, which is right for everyday sync but
+ * wrong once local is known to be bad). Unlike pullFromSupabase, remote always
+ * wins for any date present on both sides; local-only dates are still kept since
+ * this must never look like data loss.
+ */
+export async function forcePullFromSupabase(localEntries: CycleEntry[], context?: AlbaAccountContext): Promise<CycleEntry[]> {
+  const remoteEntries = (await fetchRemoteEntries(context)).filter((entry) => !isDemoEntry(entry));
+  const remoteByDate = new Map(remoteEntries.map((entry) => [entry.date, entry]));
+  const localOnly = localEntries.filter((entry) => !isDemoEntry(entry) && !remoteByDate.has(entry.date));
+  return [...remoteEntries, ...localOnly].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function previewSyncWithSupabase(localEntries: CycleEntry[], context?: AlbaAccountContext): Promise<SupabaseSyncPreview> {
   const safeLocalEntries = localEntries.filter((entry) => !isDemoEntry(entry));
   const remoteEntries = (await fetchRemoteEntries(context)).filter((entry) => !isDemoEntry(entry));
@@ -126,13 +141,23 @@ export async function flushPendingSupabaseMutations(context?: AlbaAccountContext
   let completed = 0;
 
   for (const mutation of pending) {
-    if (mutation.type === "upsert" && mutation.entry) {
-      await upsertSupabaseEntry(mutation.entry, context);
-    } else {
-      await deleteSupabaseEntry(mutation.date, context);
+    try {
+      if (mutation.type === "upsert" && mutation.entry) {
+        await upsertSupabaseEntry(mutation.entry, context);
+      } else {
+        await deleteSupabaseEntry(mutation.date, context);
+      }
+      await completePendingSyncMutation(mutation.date, mutation.revision);
+      completed += 1;
+    } catch {
+      // Leave this one queued and move on. A single stuck mutation (a stale
+      // subject from earlier testing, a transient network blip, a since-resolved
+      // RLS edge case) must not block every other queued change from reaching
+      // Supabase — and, since callers run this before pulling, must not block
+      // the pull step either. Previously one throw here aborted the whole
+      // sync-then-pull sequence, so a wedged local mutation could silently stop
+      // a device from ever seeing new remote data again.
     }
-    await completePendingSyncMutation(mutation.date, mutation.revision);
-    completed += 1;
   }
 
   return completed;

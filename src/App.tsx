@@ -42,10 +42,10 @@ import {
   optionLabel,
 } from "./lib/observations";
 import { buildPhaseMap, phaseMeta, type CyclePhase, type PhaseDay } from "./lib/phases";
-import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
+import { applyRemoteDelete, applyRemoteEntry, bindDatasetToSubject, buildExport, clearEntries, deleteEntryForSync, getAllEntries, getPendingSyncMutations, parseImport, replaceEntries, saveEntryForSync } from "./lib/storage";
 import { acceptPartnerInvite, createPartnerInvite, getCurrentSession, getPartnerStatus, getPendingInviteStatus, leaveCouple, removePartner, resendSignupConfirmation, resolveAccountContext, signInWithPassword, signOut, signUpWithPassword, type AlbaAccountContext } from "./lib/supabaseAuth";
 import { createStreakReward, deleteStreakReward, listStreakRewards, redeemStreakReward, rewardCategoryMeta, rewardTemplates, type RewardCategory, type StreakReward, type StreakRewardDraft } from "./lib/streakRewards";
-import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
+import { deleteAllSupabaseEntries, flushPendingSupabaseMutations, forcePullFromSupabase, isDemoEntry, isSupabaseConfigured, previewSyncWithSupabase, pullFromSupabase, savePushSubscription, subscribeToCycleEntryChanges, syncWithSupabase, testSupabaseConnection, type SupabaseSyncPreview } from "./lib/supabaseSync";
 import { createTemperatureReading, getOralTemperature, getPrimaryTemperature, hasMeaningfulEntry, normalizeTemperatureReadings } from "./lib/temperature";
 import type {
   CervicalMucus,
@@ -294,6 +294,7 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [liveSyncState, setLiveSyncState] = useState<"off" | "connecting" | "live" | "error">("off");
+  const [pendingMutationCount, setPendingMutationCount] = useState(0);
   const [isInitialCloudSyncSettling, setIsInitialCloudSyncSettling] = useState(() => isSupabaseConfigured());
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingTemperature, setPendingTemperature] = useState(36.9);
@@ -978,6 +979,23 @@ export default function App() {
     }
   }
 
+  async function performForceDownload() {
+    if (isDemoMode || !accountContext) return;
+    setIsSyncing(true);
+    try {
+      const sourceEntries = (await getAllEntries()).filter((entry) => !isDemoEntry(entry));
+      const remoteWins = await forcePullFromSupabase(sourceEntries, accountContext);
+      await replaceEntries(remoteWins);
+      setEntries(await getAllEntries());
+      setSyncPreview(null);
+      setStatus("Se descargó la nube y reemplazó cualquier versión local en conflicto.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo forzar la descarga.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
   async function performCloudSync(options: { quiet?: boolean; entriesOverride?: CycleEntry[]; initial?: boolean } | undefined, shouldPushMergedEntries: boolean) {
     if (isDemoMode) {
       if (options?.initial) setIsInitialCloudSyncSettling(false);
@@ -1008,6 +1026,7 @@ export default function App() {
     } finally {
       setIsSyncing(false);
       if (options?.initial) setIsInitialCloudSyncSettling(false);
+      setPendingMutationCount((await getPendingSyncMutations()).length);
     }
   }
 
@@ -1707,6 +1726,17 @@ export default function App() {
           <div className="info-box">
             No se eliminará nada con este botón. Los borrados siguen ocurriendo solo desde “Eliminar día” o “Borrar”.
           </div>
+
+          {syncPreview.localNewer.length > 0 ? (
+            <div className="info-box warning">
+              Este dispositivo tiene {syncPreview.localNewer.length} día(s) marcados como “más reciente” que la nube. Si esa versión local
+              está desactualizada o quedó de una prueba anterior, usa “Forzar descarga” para que la nube reemplace ese conflicto (no borra
+              nada que solo exista aquí).
+              <button className="secondary-button mt-2" type="button" onClick={() => void performForceDownload()} disabled={isSyncing}>
+                Forzar descarga (la nube gana los conflictos)
+              </button>
+            </div>
+          ) : null}
 
           <div className="modal-actions">
             <button className="secondary-button" type="button" onClick={() => setSyncPreview(null)} disabled={isSyncing}>
@@ -2442,6 +2472,7 @@ export default function App() {
         <div className="info-box mt-3">
           Sync de ciclo: <strong>{accountContext ? `cuenta de ${accountContext.subjectName}` : "requiere iniciar sesión"}</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
           <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.
+          {" "}Cambios sin subir a la nube: <strong>{pendingMutationCount}</strong>{pendingMutationCount > 0 ? " (reintentando en cada sincronización)" : ""}.
           Los datos demo son solo para explorar y nunca se suben.
         </div>
         <input ref={importInput} className="hidden" type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} />
