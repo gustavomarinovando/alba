@@ -16,6 +16,7 @@ export interface StreakReward {
   price?: number;
   createdBy: string;
   redeemedAt: string | null;
+  redeemedBy?: string;
   createdAt: string;
 }
 
@@ -98,6 +99,7 @@ function rowToReward(row: any): StreakReward {
     price: row.price ?? undefined,
     createdBy: row.created_by,
     redeemedAt: row.redeemed_at ?? null,
+    redeemedBy: row.redeemed_by ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -172,14 +174,15 @@ export async function createStreakReward(context: AlbaAccountContext | null, dra
 
 export async function redeemStreakReward(context: AlbaAccountContext | null, id: string): Promise<void> {
   const redeemedAt = new Date().toISOString();
+  const redeemedBy = context?.userId;
   if (context && !isLocalId(id)) {
     const { error } = await getSupabaseClient()
       .from("streak_rewards")
-      .update({ redeemed_at: redeemedAt, redeemed_by: context.userId })
+      .update({ redeemed_at: redeemedAt, redeemed_by: redeemedBy })
       .eq("id", id);
     if (error) throw error;
   }
-  writeCache(readCache().map((reward) => (reward.id === id ? { ...reward, redeemedAt } : reward)));
+  writeCache(readCache().map((reward) => (reward.id === id ? { ...reward, redeemedAt, redeemedBy } : reward)));
 }
 
 export async function deleteStreakReward(context: AlbaAccountContext | null, id: string): Promise<void> {

@@ -1323,7 +1323,11 @@ export default function App() {
   async function handleRedeemReward(id: string) {
     try {
       await redeemStreakReward(accountContext, id);
-      setStreakRewards((prev) => prev.map((reward) => (reward.id === id ? { ...reward, redeemedAt: new Date().toISOString() } : reward)));
+      setStreakRewards((prev) =>
+        prev.map((reward) =>
+          reward.id === id ? { ...reward, redeemedAt: new Date().toISOString(), redeemedBy: accountContext?.userId ?? "local" } : reward,
+        ),
+      );
       setStatus("¡Cupón canjeado! Ahora toca cumplirlo.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo canjear el cupón.");
@@ -3293,12 +3297,29 @@ function StreakPrizes({
   onRedeem: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const [tab, setTab] = useState<"disponibles" | "mis">("disponibles");
+  const [tab, setTab] = useState<"disponibles" | "mis" | "historial">("disponibles");
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [builderCategory, setBuilderCategory] = useState<Exclude<RewardCategory, "custom">>("comida");
   const [unlockMethod, setUnlockMethod] = useState<"streak" | "currency">("streak");
   const [draft, setDraft] = useState<StreakRewardDraft>({ title: "", description: "", emoji: "🎁", category: "custom", thresholdDays: 7 });
   const [isSaving, setIsSaving] = useState(false);
+  const [celebrating, setCelebrating] = useState<StreakReward | null>(null);
+
+  useEffect(() => {
+    if (!celebrating) return;
+    const timeout = window.setTimeout(() => setCelebrating(null), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [celebrating]);
+
+  function who(userId: string | undefined): string {
+    if (!userId) return "Alguien";
+    return userId === currentUserId ? "Tú" : "Tu pareja";
+  }
+
+  async function handleRedeemClick(reward: StreakReward) {
+    await onRedeem(reward.id);
+    setCelebrating(reward);
+  }
 
   function isUnlocked(reward: StreakReward): boolean {
     if (reward.thresholdDays != null) return streakDays >= reward.thresholdDays;
@@ -3316,7 +3337,6 @@ function StreakPrizes({
   const hasUnlocked = active.some(isUnlocked);
   const mine = rewards.filter((reward) => reward.createdBy === currentUserId);
   const mineActive = mine.filter((reward) => !reward.redeemedAt);
-  const mineRedeemed = mine.filter((reward) => reward.redeemedAt);
 
   const sortedActive = [...active].sort((a, b) => {
     const { goal: goalA, current: currentA } = goalAndCurrent(a);
@@ -3371,7 +3391,7 @@ function StreakPrizes({
           )}
         </div>
         <div className="prize-ticket-actions">
-          {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void onRedeem(reward.id)}>Canjear</button> : null}
+          {unlocked ? <button className="primary-button prize-redeem" type="button" onClick={() => void handleRedeemClick(reward)}>Canjear</button> : null}
           {reward.createdBy === currentUserId ? <button className="icon-button compact danger" type="button" aria-label={`Eliminar cupón ${reward.title}`} onClick={() => void onDelete(reward.id)}><Trash2 aria-hidden="true" size={15} /></button> : null}
         </div>
       </article>
@@ -3387,6 +3407,20 @@ function StreakPrizes({
         </p>
       </div>
       {hasUnlocked ? <AnniversaryCat kind="orange" label="Mandarino celebra tus premios desbloqueados" className="prize-cat" /> : null}
+      {celebrating ? (
+        <>
+          <div className="prize-confetti" aria-hidden="true">
+            {Array.from({ length: 18 }, (_, index) => (
+              <i key={index} style={{ "--i": index } as React.CSSProperties}>{index % 2 === 0 ? "🐾" : "✨"}</i>
+            ))}
+          </div>
+          <div className="prize-celebration" role="status">
+            <span className="prize-celebration-emoji" aria-hidden="true">{celebrating.emoji}</span>
+            <strong>¡Cupón canjeado!</strong>
+            <p>{celebrating.title}</p>
+          </div>
+        </>
+      ) : null}
 
       <div className="prize-tabs" role="tablist" aria-label="Vista de premios">
         <button className={tab === "disponibles" ? "active" : ""} type="button" role="tab" aria-selected={tab === "disponibles"} onClick={() => setTab("disponibles")}>
@@ -3394,6 +3428,9 @@ function StreakPrizes({
         </button>
         <button className={tab === "mis" ? "active" : ""} type="button" role="tab" aria-selected={tab === "mis"} onClick={() => setTab("mis")}>
           Mis cupones
+        </button>
+        <button className={tab === "historial" ? "active" : ""} type="button" role="tab" aria-selected={tab === "historial"} onClick={() => setTab("historial")}>
+          Historial
         </button>
       </div>
 
@@ -3403,7 +3440,9 @@ function StreakPrizes({
         ) : (
           <p className="prize-empty-note">Todavía no hay cupones disponibles. Crea uno desde “Mis cupones”.</p>
         )
-      ) : (
+      ) : null}
+
+      {tab === "mis" ? (
         <>
           <button className="secondary-button prize-builder-toggle" type="button" onClick={() => setIsBuilderOpen((open) => !open)}>
             {isBuilderOpen ? "Cerrar" : "+ Nuevo cupón"}
@@ -3466,24 +3505,29 @@ function StreakPrizes({
             <p className="prize-empty-note">Aún no has creado ningún cupón.</p>
           )}
         </>
-      )}
+      ) : null}
 
-      {tab === "mis" && mineRedeemed.length > 0 ? (
-        <details className="prize-redeemed-drawer">
-          <summary>Canjeados ({mineRedeemed.length})</summary>
+      {tab === "historial" ? (
+        redeemed.length > 0 ? (
           <div className="prize-ticket-list">
-            {mineRedeemed.map((reward) => (
-              <article key={reward.id} className={`prize-ticket category-${reward.category} redeemed`}>
-                <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
-                <div className="prize-ticket-body">
-                  <strong>{reward.title}</strong>
-                  <span className="prize-redeemed-date">Canjeado el {new Date(reward.redeemedAt!).toLocaleDateString("es")}</span>
-                </div>
-                <span className="prize-stamp" aria-hidden="true">CANJEADO</span>
-              </article>
-            ))}
+            {[...redeemed]
+              .sort((a, b) => (b.redeemedAt ?? "").localeCompare(a.redeemedAt ?? ""))
+              .map((reward) => (
+                <article key={reward.id} className={`prize-ticket category-${reward.category} redeemed`}>
+                  <div className="prize-ticket-emoji" aria-hidden="true">{reward.emoji}</div>
+                  <div className="prize-ticket-body">
+                    <strong>{reward.title}</strong>
+                    <span className="prize-redeemed-date">
+                      Creado por {who(reward.createdBy)} · Canjeado por {who(reward.redeemedBy)} el {new Date(reward.redeemedAt!).toLocaleDateString("es")}
+                    </span>
+                  </div>
+                  <span className="prize-stamp" aria-hidden="true">CANJEADO</span>
+                </article>
+              ))}
           </div>
-        </details>
+        ) : (
+          <p className="prize-empty-note">Todavía no se ha canjeado ningún cupón. Cuando canjeen uno, aparecerá aquí para los dos.</p>
+        )
       ) : null}
     </section>
   );
