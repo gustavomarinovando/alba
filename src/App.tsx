@@ -4,13 +4,10 @@ import {
   CalendarDays,
   Bell,
   BarChart3,
-  Clipboard,
-  ClipboardCheck,
   ClipboardList,
   Database,
   Download,
   Eraser,
-  FileUp,
   Flame,
   HeartPulse,
   Info,
@@ -29,7 +26,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
-import { AnniversaryCat, CAT_KINDS, playCatAudio, type AnniversaryCatKind } from "./components/AnniversaryCat";
+import { AnniversaryCat, CAT_KINDS, SideWalkingCat, playCatAudio, type AnniversaryCatKind } from "./components/AnniversaryCat";
 import { CURRENCY_RATE, calculateCurrencyEarned, calculateStats, getPeriodStarts, getRecentEntries } from "./lib/cycles";
 import { displayDate, isoDate } from "./lib/date";
 import {
@@ -60,6 +57,7 @@ const TemperatureChartPanel = lazy(() => import("./components/TemperatureChartPa
 const AiChatPanel = lazy(() => import("./components/AiChatPanel"));
 const CalendarPanel = lazy(() => import("./components/CalendarPanel"));
 const MapPanel = lazy(() => import("./components/MapPanel"));
+const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 
 const flowOptions: Array<{ value: FlowLevel; label: string }> = [
   { value: "none", label: "Ninguno" },
@@ -179,35 +177,6 @@ const AI_TAB_SEEN_KEY = "alba-ai-tab-seen";
 const TEMPERATURE_REMINDERS_KEY = "alba-temperature-reminders";
 const TEMPERATURE_REMINDER_LAST_SHOWN_KEY = "alba-temperature-reminder-last-shown";
 const CUSTOM_DATE_ACTIVATIONS_KEY = "alba-custom-date-activations";
-const CUSTOM_DATE_DEVELOPMENTS: Array<{
-  id: CustomDateId;
-  title: string;
-  description: string;
-  trigger: string;
-  status: "built" | "needs-build";
-}> = [
-  {
-    id: "may-photo-album",
-    title: "Álbum de mayo",
-    description: "Primer evento especial: una experiencia sencilla basada en un álbum de fotos.",
-    trigger: "Mayo, fecha exacta por confirmar",
-    status: "needs-build",
-  },
-  {
-    id: "mandarino-monthiversary",
-    title: "Mesario Mandarino",
-    description: "Gatitos, receta, nota y escena de siete vidas.",
-    trigger: "Cada día 6",
-    status: "built",
-  },
-  {
-    id: "first-kiss-monthiversary",
-    title: "15 meses del primer beso",
-    description: "Infografías de mensajes con tema de besitos y una historia unificada.",
-    trigger: "Cada día 7",
-    status: "built",
-  },
-];
 const MONTHLY_ANNIVERSARY_TITLE = "Buenos dias bonita, feliz mesario 🥰💕✨";
 const MORNING_GREETINGS = ["Buenos días", "Muyyy buenos días", "Muy buenos días", "Muy pero muy buenos días"] as const;
 const MORNING_ENDEARMENTS = [
@@ -2169,203 +2138,52 @@ export default function App() {
 
   function renderSettings() {
     return (
-      <Panel className="settings-panel">
-        <div className="settings-hero">
-          <div className="settings-hero-icon"><Database aria-hidden="true" size={22} /></div>
-          <div><span className="eyebrow">Tu espacio</span><h2>Ajustes</h2><p>Cuenta, privacidad, recordatorios y experiencias de Alba.</p></div>
-        </div>
-        <div className="settings-group-heading"><span className="eyebrow">Cuenta y datos</span></div>
-        <section className="settings-section account-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Identidad</span><h3>Cuenta Alba</h3></div><span className="settings-status-dot">Protegida</span></div>
-          {accountContext ? (
-            <div className="account-summary">
-              <div className="account-avatar">{accountContext.subjectName.slice(0, 1).toUpperCase()}</div>
-              <div className="account-copy">
-                <strong>{accountContext.subjectName}</strong><span>{accountContext.email}</span>
-                <small>Sincronización privada activa</small>
-              </div>
-              <button className="secondary-button compact-action" type="button" onClick={logOutOfAlba} disabled={isAuthenticating}>Cerrar sesión</button>
-            </div>
-          ) : (
-            <form className="mt-2 grid gap-3" onSubmit={logInToAlba}>
-              <label className="grid gap-1 text-sm">
-                Correo
-                <input className="input" type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} />
-              </label>
-              <label className="grid gap-1 text-sm">
-                Contraseña
-                <input className="input" type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} />
-              </label>
-              <button className="primary-button" type="submit" disabled={!isAuthReady || isAuthenticating || !authPassword}>
-                {isAuthenticating ? "Entrando..." : "Iniciar sesión"}
-              </button>
-              <p className="text-xs text-ink/60">Iniciar o cerrar sesión nunca borra IndexedDB.</p>
-            </form>
-          )}
-          {accountContext?.role === "owner" ? (
-            <div className="invite-card">
-              <div><strong>{partnerConnected ? "Tu pareja" : "Invitar a tu pareja"}</strong><p>{partnerConnected ? `${partnerEmail ?? "Tu pareja"} tiene acceso a los registros compartidos.` : pendingInvite && !createdInvite ? "Hay una invitación activa. Por seguridad, el código solo se muestra en el dispositivo donde se creó; puedes generar uno nuevo (reemplaza al anterior)." : "Crea un código privado, válido durante 7 días y para un solo uso."}</p></div>
-              {partnerConnected ? <button className="secondary-button danger" type="button" onClick={() => setConfirmEndRelationship({ asOwner: true })} disabled={isAuthenticating}>Retirar acceso de pareja</button> : <button className="secondary-button" type="button" onClick={generatePartnerInvite} disabled={isAuthenticating}>{isGeneratingInvite ? "Preparando algo especial…" : pendingInvite ? "Crear nueva invitación" : "Crear invitación"}</button>}
-              {isGeneratingInvite ? <div className="invite-code generating" aria-live="polite"><code>✦ ✦ ✦ ✦ ✦ ✦</code><small>Barajando tu código…</small></div> : createdInvite && !partnerConnected ? (
-                <div className="invite-code revealed">
-                  <code>{createdInvite.code}</code>
-                  <small>Vence: {new Date(createdInvite.expiresAt).toLocaleString("es")}</small>
-                  <button className="secondary-button invite-copy" type="button" onClick={copyInviteCode}>
-                    {inviteCopied ? <ClipboardCheck aria-hidden="true" size={16} /> : <Clipboard aria-hidden="true" size={16} />}
-                    {inviteCopied ? "¡Copiado!" : "Copiar código"}
-                  </button>
-                </div>
-              ) : pendingInvite && !partnerConnected ? (
-                <div className="invite-code pending"><code>••••••••••••</code><small>Invitación activa, vence: {new Date(pendingInvite.expiresAt).toLocaleString("es")}</small></div>
-              ) : null}
-            </div>
-          ) : accountContext ? <div className="invite-card"><strong>Conectado con {accountContext.subjectName}</strong><p>{partnerEmail ? `Compartes este espacio con ${partnerEmail}.` : "Tu acceso de pareja está activo."} No necesitas la contraseña de la dueña.</p><button className="secondary-button danger" type="button" onClick={() => setConfirmEndRelationship({ asOwner: false })} disabled={isAuthenticating}>Salir de esta pareja</button></div> : null}
-        </section>
-        <section className="settings-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Privacidad y respaldo</span><h3>Tus datos</h3></div></div>
-          <p className="settings-section-copy">Exporta una copia, restaura un respaldo o revisa la sincronización.</p>
-        <div className="settings-action-grid">
-          <button className={isDemoMode ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={isDemoMode ? exitDemoMode : loadDemoData}>
-            <Database aria-hidden="true" size={17} />
-            {isDemoMode ? "Salir demo" : "Demo"}
-          </button>
-          <button className="secondary-button" type="button" onClick={exportData}>
-            <Download aria-hidden="true" size={17} />
-            Exportar
-          </button>
-          <button className="secondary-button" type="button" onClick={() => importInput.current?.click()}>
-            <FileUp aria-hidden="true" size={17} />
-            Importar
-          </button>
-          <button className="secondary-button col-span-2" type="button" onClick={testCloudConnection} disabled={isTestingCloud}>
-            <Database aria-hidden="true" size={17} />
-            {isTestingCloud ? "Probando..." : "Probar conexion Supabase"}
-          </button>
-          <button className="secondary-button col-span-2" type="button" onClick={prepareCloudSync} disabled={isSyncing || isPreparingSyncPreview || isDemoMode}>
-            <Database aria-hidden="true" size={17} />
-            {isDemoMode ? "Demo sin sync" : isSyncing ? "Sincronizando..." : isPreparingSyncPreview ? "Preparando..." : "Sincronizar nube"}
-          </button>
-        </div>
-        <div className="settings-danger-zone">
-          <span className="settings-danger-label">Zona de riesgo</span>
-          <button className="secondary-button danger" type="button" onClick={wipeData}>
-            <Eraser aria-hidden="true" size={17} />
-            Borrar todos los datos
-          </button>
-        </div>
-        </section>
-        <section className="settings-section">
-          <div className="mb-3 flex items-start gap-3">
-            <Bell className="mt-0.5 h-5 w-5 text-marigold" aria-hidden="true" />
-            <div>
-              <h3>Recordatorios</h3>
-              <p>
-                Alba puede recordarte la temperatura por la mañana. En producción también podrá avisar aunque no tengas la app abierta.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {temperatureRemindersEnabled && notificationPermission === "granted" ? (
-              <button className="secondary-button danger" type="button" onClick={disableTemperatureReminders}>
-                <Bell aria-hidden="true" size={17} />
-                Desactivar
-              </button>
-            ) : (
-              <button className="secondary-button" type="button" onClick={enableTemperatureReminders} disabled={notificationPermission === "unsupported"}>
-                <Bell aria-hidden="true" size={17} />
-                Activar recordatorios
-              </button>
-            )}
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() =>
-                showTemperatureReminder({
-                  ...temperatureReminderCopy(),
-                })
-              }
-              disabled={notificationPermission !== "granted"}
-            >
-              <Sparkles aria-hidden="true" size={17} />
-              Probar mensaje
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-ink/60">
-            Estado: {notificationPermission === "unsupported" ? "no soportado" : notificationPermission === "granted" ? "permitidas" : notificationPermission === "denied" ? "bloqueadas" : "sin decidir"}.
-          </p>
-        </section>
-
-        <div className="settings-group-heading"><span className="eyebrow">Personaliza</span></div>
-        <section className="settings-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Apariencia</span><h3>Tema de interfaz</h3></div><span className="settings-status-dot">{uiTheme === "liquid" ? "Líquida" : "Clásica"}</span></div>
-          <p className="settings-section-copy">La interfaz líquida añade fondo aurora, paneles de vidrio y animaciones suaves. La clásica conserva el diseño anterior. Se guarda en este dispositivo.</p>
-          <div className="settings-action-grid">
-            <button className={uiTheme === "legacy" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("legacy")}>Clásica</button>
-            <button className={uiTheme === "liquid" ? "secondary-button active-demo" : "secondary-button"} type="button" onClick={() => setUiTheme("liquid")}>Líquida ✨</button>
-          </div>
-        </section>
-        <section className="settings-section experience-section">
-          <div className="settings-section-heading"><div><span className="eyebrow">Momentos compartidos</span><h3>Experiencias</h3></div></div>
-        <div className="anniversary-countdown mt-3">
-          <span>Próximo mesario</span>
-          <strong>{daysUntilNextMonthiversary()} días</strong>
-          <small>El 6 vuelve Mandarino.</small>
-        </div>
-        <div className="custom-date-list mt-3">
-          <div>
-            <span className="eyebrow">Fechas especiales</span>
-            <h3>Experiencias guardadas</h3>
-          </div>
-          {CUSTOM_DATE_DEVELOPMENTS.map((item) => (
-            <article key={item.id} className="custom-date-card">
-              <div>
-                <strong>{item.title}</strong>
-                <span>{item.description}</span>
-                <small>{item.trigger}</small>
-              </div>
-              <div className="custom-date-actions">
-                {item.status === "built" ? (
-                  <>
-                    <button className="secondary-button compact-action" type="button" onClick={() => replayCustomDate(item.id)}>
-                      Reabrir
-                    </button>
-                    <button
-                      className={customDateActivations[item.id] ? "secondary-button compact-action active-demo" : "secondary-button compact-action"}
-                      type="button"
-                      onClick={() => toggleCustomDateActivation(item.id)}
-                    >
-                      {customDateActivations[item.id] ? "Activa" : "Activar"}
-                    </button>
-                  </>
-                ) : (
-                  <span className="custom-date-pill">Por armar</span>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-        </section>
-        <section className="settings-section avatar-section">
-        <div className="settings-section-heading"><div><span className="eyebrow">Avatares</span><h3>Vista de paseo</h3></div><span className="settings-status-dot">Próximamente</span></div>
-        <div className="avatar-setup-card mt-3">
-          <div>
-            <p>La configuración de avatares también usará esta silueta lateral para previsualizar caminata, accesorios y sonidos.</p>
-          </div>
-          <div className="avatar-setup-preview" aria-label="Vista lateral de los avatares">
-            {CAT_KINDS.map((kind) => (
-              <SideWalkingCat key={kind} kind={kind} label={`Vista lateral ${kind}`} className="avatar-setup-cat" />
-            ))}
-          </div>
-        </div>
-        </section>
-        <div className="info-box mt-3">
-          Sync de ciclo: <strong>{accountContext ? `cuenta de ${accountContext.subjectName}` : "requiere iniciar sesión"}</strong>. Actualización automática: <strong>cada 15 s</strong>. Canal Realtime:{" "}
-          <strong>{liveSyncState === "live" ? "conectado" : liveSyncState === "connecting" ? "conectando" : liveSyncState === "error" ? "requiere configuración" : "apagado"}</strong>.
-          {" "}Cambios sin subir a la nube: <strong>{pendingMutationCount}</strong>{pendingMutationCount > 0 ? " (reintentando en cada sincronización)" : ""}.
-          Los datos demo son solo para explorar y nunca se suben.
-        </div>
-        <input ref={importInput} className="hidden" type="file" accept="application/json" onChange={(event) => importData(event.target.files?.[0])} />
-      </Panel>
+      <Suspense fallback={<LazyPanelFallback icon={<Database aria-hidden="true" size={20} />} title="Ajustes" text="Preparando los ajustes..." />}>
+        <SettingsPanel
+          accountContext={accountContext}
+          isAuthenticating={isAuthenticating}
+          isAuthReady={isAuthReady}
+          authEmail={authEmail}
+          onAuthEmailChange={setAuthEmail}
+          authPassword={authPassword}
+          onAuthPasswordChange={setAuthPassword}
+          onLogIn={logInToAlba}
+          onLogOut={logOutOfAlba}
+          partnerConnected={partnerConnected}
+          partnerEmail={partnerEmail}
+          pendingInvite={pendingInvite}
+          createdInvite={createdInvite}
+          isGeneratingInvite={isGeneratingInvite}
+          inviteCopied={inviteCopied}
+          onGeneratePartnerInvite={generatePartnerInvite}
+          onCopyInviteCode={copyInviteCode}
+          onEndRelationship={setConfirmEndRelationship}
+          isDemoMode={isDemoMode}
+          onExitDemoMode={exitDemoMode}
+          onLoadDemoData={loadDemoData}
+          onExportData={exportData}
+          importInput={importInput}
+          onImportData={(file) => importData(file)}
+          isTestingCloud={isTestingCloud}
+          onTestCloudConnection={testCloudConnection}
+          isSyncing={isSyncing}
+          isPreparingSyncPreview={isPreparingSyncPreview}
+          onPrepareCloudSync={prepareCloudSync}
+          onWipeData={wipeData}
+          temperatureRemindersEnabled={temperatureRemindersEnabled}
+          notificationPermission={notificationPermission}
+          onDisableTemperatureReminders={disableTemperatureReminders}
+          onEnableTemperatureReminders={enableTemperatureReminders}
+          onTestReminder={() => showTemperatureReminder(temperatureReminderCopy())}
+          uiTheme={uiTheme}
+          onUiThemeChange={setUiTheme}
+          customDateActivations={customDateActivations}
+          onReplayCustomDate={replayCustomDate}
+          onToggleCustomDateActivation={toggleCustomDateActivation}
+          liveSyncState={liveSyncState}
+          pendingMutationCount={pendingMutationCount}
+        />
+      </Suspense>
     );
   }
 }
@@ -2398,14 +2216,6 @@ function pickRandom<T>(items: readonly T[]): T {
 function temperatureReminderSlot(date: Date): (typeof TEMPERATURE_REMINDER_SLOTS)[number] | undefined {
   const hour = date.getHours();
   return TEMPERATURE_REMINDER_SLOTS.find((slot) => hour >= slot.startHour && hour <= slot.endHour);
-}
-
-function daysUntilNextMonthiversary(): number {
-  const today = new Date();
-  const next = today.getDate() < 6
-    ? new Date(today.getFullYear(), today.getMonth(), 6)
-    : new Date(today.getFullYear(), today.getMonth() + 1, 6);
-  return Math.max(1, differenceInCalendarDays(next, today));
 }
 
 function clampTemperature(value: number): number {
@@ -2973,124 +2783,6 @@ function AnniversaryIntro({ onClose }: { onClose: () => void }) {
         </button>
       </section>
     </div>
-  );
-}
-
-function SideWalkingCat({
-  kind,
-  label,
-  className = "",
-  onReaction,
-}: {
-  kind: AnniversaryCatKind;
-  label: string;
-  className?: string;
-  onReaction?: (reaction: "meow" | "purr") => void;
-}) {
-  const [reaction, setReaction] = useState<"meow" | "purr" | null>(null);
-  const tapTimer = useRef<number | null>(null);
-
-  function reactToTap(event: React.MouseEvent<SVGSVGElement>) {
-    if (event.detail > 1) {
-      if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
-      tapTimer.current = null;
-      triggerCatReaction("purr");
-      return;
-    }
-
-    tapTimer.current = window.setTimeout(() => {
-      triggerCatReaction("meow");
-      tapTimer.current = null;
-    }, 240);
-  }
-
-  function triggerCatReaction(nextReaction: "meow" | "purr") {
-    setReaction(nextReaction);
-    playCatAudio(kind, nextReaction);
-    onReaction?.(nextReaction);
-    window.setTimeout(() => setReaction((current) => (current === nextReaction ? null : current)), nextReaction === "purr" ? 1300 : 900);
-  }
-
-  return (
-    <svg
-      className={`side-walking-cat ${kind} ${className}${reaction ? ` ${reaction}` : ""}`}
-      viewBox="0 20 220 105"
-      role="button"
-      tabIndex={0}
-      aria-label={`${label}. Un toque para maullar, dos para ronronear.`}
-      onClick={reactToTap}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        triggerCatReaction("meow");
-      }}
-    >
-      <path className="side-tail" d="M64 88C40 84 24 62 30 44c2-7 11-8 13-1 4 13 13 22 25 26Z" />
-      <g className="side-back-legs" fill="none" strokeWidth="10" strokeLinecap="round">
-        <path className="side-leg leg-back-a" d="M64 96c-2 9-3 15-5 22" />
-        <path className="side-leg leg-back-b" d="M86 100c1 8 2 13 3 19" />
-      </g>
-      <path className="side-body" d="M134 55c-22-9-58-8-77 4-17 11-19 33-4 43 18 12 60 13 81 4 14-6 16-25 10-36-3-6-6-12-10-15Z" />
-      {kind === "siamese" ? <ellipse className="side-chest" cx="122" cy="94" rx="20" ry="17" /> : null}
-      {kind === "tuxedo" ? <path className="side-tuxedo-chest" d="M116 62c8 14 9 30 3 44 13-3 24-11 27-24-5-11-17-18-30-20Z" /> : null}
-      {kind === "orange" ? (
-        <g className="side-stripes" fill="none" strokeWidth="5" strokeLinecap="round">
-          <path d="M68 63c14-4 28-4 42-1" />
-          <path d="M60 78c17-5 36-5 53-1" />
-          <path d="M64 92c15 4 31 5 46 2" />
-        </g>
-      ) : null}
-      {kind === "siamese" ? (
-        <g className="side-stripes" fill="none" strokeWidth="3.5" strokeLinecap="round">
-          <path d="M70 64c13-4 26-4 39-1" />
-          <path d="M62 79c16-5 33-5 49-1" />
-        </g>
-      ) : null}
-      <g className="side-front-legs" fill="none" strokeWidth="10" strokeLinecap="round">
-        <path className="side-leg leg-front-a" d="M112 100c-1 8-2 13-3 19" />
-        <path className="side-leg leg-front-b" d="M130 97c2 9 4 15 6 21" />
-      </g>
-      <g className="side-head-group" transform="translate(99 19) scale(0.62)">
-        <path className="side-head" d="M48 71 42 29l30 19a58 58 0 0 1 39 0l29-19-6 43c5 10 7 20 5 31-4 25-25 40-50 39-25 0-45-16-48-40-2-11 1-22 7-31Z" />
-        {kind === "tuxedo" ? (
-          <>
-            <path className="side-tuxedo-face" d="M85 47c-5 13-7 27-3 40l10 13 10-13c4-13 2-27-3-40l-7 14Z" />
-            <ellipse className="side-tuxedo-muzzle" cx="92" cy="108" rx="27" ry="20" />
-          </>
-        ) : null}
-        {kind === "siamese" ? (
-          <>
-            <path className="side-mask" d="M49 65 45 36l23 15Zm83 0 4-29-23 15Z" />
-            <path className="side-mask" d="M62 67c15-17 46-17 61 0 9 11 10 32 2 45-11 18-51 18-64 0-9-13-8-34 1-45Z" />
-            <g className="side-stripes" fill="none" strokeWidth="4" strokeLinecap="round">
-              <path d="m74 55 6 13" />
-              <path d="m92 51 1 16" />
-              <path d="m110 55-6 13" />
-              <path d="m59 78 16 5" />
-              <path d="m125 78-16 5" />
-            </g>
-          </>
-        ) : null}
-        {kind === "orange" ? (
-          <g className="side-stripes" fill="none" strokeWidth="6" strokeLinecap="round">
-            <path d="m72 48 5 15" />
-            <path d="m92 43 1 17" />
-            <path d="m113 49-5 14" />
-          </g>
-        ) : null}
-        <ellipse className="side-eye" cx="74" cy="89" rx="6" ry="8" />
-        <ellipse className="side-eye" cx="109" cy="89" rx="6" ry="8" />
-        <path className="side-nose" d="m87 105 5 4 5-4-5-4Z" />
-        <path className="side-mouth" d="M92 109c-1 8-9 9-13 5m13-5c1 8 9 9 13 5" fill="none" strokeWidth="3" strokeLinecap="round" />
-        <g className="side-whiskers" fill="none" strokeWidth="3" strokeLinecap="round">
-          <path d="M73 108 40 101" />
-          <path d="M73 115 38 117" />
-          <path d="m110 108 34-7" />
-          <path d="m110 115 35 2" />
-        </g>
-      </g>
-      <text className={`cat-tap-paw ${kind}`} x="152" y="30" textAnchor="middle" aria-hidden="true">🐾</text>
-    </svg>
   );
 }
 
