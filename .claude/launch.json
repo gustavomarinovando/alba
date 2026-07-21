@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "exec", "vite", "--host", "127.0.0.1", "--port", "5188"],
+      "port": 5188
+    },
+    {
+      "name": "preview",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5189"],
+      "port": 5189
+    }
+  ]
+}
